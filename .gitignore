@@ -1,0 +1,24 @@
+# Sistema
+.DS_Store
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Frontend
+node_modules/
+dist/
+build/
+
+# Backend / Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# IDE / editor
+.idea/
+.vscode/
