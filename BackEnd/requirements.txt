@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+
+supabase
+python-dotenv
+pydantic-settings
+
+celery
+redis
+
+httpx
+python-multipart
+email-validator
+
+pytest
+pytest-asyncio
