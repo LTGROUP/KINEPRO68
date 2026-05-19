@@ -107,3 +107,22 @@ class ModificarCuposResponse(BaseModel):
     fecha_hasta: date
     turnos_reducidos: int
     pacientes_a_contactar: List[UUID]
+
+# ── Response: Turno disponible para paciente ──────────────────────
+class TurnoDisponibleResponse(BaseModel):
+    id: UUID
+    hora_inicio: time
+    hora_fin: time
+    area_tratamiento: Optional[AreaTratamiento]
+    estado: EstadoTurno
+
+    model_config = {"from_attributes": True}
+
+
+# ── Response: Lista de turnos disponibles ────────────────────────
+class TurnosDisponiblesResponse(BaseModel):
+    fecha: date
+    turnos: List[TurnoDisponibleResponse]
+    total: int
+
+    model_config = {"from_attributes": True}
