@@ -4,7 +4,7 @@ Backend del sistema KinePro.
 
 Stack previsto:
 
-- Python
+- Python 3.12.9
 - FastAPI
 - Supabase
 - Celery
@@ -32,7 +32,7 @@ Responsabilidades previstas:
 Crear y activar entorno virtual:
 
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 ```
 
