@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 
 from app.db.session import get_db
-from app.schemas.turno import (
+from BackEnd.app.schemas.shifts.turno import (
     TurnosDisponiblesResponse,
     TurnoDisponibleResponse,
 )
