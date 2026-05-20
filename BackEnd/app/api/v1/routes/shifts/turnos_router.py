@@ -4,11 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 
 from app.db.session import get_db
-from BackEnd.app.schemas.shifts.turno import (
+from app.schemas.shifts.turno import (
     TurnosDisponiblesResponse,
     TurnoDisponibleResponse,
 )
-from app.services.turnos_service import consultar_turnos_disponibles
+from app.services.shifts.turnos_service import consultar_turnos_disponibles
 
 router = APIRouter(prefix="/turnos", tags=["Turnos"])
 
