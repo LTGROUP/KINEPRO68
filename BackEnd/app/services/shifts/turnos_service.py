@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from app.repositories.turnos import obtener_turnos_disponibles_por_fecha
+from app.repositories.shifts.turnos import obtener_turnos_disponibles_por_fecha
 
 async def consultar_turnos_disponibles(db: AsyncSession, fecha_buscada: date):
 
