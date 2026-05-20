@@ -1,8 +1,8 @@
 # app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import grilla_router as grilla
-from app.api.v1 import turnos_router as turnos
+from app.api.v1.routes.shifts import grilla_router as grilla
+from app.api.v1.routes.shifts import turnos_router as turnos
 
 app = FastAPI(
     title="KinePro API",
