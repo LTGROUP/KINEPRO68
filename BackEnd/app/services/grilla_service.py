@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, delete
 from app.models.turno import Turno, ConfiguracionGrilla, DiasCerrados, EstadoTurno
-from app.schemas.turno import (
+from BackEnd.app.schemas.shifts.turno import (
     GenerarGrillaRequest,
     FranjaHoraria,
     GrillaGeneradaResponse,
