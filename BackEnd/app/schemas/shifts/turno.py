@@ -126,3 +126,51 @@ class TurnosDisponiblesResponse(BaseModel):
     total: int
 
     model_config = {"from_attributes": True}
+
+# ── Request: Solicitar turno (HU26) ──────────────────────────────
+class SolicitarTurnoRequest(BaseModel):
+    turno_id: UUID
+    area_tratamiento: AreaTratamiento
+
+
+# ── Response: Turno solicitado ────────────────────────────────────
+class TurnoSolicitadoResponse(BaseModel):
+    mensaje: str
+    turno_id: UUID
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    area_tratamiento: AreaTratamiento
+
+    model_config = {"from_attributes": True}
+
+class MiTurnoResponse(BaseModel):
+    id:UUID
+    fecha: date
+    hora_incio: time
+    hora_fin: time
+    area_tratamiento:Optional[AreaTratamiento]
+    estado: EstadoTurno
+
+    model_config = {"from_attribute": True}
+
+class MisTurnosResponse(BaseModel):
+    turnos: List[MiTurnoResponse]
+    total: int
+    mensaje: Optional[str] = None
+
+
+class PacienteEnEsperaResponse(BaseModel):
+    id: UUID
+    paciente_id: UUID
+    fecha_inscripcion: datetime
+    posicion: int  # orden de prioridad
+
+    model_config = {"from_attributes": True}
+
+
+class ListaEsperaResponse(BaseModel):
+    turno_id: UUID
+    pacientes: List[PacienteEnEsperaResponse]
+    total: int
+    mensaje: Optional[str] = None
