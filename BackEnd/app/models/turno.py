@@ -56,13 +56,14 @@ class Turno(Base):
     fecha                = Column(Date, nullable=False)
     hora_inicio          = Column(Time, nullable=False)
     hora_fin             = Column(Time, nullable=False)       # hora_inicio + 40 min
-    area_tratamiento     = Column(SAEnum(AreaTratamiento), nullable=True)   # se asigna al reservar
-    estado               = Column(SAEnum(EstadoTurno), default=EstadoTurno.DISPONIBLE, nullable=False)
+    area_tratamiento = Column(SAEnum(AreaTratamiento, name="area_tratamiento"), nullable=True)
+    estado           = Column(SAEnum(EstadoTurno, name="estado_turno"), nullable=False, default=EstadoTurno.DISPONIBLE)
     paciente_id          = Column(UUID(as_uuid=True), nullable=True)        # null si disponible
     profesional_id       = Column(UUID(as_uuid=True), nullable=True)        # se asigna al reservar
     creado_en            = Column(DateTime, default=datetime.utcnow)
     actualizado_en       = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     nota_bloqueo         = Column(Text, nullable=True)        # motivo si está bloqueado
+    lista_espera = relationship("ListaEspera", back_populates="turno")
 
     configuracion = relationship("ConfiguracionGrilla", back_populates="turnos")
 
@@ -79,3 +80,18 @@ class DiasCerrados(Base):
     motivo      = Column(String, nullable=True)              # "Feriado nacional", "Mantenimiento", etc.
     creado_por  = Column(UUID(as_uuid=True), nullable=False)
     creado_en   = Column(DateTime, default=datetime.utcnow)
+
+class ListaEspera(Base):
+    """
+    Pacientes que quedaron en lista de espera para un turno ocupado.
+    Se ordenan por fecha de inscripción (prioridad FIFO).
+    """
+    __tablename__ = "lista_espera"
+
+    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    turno_id    = Column(UUID(as_uuid=True), ForeignKey("turnos.id"), nullable=False)
+    paciente_id = Column(UUID(as_uuid=True), nullable=False)
+    fecha_inscripcion = Column(DateTime, default=datetime.utcnow, nullable=False)
+    activo      = Column(Boolean, default=True, nullable=False)  # False si ya fue notificado
+
+    turno = relationship("Turno", back_populates="lista_espera")

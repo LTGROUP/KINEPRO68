@@ -3,14 +3,18 @@ from datetime import date, time, datetime, timedelta
 from typing import List, Tuple
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, delete
-from app.models.turno import Turno, ConfiguracionGrilla, DiasCerrados, EstadoTurno
+from app.models.turno import Turno, ConfiguracionGrilla, EstadoTurno , DiasCerrados
 from app.schemas.shifts.turno import (
     GenerarGrillaRequest,
     FranjaHoraria,
     GrillaGeneradaResponse,
     BloquearDiaResponse,
     ModificarCuposResponse,
+)
+from app.repositories.shifts.grilla import (
+    obtener_dias_cerrados_del_mes,
+    obtener_turnos_del_dia,
+    obtener_turnos_del_rango,
 )
 import calendar
 
@@ -69,15 +73,8 @@ async def generar_grilla(
 
     dias_cerrados_set = set(request.dias_cerrados or [])
 
-    result = await db.execute(
-        select(DiasCerrados).where(
-            and_(
-                DiasCerrados.fecha >= primer_dia_mes,
-                DiasCerrados.fecha <= ultimo_dia_mes,
-            )
-        )
-    )
-    dias_cerrados_bd = result.scalars().all()
+    
+    dias_cerrados_bd =  await obtener_dias_cerrados_del_mes(db, primer_dia_mes, ultimo_dia_mes)
     for dc in dias_cerrados_bd:
         dias_cerrados_set.add(dc.fecha)
 
@@ -138,15 +135,8 @@ async def bloquear_dia(
     secretaria_id: UUID,
 ) -> BloquearDiaResponse:
 
-    result = await db.execute(
-        select(Turno).where(
-            and_(
-                Turno.fecha == fecha,
-                Turno.estado.in_([EstadoTurno.DISPONIBLE, EstadoTurno.RESERVADO])
-            )
-        )
-    )
-    turnos = result.scalars().all()
+    
+    turnos = await obtener_turnos_del_dia(db, fecha)
 
     pacientes_a_contactar = []
     turnos_eliminados = 0
@@ -189,16 +179,8 @@ async def reducir_cupos_rango(
     secretaria_id: UUID,
 ) -> ModificarCuposResponse:
 
-    result = await db.execute(
-        select(Turno).where(
-            and_(
-                Turno.fecha >= fecha_desde,
-                Turno.fecha <= fecha_hasta,
-                Turno.estado.in_([EstadoTurno.DISPONIBLE, EstadoTurno.RESERVADO])
-            )
-        ).order_by(Turno.fecha, Turno.hora_inicio)
-    )
-    turnos = result.scalars().all()
+    
+    turnos = await obtener_turnos_del_rango(db, fecha_desde, fecha_hasta)
 
     from collections import defaultdict
     slots_agrupados = defaultdict(list)

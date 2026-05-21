@@ -12,7 +12,7 @@ from app.schemas.shifts.turno import (
     ModificarCuposRangoRequest,
     ModificarCuposResponse,
 )
-from app.services.grilla_service import (
+from app.services.shifts.grilla_service import (
     generar_grilla,
     bloquear_dia,
     reducir_cupos_rango,
