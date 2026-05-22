@@ -38,3 +38,12 @@ FastAPI sera la capa principal de comunicacion entre frontend y backend. Tambien
 - `Docs/api.md`: documentacion futura de endpoints.
 - `Docs/database.md`: documentacion futura de Supabase.
 - `Docs/frontend.md`: documentacion futura del frontend.
+
+correr backend
+cd /Users/juanuceda/Desktop/KinePro/BackEnd
+source venv/bin/activate
+venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8000;
+
+correr frontend
+cd /Users/juanuceda/Desktop/KinePro/FrontEnd
+npm run dev
