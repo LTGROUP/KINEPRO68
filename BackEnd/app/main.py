@@ -1,8 +1,15 @@
-# app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Tus rutas
 from app.api.v1.routes.shifts import grilla_router as grilla
 from app.api.v1.routes.shifts import turnos_router as turnos
+
+# Las rutas de tu amigo
+from app.api.v1.routes.audit.audit_routes import router as audit_router
+from app.api.v1.routes.auth.auth_routes import router as auth_router
+from app.api.v1.routes.patients.patient_routes import router as patients_router
+from app.api.v1.routes.staff_management.staff_routes import router as staff_router
 
 app = FastAPI(
     title="KinePro API",
@@ -12,16 +19,29 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # URL de Vite en desarrollo
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routers
-app.include_router(grilla.router, prefix="/api/v1")
-app.include_router(turnos.router, prefix="/api/v1")
-
 @app.get("/")
 async def root():
     return {"status": "KinePro API corriendo"}
+
+@app.get("/health")
+def health_check() -> dict[str, str]:
+    return {"status": "ok"}
+
+# Tus routers
+app.include_router(grilla.router, prefix="/api/v1")
+app.include_router(turnos.router, prefix="/api/v1")
+
+# Los routers de tu amigo
+app.include_router(audit_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(patients_router, prefix="/api/v1")
+app.include_router(staff_router, prefix="/api/v1")
