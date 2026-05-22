@@ -46,32 +46,28 @@ input {
   display: inline-flex;
   align-items: center;
   align-self: start;
-  gap: 12px;
+  justify-self: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.brand-logo-image {
+  display: block;
+  width: clamp(132px, 13vw, 190px);
+  height: auto;
+  object-fit: contain;
+  filter: none;
 }
 
 .brand-main {
   display: grid;
   align-self: center;
   justify-items: start;
-}
-
-.brand-mark {
-  display: grid;
-  width: 56px;
-  height: 56px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.14);
-  font-weight: 800;
-}
-
-.brand-eyebrow {
-  margin: 0;
-  color: #aee7d6;
-  font-size: 0.86rem;
-  font-weight: 800;
-  text-transform: uppercase;
 }
 
 .auth-brand h1 {
@@ -546,6 +542,44 @@ input {
   background: #dcf8eb;
 }
 
+.auth-success-overlay {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(3, 26, 22, 0.34);
+  backdrop-filter: blur(6px);
+}
+
+.auth-success-card {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 14px;
+  border-radius: 16px;
+  padding: 22px;
+  background: #f8fbfa;
+  box-shadow: 0 24px 80px rgba(7, 37, 31, 0.24);
+}
+
+.auth-success-card h3 {
+  margin: 0;
+  color: #12241f;
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.auth-success-card p {
+  margin: 0;
+  color: #4e625c;
+  line-height: 1.5;
+}
+
+.auth-success-card .auth-submit {
+  width: 100%;
+}
+
 @media (max-width: 860px) {
   .auth-shell {
     display: block;
@@ -561,24 +595,20 @@ input {
     text-align: center;
   }
 
+  .brand-logo-image {
+    width: min(180px, 46vw);
+  }
+
   .brand-logo {
     display: grid;
     align-self: auto;
     justify-items: center;
-    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 16px;
   }
 
   .brand-main {
     justify-items: center;
-  }
-
-  .brand-mark {
-    width: 46px;
-    height: 46px;
-  }
-
-  .brand-eyebrow {
-    margin-bottom: 10px;
   }
 
   .auth-brand h1 {
@@ -674,6 +704,15 @@ input {
 
   .auth-brand {
     padding: 22px 16px 50px;
+  }
+
+  .brand-logo {
+    padding: 10px 12px;
+    border-radius: 14px;
+  }
+
+  .brand-logo-image {
+    width: min(168px, 50vw);
   }
 
   .auth-brand h1 {

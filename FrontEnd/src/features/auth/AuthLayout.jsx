@@ -1,24 +1,67 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 
 import LoginPage from './LoginPage'
 import RegisterPage from './RegisterPage'
 
-function AuthLayout() {
+function AuthLayout({ onLoginSuccess }) {
   const [currentView, setCurrentView] = useState('welcome')
   // En desktop siempre se ve un formulario. "welcome" se usa solo para mobile,
   // donde primero mostramos los botones y después abrimos el modal.
-  const formView = currentView === 'register' ? 'register' : 'login'
+  let formView = 'login'
+
+  if (currentView === 'register') {
+    formView = 'register'
+  }
+
   const isLogin = formView === 'login'
   const showMobileForm = currentView !== 'welcome'
+
+  function openLogin() {
+    setCurrentView('login')
+  }
+
+  function openRegister() {
+    setCurrentView('register')
+  }
+
+  function closeMobileForm() {
+    setCurrentView('welcome')
+  }
+
+  function getPanelOpenValue() {
+    if (showMobileForm) {
+      return 'true'
+    }
+
+    return 'false'
+  }
+
+  function getLoginTabClass() {
+    if (isLogin) {
+      return 'active'
+    }
+
+    return ''
+  }
+
+  function getRegisterTabClass() {
+    if (!isLogin) {
+      return 'active'
+    }
+
+    return ''
+  }
 
   return (
     <main className="auth-shell">
       <section className="auth-brand" aria-labelledby="brand-title">
         <div className="brand-logo">
-          <div className="brand-mark" aria-hidden="true">
-            KP
-          </div>
-          <p className="brand-eyebrow">KinePro</p>
+          <img
+            className="brand-logo-image"
+            src="/KinePro.jpg"
+            alt="KinePro"
+          />
         </div>
 
         <div className="brand-main">
@@ -38,14 +81,14 @@ function AuthLayout() {
             <button
               type="button"
               className="auth-choice-card"
-              onClick={() => setCurrentView('login')}
+              onClick={openLogin}
             >
               <span>Iniciar sesión</span>
             </button>
             <button
               type="button"
               className="auth-choice-card"
-              onClick={() => setCurrentView('register')}
+              onClick={openRegister}
             >
               <span>Registrarse</span>
             </button>
@@ -57,21 +100,21 @@ function AuthLayout() {
 
       <section
         className="auth-panel"
-        data-open={showMobileForm ? 'true' : 'false'}
+        data-open={getPanelOpenValue()}
         aria-label="Acceso a KinePro"
       >
         <div className="auth-mode-tabs" aria-label="Elegir modo de acceso">
           <button
             type="button"
-            className={isLogin ? 'active' : ''}
-            onClick={() => setCurrentView('login')}
+            className={getLoginTabClass()}
+            onClick={openLogin}
           >
             Iniciar sesión
           </button>
           <button
             type="button"
-            className={!isLogin ? 'active' : ''}
-            onClick={() => setCurrentView('register')}
+            className={getRegisterTabClass()}
+            onClick={openRegister}
           >
             Registrarse
           </button>
@@ -80,17 +123,20 @@ function AuthLayout() {
         <button
           type="button"
           className="auth-close"
-          onClick={() => setCurrentView('welcome')}
+          onClick={closeMobileForm}
           aria-label="Cerrar formulario"
         >
-          x
+          <X size={18} strokeWidth={3} aria-hidden="true" />
         </button>
 
         <div className="auth-view" key={formView}>
           {isLogin ? (
-            <LoginPage onSwitchToRegister={() => setCurrentView('register')} />
+            <LoginPage
+              onLoginSuccess={onLoginSuccess}
+              onSwitchToRegister={openRegister}
+            />
           ) : (
-            <RegisterPage onSwitchToLogin={() => setCurrentView('login')} />
+            <RegisterPage onSwitchToLogin={openLogin} />
           )}
         </div>
       </section>

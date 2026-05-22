@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 
 const initialValues = {
   dni: '',
@@ -11,10 +12,17 @@ function LoginForm({ onSubmit, loading = false }) {
 
   function handleChange(event) {
     const { name, value } = event.target
-    setValues((currentValues) => ({
-      ...currentValues,
-      [name]: value,
-    }))
+
+    setValues((currentValues) => {
+      const nextValues = {
+        dni: currentValues.dni,
+        password: currentValues.password,
+      }
+
+      nextValues[name] = value
+
+      return nextValues
+    })
   }
 
   function handleSubmit(event) {
@@ -27,8 +35,36 @@ function LoginForm({ onSubmit, loading = false }) {
     onSubmit(values)
   }
 
+  function handleTogglePassword() {
+    setShowPassword((currentValue) => !currentValue)
+  }
+
+  function getPasswordInputType() {
+    if (showPassword) {
+      return 'text'
+    }
+
+    return 'password'
+  }
+
+  function getPasswordButtonLabel() {
+    if (showPassword) {
+      return 'Ocultar contraseña'
+    }
+
+    return 'Mostrar contraseña'
+  }
+
+  function getSubmitText() {
+    if (loading) {
+      return 'Ingresando...'
+    }
+
+    return 'Iniciar sesión'
+  }
+
   return (
-    <form className="auth-form" onSubmit={handleSubmit} aria-busy={loading}>
+    <form className="auth-form" onSubmit={handleSubmit} aria-busy={loading} autoComplete="on">
       <fieldset className="auth-form-fields" disabled={loading}>
         <label className="auth-field">
           <span>DNI</span>
@@ -38,7 +74,9 @@ function LoginForm({ onSubmit, loading = false }) {
             value={values.dni}
             onChange={handleChange}
             autoComplete="username"
-            placeholder="44751138"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            placeholder="12345678"
             required
           />
         </label>
@@ -48,7 +86,7 @@ function LoginForm({ onSubmit, loading = false }) {
           <div className="password-input-wrap">
             <input
               name="password"
-              type={showPassword ? 'text' : 'password'}
+              type={getPasswordInputType()}
               value={values.password}
               onChange={handleChange}
               autoComplete="current-password"
@@ -58,21 +96,13 @@ function LoginForm({ onSubmit, loading = false }) {
             <button
               type="button"
               className="password-toggle"
-              onClick={() => setShowPassword((currentValue) => !currentValue)}
-              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              onClick={handleTogglePassword}
+              aria-label={getPasswordButtonLabel()}
             >
               {showPassword ? (
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M3 3l18 18" />
-                  <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-                  <path d="M9.1 5.4A9.4 9.4 0 0 1 12 5c5 0 8.4 4.1 9.5 5.7a2.2 2.2 0 0 1 0 2.6 16.7 16.7 0 0 1-2.1 2.5" />
-                  <path d="M6.1 6.8a16.8 16.8 0 0 0-3.6 3.9 2.2 2.2 0 0 0 0 2.6C3.6 14.9 7 19 12 19a9.7 9.7 0 0 0 4.1-.9" />
-                </svg>
+                <EyeOff size={20} strokeWidth={2.4} aria-hidden="true" />
               ) : (
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M2.5 10.7a2.2 2.2 0 0 0 0 2.6C3.6 14.9 7 19 12 19s8.4-4.1 9.5-5.7a2.2 2.2 0 0 0 0-2.6C20.4 9.1 17 5 12 5s-8.4 4.1-9.5 5.7Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
+                <Eye size={20} strokeWidth={2.4} aria-hidden="true" />
               )}
             </button>
           </div>
@@ -81,7 +111,7 @@ function LoginForm({ onSubmit, loading = false }) {
 
       <button className="auth-submit" type="submit" disabled={loading}>
         {loading && <span className="button-spinner" aria-hidden="true" />}
-        {loading ? 'Ingresando...' : 'Iniciar sesión'}
+        {getSubmitText()}
       </button>
 
       <button className="auth-link" type="button" disabled>

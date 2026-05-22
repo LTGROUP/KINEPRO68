@@ -14,7 +14,6 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     obra_social: str
     fecha_nacimiento: date
-    password: str
 
     @field_validator("nombre")
     @classmethod
@@ -59,9 +58,7 @@ class RegisterRequest(BaseModel):
     @classmethod
     def validate_obra_social(cls, value: str) -> str:
         value = value.strip()
-        if not value:
-            raise ValueError("La obra social es obligatoria")
-        return value
+        return value or "Sin obra social"
 
     @field_validator("fecha_nacimiento")
     @classmethod
@@ -82,18 +79,6 @@ class RegisterRequest(BaseModel):
             raise ValueError("La persona debe tener al menos 5 anos")
 
         return value
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, value: str) -> str:
-        if len(value) < 8:
-            raise ValueError("La contraseña debe tener al menos 8 caracteres")
-        if not any(character.isupper() for character in value):
-            raise ValueError("La contraseña debe tener al menos una mayuscula")
-        if not any(character.isdigit() for character in value):
-            raise ValueError("La contraseña debe tener al menos un numero")
-        return value
-
 
 class RegisterResponse(BaseModel):
     message: str

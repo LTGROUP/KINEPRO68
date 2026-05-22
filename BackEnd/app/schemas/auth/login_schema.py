@@ -26,6 +26,7 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     message: str
     user_id: str
+    access_token: str
     nombre: str
     apellido: str
     dni: str

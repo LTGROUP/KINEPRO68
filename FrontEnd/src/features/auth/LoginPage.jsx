@@ -1,27 +1,37 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { loginUser } from '../../services/authService'
 import LoginForm from './LoginForm'
 
-function LoginPage({ onSwitchToRegister }) {
+function LoginPage({ onLoginSuccess, onSwitchToRegister }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [user, setUser] = useState(null)
 
   async function handleLogin(payload) {
     setLoading(true)
     setError('')
-    setUser(null)
 
     try {
       const response = await loginUser(payload)
-      setUser(response)
+      onLoginSuccess?.(response)
     } catch (requestError) {
       setError(requestError.message)
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!error) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setError('')
+    }, 5000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [error])
 
   return (
     <section className="auth-content">
@@ -37,12 +47,6 @@ function LoginPage({ onSwitchToRegister }) {
           {error}
         </p>
       )}
-      {user && (
-        <p className="auth-message success">
-          Bienvenido, {user.nombre}. Ya podés continuar.
-        </p>
-      )}
-
       <p className="auth-switch-copy">
         ¿Aún no estás registrado?{' '}
         <button type="button" onClick={onSwitchToRegister}>

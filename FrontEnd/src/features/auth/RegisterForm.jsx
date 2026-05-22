@@ -12,7 +12,6 @@ const initialValues = {
   email: '',
   obra_social: '',
   fecha_nacimiento: '',
-  password: '',
 }
 
 function getTodayInputValue() {
@@ -30,10 +29,50 @@ function RegisterForm({ onSubmit, loading = false }) {
 
   function handleChange(event) {
     const { name, value } = event.target
-    setValues((currentValues) => ({
-      ...currentValues,
-      [name]: value,
-    }))
+
+    setValues((currentValues) => {
+      const nextValues = {
+        nombre: currentValues.nombre,
+        apellido: currentValues.apellido,
+        dni: currentValues.dni,
+        telefono: currentValues.telefono,
+        email: currentValues.email,
+        obra_social: currentValues.obra_social,
+        fecha_nacimiento: currentValues.fecha_nacimiento,
+      }
+
+      nextValues[name] = value
+
+      return nextValues
+    })
+  }
+
+  function handlePhoneChange(value) {
+    let phoneValue = ''
+
+    if (value) {
+      phoneValue = value
+    }
+
+    setValues((currentValues) => {
+      return {
+        nombre: currentValues.nombre,
+        apellido: currentValues.apellido,
+        dni: currentValues.dni,
+        telefono: phoneValue,
+        email: currentValues.email,
+        obra_social: currentValues.obra_social,
+        fecha_nacimiento: currentValues.fecha_nacimiento,
+      }
+    })
+  }
+
+  function getSubmitText() {
+    if (loading) {
+      return 'Creando cuenta...'
+    }
+
+    return 'Registrarse'
   }
 
   function handleSubmit(event) {
@@ -47,7 +86,12 @@ function RegisterForm({ onSubmit, loading = false }) {
   }
 
   return (
-    <form className="auth-form register-form" onSubmit={handleSubmit} aria-busy={loading}>
+    <form
+      className="auth-form register-form"
+      onSubmit={handleSubmit}
+      aria-busy={loading}
+      autoComplete="on"
+    >
       <fieldset className="auth-form-fields" disabled={loading}>
         <label className="auth-field">
           <span>Nombre</span>
@@ -56,7 +100,8 @@ function RegisterForm({ onSubmit, loading = false }) {
             type="text"
             value={values.nombre}
             onChange={handleChange}
-            placeholder="Juan"
+            placeholder="Nombre"
+            autoComplete="given-name"
             required
           />
         </label>
@@ -68,7 +113,8 @@ function RegisterForm({ onSubmit, loading = false }) {
             type="text"
             value={values.apellido}
             onChange={handleChange}
-            placeholder="Uceda"
+            placeholder="Apellido"
+            autoComplete="family-name"
             required
           />
         </label>
@@ -80,7 +126,10 @@ function RegisterForm({ onSubmit, loading = false }) {
             type="text"
             value={values.dni}
             onChange={handleChange}
-            placeholder="44751138"
+            placeholder="12345678"
+            autoComplete="off"
+            inputMode="numeric"
+            pattern="[0-9]*"
             required
           />
         </label>
@@ -94,12 +143,8 @@ function RegisterForm({ onSubmit, loading = false }) {
             international={false}
             defaultCountry="AR"
             value={values.telefono}
-            onChange={(value) =>
-              setValues((currentValues) => ({
-                ...currentValues,
-                telefono: value ?? '',
-              }))
-            }
+            autoComplete="tel"
+            onChange={handlePhoneChange}
             disabled={loading}
             required
           />
@@ -112,7 +157,9 @@ function RegisterForm({ onSubmit, loading = false }) {
             type="email"
             value={values.email}
             onChange={handleChange}
-            placeholder="nombre@email.com"
+            placeholder="usuario@email.com"
+            autoComplete="email"
+            inputMode="email"
             required
           />
         </label>
@@ -124,8 +171,8 @@ function RegisterForm({ onSubmit, loading = false }) {
             type="text"
             value={values.obra_social}
             onChange={handleChange}
-            placeholder="IOMA"
-            required
+            placeholder="Sin obra social"
+            autoComplete="organization"
           />
         </label>
 
@@ -137,28 +184,16 @@ function RegisterForm({ onSubmit, loading = false }) {
             value={values.fecha_nacimiento}
             onChange={handleChange}
             max={todayInputValue}
+            autoComplete="bday"
             required
           />
         </label>
 
-        <label className="auth-field full">
-          <span>Contraseña</span>
-          <input
-            name="password"
-            type="password"
-            value={values.password}
-            onChange={handleChange}
-            autoComplete="new-password"
-            placeholder="Mínimo 8 caracteres"
-            required
-          />
-          <small>Mínimo 8 caracteres, una mayúscula y un número.</small>
-        </label>
       </fieldset>
 
       <button className="auth-submit full" type="submit" disabled={loading}>
         {loading && <span className="button-spinner" aria-hidden="true" />}
-        {loading ? 'Creando cuenta...' : 'Registrarse'}
+        {getSubmitText()}
       </button>
     </form>
   )

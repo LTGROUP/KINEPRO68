@@ -1,6 +1,12 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+let apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 
-function getErrorMessage(detail) {
+if (!apiBaseUrl) {
+  apiBaseUrl = 'http://127.0.0.1:8000'
+}
+
+export const API_BASE_URL = apiBaseUrl
+
+export function getErrorMessage(detail) {
   // FastAPI puede devolver un string o una lista de errores de Pydantic.
   // En el front mostramos solo el primer error para no saturar al usuario.
   if (typeof detail === 'string') {
@@ -19,20 +25,75 @@ function getErrorMessage(detail) {
   return 'Ocurrió un error inesperado'
 }
 
-async function request(path, options) {
+export async function request(path, options) {
   // Centraliza los fetch para que login y registro manejen respuestas/errores igual.
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  let requestOptions = {}
+
+  if (options) {
+    requestOptions = options
+  }
+
+  let customHeaders = {}
+
+  if (requestOptions.headers) {
+    customHeaders = requestOptions.headers
+  }
+
+  let normalizedBody = requestOptions.body
+
+  if (requestOptions.body && typeof requestOptions.body === 'object') {
+    if (!(requestOptions.body instanceof FormData)) {
+      normalizedBody = JSON.stringify(requestOptions.body)
+    }
+  }
+
+  const fetchOptions = {
+    method: requestOptions.method,
     headers: {
       'Content-Type': 'application/json',
-      ...options?.headers,
     },
-    ...options,
-  })
+    body: normalizedBody,
+  }
 
-  const data = await response.json()
+  for (const headerName in customHeaders) {
+    fetchOptions.headers[headerName] = customHeaders[headerName]
+  }
+
+  let response
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, fetchOptions)
+  } catch {
+    // Evita mostrar mensajes tecnicos como "Failed to fetch" cuando no hay internet
+    // o cuando el backend no esta respondiendo.
+    if (navigator.onLine === false) {
+      throw new Error('No hay conexión a internet')
+    }
+
+    throw new Error('Error de conexión con el servidor')
+  }
+
+  const rawResponse = await response.text()
+  let data
+
+  try {
+    if (rawResponse) {
+      data = JSON.parse(rawResponse)
+    } else {
+      data = null
+    }
+  } catch {
+    throw new Error('Ocurrió un error inesperado')
+  }
 
   if (!response.ok) {
-    throw new Error(getErrorMessage(data.detail))
+    let detail
+
+    if (data) {
+      detail = data.detail
+    }
+
+    throw new Error(getErrorMessage(detail))
   }
 
   return data
@@ -41,13 +102,13 @@ async function request(path, options) {
 export function registerUser(payload) {
   return request('/api/v1/auth/register', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: payload,
   })
 }
 
 export function loginUser(payload) {
   return request('/api/v1/auth/login', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: payload,
   })
 }

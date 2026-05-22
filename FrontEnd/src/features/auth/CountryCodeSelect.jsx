@@ -30,11 +30,32 @@ function getFlagEmoji(countryCode) {
     return ''
   }
 
-  return countryCode
-    .toUpperCase()
-    .replace(/./g, (character) =>
-      String.fromCodePoint(127397 + character.charCodeAt()),
-    )
+  let flag = ''
+  const upperCode = countryCode.toUpperCase()
+
+  for (const character of upperCode) {
+    flag += String.fromCodePoint(127397 + character.charCodeAt())
+  }
+
+  return flag
+}
+
+function buildCountryList(allCountries) {
+  const countries = []
+
+  for (const country of LATAM_COUNTRIES) {
+    if (allCountries.includes(country)) {
+      countries.push(country)
+    }
+  }
+
+  for (const country of allCountries) {
+    if (!LATAM_COUNTRIES.includes(country)) {
+      countries.push(country)
+    }
+  }
+
+  return countries
 }
 
 function CountryCodeSelect({ value, onChange, disabled }) {
@@ -42,15 +63,38 @@ function CountryCodeSelect({ value, onChange, disabled }) {
   const containerRef = useRef(null)
   const allCountries = getCountries()
   // Dejamos Latinoamérica primero para que los países más probables aparezcan arriba.
-  const countries = [
-    ...LATAM_COUNTRIES.filter((country) => allCountries.includes(country)),
-    ...allCountries.filter((country) => !LATAM_COUNTRIES.includes(country)),
-  ]
+  const countries = buildCountryList(allCountries)
   const selectedCountry = value || 'AR'
 
   function handleSelect(country) {
     onChange(country)
     setOpen(false)
+  }
+
+  function handleToggleOpen() {
+    setOpen((currentOpen) => !currentOpen)
+  }
+
+  function renderCountryOptions() {
+    const options = []
+
+    for (const country of countries) {
+      options.push(
+        <button
+          type="button"
+          className="country-code-option"
+          key={country}
+          onClick={() => handleSelect(country)}
+          role="option"
+          aria-selected={country === selectedCountry}
+        >
+          <span>{getFlagEmoji(country)}</span>
+          <span>+{getCountryCallingCode(country)}</span>
+        </button>,
+      )
+    }
+
+    return options
   }
 
   useEffect(() => {
@@ -85,7 +129,7 @@ function CountryCodeSelect({ value, onChange, disabled }) {
       <button
         type="button"
         className="country-code-trigger"
-        onClick={() => setOpen((currentOpen) => !currentOpen)}
+        onClick={handleToggleOpen}
         disabled={disabled}
         aria-expanded={open}
       >
@@ -95,19 +139,7 @@ function CountryCodeSelect({ value, onChange, disabled }) {
 
       {open && (
         <div className="country-code-menu" role="listbox">
-          {countries.map((country) => (
-            <button
-              type="button"
-              className="country-code-option"
-              key={country}
-              onClick={() => handleSelect(country)}
-              role="option"
-              aria-selected={country === selectedCountry}
-            >
-              <span>{getFlagEmoji(country)}</span>
-              <span>+{getCountryCallingCode(country)}</span>
-            </button>
-          ))}
+          {renderCountryOptions()}
         </div>
       )}
     </div>
