@@ -7,6 +7,10 @@ from app.config import settings
 engine = create_async_engine(
     settings.database_url,
     echo=True,  # Cambiá a False en producción
+    connect_args={
+        "prepared_statement_cache_size": 0,  # caché de SQLAlchemy
+        "statement_cache_size": 0,            # caché nativo de asyncpg
+    },
 )
 
 AsyncSessionLocal = sessionmaker(

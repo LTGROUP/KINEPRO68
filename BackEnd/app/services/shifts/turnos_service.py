@@ -2,11 +2,12 @@ from datetime import date, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.shifts.turnos import obtener_turnos_disponibles_por_fecha
 from uuid import UUID
-from app.models.turno import EstadoTurno, AreaTratamiento
+from app.models.turno import EstadoTurno
 from app.schemas.shifts.turno import SolicitarTurnoRequest, TurnoSolicitadoResponse, MisTurnosResponse, MiTurnoResponse,ListaEsperaResponse,PacienteEnEsperaResponse
-from app.repositories.shifts.grilla import (
+from app.repositories.shifts.turnos import (
     obtener_turno_existente_del_paciente,
-    obtener_turnos_del_paciente,
+    obtener_turno_por_id_con_lock,  
+    obtener_turnos_del_paciente,    
     obtener_lista_espera_por_turno
 )
 
@@ -43,42 +44,41 @@ async def solicitar_turno(
 ) -> TurnoSolicitadoResponse: 
     
     async with db.begin():
-        #Buscar el turno con lock(aca esta la concurrencia!!!)
-        turno = await obtener_turno_existente_del_paciente(db,request.turno_id)
+        turno = await obtener_turno_por_id_con_lock(db, request.turno_id)
 
-        if not turno: 
+        if not turno:
                 raise ValueError("El turno no existe")
-        
+
         #Escenario 3 --> validacion de 48hs
         fechayhora_ahora = datetime.utcnow()
         fechayhora_turno = datetime.combine(turno.fecha, turno.hora_inicio)
         if fechayhora_turno - fechayhora_ahora < timedelta(hours=48):
             raise ValueError("No es posible solicitar un turno con menos de 48hs de anticipación")
-        
+
         #Escenario 2 --> Validacion turno duplicado
         turno_existe = await obtener_turno_existente_del_paciente(
-             db, paciente_id, turno.fecha, turno.hora_incio
+             db, paciente_id, turno.fecha, turno.hora_inicio
         )
 
         if turno_existe:
              raise ValueError("Ya posee un turno registrado para ese horario")
-        
-        #Validacion de que siga disponible 
-        if turno.estado != EstadoTurno.DISPONIBLE: 
+
+        #Validacion de que siga disponible
+        if turno.estado != EstadoTurno.DISPONIBLE:
              raise ValueError("El turno ya no esta disponible")
-        
+
         #Escenario 1 --> reservar el turno
         turno.estado = EstadoTurno.RESERVADO
         turno.paciente_id = paciente_id
         turno.area_tratamiento = request.area_tratamiento
     mes_nombre= turno.fecha.strftime("%d/%m/%Y")
     hora_str = turno.hora_inicio.strftime("%H:%M")
-    
+
     return TurnoSolicitadoResponse(
          mensaje=f"Turno solicitado con exito para el {mes_nombre} a las {hora_str} hs",
          turno_id=turno.id,
          fecha=turno.fecha,
-         hora_inicio=turno.hora_incio,
+         hora_inicio=turno.hora_inicio,  
          hora_fin=turno.hora_fin,
          area_tratamiento=turno.area_tratamiento,
 
@@ -88,7 +88,8 @@ async def ver_mis_turnos(
     db: AsyncSession,
     paciente_id: UUID,
 ) -> MisTurnosResponse:
-    turnos= await obtener_turno_existente_del_paciente(db, paciente_id)
+
+    turnos = await obtener_turnos_del_paciente(db, paciente_id)
 
     #Escenario 2
     if not turnos:
