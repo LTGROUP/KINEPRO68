@@ -1,0 +1,220 @@
+.staff-qr-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid #c8d9d4;
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #176b5b;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  white-space: nowrap;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.staff-qr-button:hover {
+  border-color: #176b5b;
+  background: #edf5f2;
+  transform: translateY(-1px);
+}
+
+.check-in-qr-card,
+.check-in-scanner-card {
+  width: min(520px, 100%);
+}
+
+.check-in-qr-print-area {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.check-in-qr-box {
+  display: grid;
+  place-items: center;
+  width: min(320px, 100%);
+  border: 1px solid #d7e3df;
+  border-radius: 18px;
+  padding: 18px;
+  background: #ffffff;
+}
+
+.check-in-qr-code {
+  margin: 0;
+  color: #176b5b;
+  font-size: 0.88rem;
+  font-weight: 900;
+  text-align: center;
+  word-break: break-word;
+}
+
+.check-in-qr-help {
+  max-width: 390px;
+  margin: 0;
+  color: #61746f;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.check-in-print-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 18px;
+}
+
+.profile-panel {
+  min-height: 460px;
+}
+
+.profile-check-in-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid #d7e3df;
+  border-radius: 16px;
+  padding: 20px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(7, 37, 31, 0.08);
+}
+
+.profile-check-in-card h2 {
+  margin: 0 0 8px;
+  color: #12241f;
+  font-size: 1.35rem;
+}
+
+.profile-check-in-card p {
+  margin: 0;
+  color: #61746f;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.profile-check-in-card .staff-register-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.profile-check-in-note {
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #edf5f2;
+}
+
+.check-in-camera-box {
+  overflow: hidden;
+  border: 1px solid #d7e3df;
+  border-radius: 16px;
+  background: #10231f;
+}
+
+.check-in-reader {
+  width: 100%;
+  min-height: 320px;
+}
+
+.check-in-reader video {
+  width: 100%;
+  min-height: 320px;
+  object-fit: cover;
+}
+
+.check-in-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  color: #176b5b;
+  font-weight: 900;
+}
+
+.check-in-status p {
+  margin: 0;
+}
+
+.check-in-result {
+  margin: 12px 0 0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.check-in-result.success {
+  color: #14513b;
+  background: #dcf8eb;
+}
+
+.check-in-result.error {
+  color: #872d2d;
+  background: #ffe8e8;
+}
+
+.check-in-retry-button {
+  width: 100%;
+  margin-top: 12px;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .check-in-qr-card,
+  .check-in-qr-card * {
+    visibility: visible;
+  }
+
+  .check-in-qr-card {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    box-shadow: none;
+  }
+
+  .staff-detail-close,
+  .check-in-print-button {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .patient-tools-row .staff-qr-button {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .patient-tools-row .staff-register-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .profile-check-in-card {
+    display: grid;
+    gap: 16px;
+  }
+
+  .profile-check-in-card .staff-register-button {
+    width: 100%;
+  }
+
+  .check-in-reader,
+  .check-in-reader video {
+    min-height: 280px;
+  }
+}

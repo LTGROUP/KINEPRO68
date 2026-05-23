@@ -1,6 +1,6 @@
 # app/models/turno.py
 import enum
-from datetime import datetime, date, time
+from datetime import datetime
 from sqlalchemy import (
     Column, String, Integer, Date, Time, DateTime,
     Boolean, Enum as SAEnum, ForeignKey, Text
@@ -56,8 +56,8 @@ class Turno(Base):
     fecha                = Column(Date, nullable=False)
     hora_inicio          = Column(Time, nullable=False)
     hora_fin             = Column(Time, nullable=False)       # hora_inicio + 40 min
-    area_tratamiento = Column(SAEnum(AreaTratamiento, name="area_tratamiento"), nullable=True)
-    estado           = Column(SAEnum(EstadoTurno, name="estado_turno"), nullable=False, default=EstadoTurno.DISPONIBLE)
+    area_tratamiento = Column(SAEnum(AreaTratamiento, name="area_tratamiento", values_callable=lambda x: [e.value for e in x]), nullable=True)
+    estado           = Column(SAEnum(EstadoTurno, name="estado_turno", values_callable=lambda x: [e.value for e in x]), nullable=False, default=EstadoTurno.DISPONIBLE)
     paciente_id          = Column(UUID(as_uuid=True), nullable=True)        # null si disponible
     profesional_id       = Column(UUID(as_uuid=True), nullable=True)        # se asigna al reservar
     creado_en            = Column(DateTime, default=datetime.utcnow)

@@ -147,12 +147,12 @@ class TurnoSolicitadoResponse(BaseModel):
 class MiTurnoResponse(BaseModel):
     id:UUID
     fecha: date
-    hora_incio: time
+    hora_inicio: time
     hora_fin: time
     area_tratamiento:Optional[AreaTratamiento]
     estado: EstadoTurno
 
-    model_config = {"from_attribute": True}
+    model_config = {"from_attributes": True}
 
 class MisTurnosResponse(BaseModel):
     turnos: List[MiTurnoResponse]
