@@ -13,7 +13,13 @@ from app.schemas.shifts.turno import (
     MisTurnosResponse,
     ListaEsperaResponse
 )
-from app.services.shifts.turnos_service import consultar_turnos_disponibles, solicitar_turno, ver_mis_turnos, consultar_lista_espera
+from app.services.shifts.turnos_service import (
+    consultar_turnos_disponibles, 
+    solicitar_turno, 
+    ver_mis_turnos, 
+    consultar_lista_espera,
+    cancelar_turno
+)
 
 router = APIRouter(prefix="/turnos", tags=["Turnos"])
 
@@ -125,6 +131,27 @@ async def consultar_lista_espera_endpoint(
             db=db,
             turno_id=turno_id,
         )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+@router.patch(
+    "/{turno_id}/cancelar",
+    status_code=status.HTTP_200_OK,
+    summary="Cancelar un turno reservado",
+    description="El paciente cancela un turno propio. Si faltan menos de 48hs, avisa que no podrá reasignarlo.",
+)
+async def cancelar_turno_endpoint(
+    turno_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    paciente=Depends(get_current_user),
+):
+    try:
+        return await cancelar_turno(db=db, turno_id=turno_id)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
