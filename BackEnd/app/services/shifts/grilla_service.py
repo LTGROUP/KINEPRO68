@@ -12,13 +12,14 @@ from app.schemas.shifts.turno import (
     ModificarCuposResponse,
 )
 from app.repositories.shifts.grilla import (
+    eliminar_turnos_disponibles_del_mes,
     obtener_dias_cerrados_del_mes,
     obtener_turnos_del_dia,
     obtener_turnos_del_rango,
 )
 import calendar
 
-DURACION_SESION_MINUTOS = 40
+DURACION_SESION_MINUTOS = 60
 
 DIAS_SEMANA_MAP = {
     "lunes": 0, "martes": 1, "miercoles": 2,
@@ -56,6 +57,8 @@ async def generar_grilla(
 
     if ultimo_dia_mes < hoy:
         raise ValueError("No es posible generar disponibilidad para fechas pasadas")
+
+    await eliminar_turnos_disponibles_del_mes(db, primer_dia_mes, ultimo_dia_mes)
 
     config = ConfiguracionGrilla(
         mes=request.mes,

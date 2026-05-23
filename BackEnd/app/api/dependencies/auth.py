@@ -32,14 +32,20 @@ def get_current_profile(authorization: AuthorizationHeader = None) -> dict:
             detail="La sesion no es valida",
         ) from error
 
-    response = (
-        get_supabase_admin_client()
-        .table("profiles")
-        .select("*")
-        .eq("id", user_id)
-        .limit(1)
-        .execute()
-    )
+    try:
+        response = (
+            get_supabase_admin_client()
+            .table("profiles")
+            .select("*")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Error de conexión con el servidor de autenticación",
+        ) from error
 
     if not response.data:
         raise HTTPException(
