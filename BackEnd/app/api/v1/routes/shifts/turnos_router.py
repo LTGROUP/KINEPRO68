@@ -3,7 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 from uuid import UUID
-from app.core.dependencies import get_current_user, get_current_secretaria
+from app.api.dependencies.auth import (
+    get_current_profile as get_current_user,
+    get_current_staff_manager_profile as get_current_secretaria,
+)
 from app.db.session import get_db
 from app.schemas.shifts.turno import (
     TurnosDisponiblesResponse,

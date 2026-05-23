@@ -1,8 +1,25 @@
 # app/repositories/shifts/grilla.py
 from datetime import date
-from sqlalchemy.ext.asyncio import AsyncSession #ORM para conectarme a la base de datos postgreseSQL 
-from sqlalchemy import select, and_
+from sqlalchemy.ext.asyncio import AsyncSession #ORM para conectarme a la base de datos postgreseSQL
+from sqlalchemy import select, delete, and_
 from app.models.turno import Turno, DiasCerrados, EstadoTurno
+
+
+async def eliminar_turnos_disponibles_del_mes(
+    db: AsyncSession,
+    primer_dia_mes: date,
+    ultimo_dia_mes: date,
+) -> int:
+    result = await db.execute(
+        delete(Turno).where(
+            and_(
+                Turno.fecha >= primer_dia_mes,
+                Turno.fecha <= ultimo_dia_mes,
+                Turno.estado == EstadoTurno.DISPONIBLE,
+            )
+        )
+    )
+    return result.rowcount
 
 
 async def obtener_dias_cerrados_del_mes(

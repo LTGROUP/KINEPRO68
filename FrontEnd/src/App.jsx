@@ -4,6 +4,7 @@ import { AuthLayout } from './features/auth'
 import { ProfilePage } from './features/check-in'
 import { PatientsPage } from './features/patients'
 import { StaffManagementPage } from './features/staff-management'
+import { TurnosPage } from './features/turnos'
 import { AppLayout } from './layouts'
 import './styles/auth.css'
 import './styles/app-layout.css'
@@ -78,6 +79,10 @@ function App() {
   function renderActiveSection() {
     if (activeSection === 'personal' && canManageStaff) {
       return <StaffManagementPage user={user} />
+    }
+
+    if (activeSection === 'turnos') {
+      return <TurnosPage user={user} />
     }
 
     if (activeSection === 'pacientes' && canManagePatients) {

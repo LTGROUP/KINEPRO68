@@ -15,7 +15,7 @@ from app.services.shifts.grilla_service import (
     bloquear_dia,
     reducir_cupos_rango,
 )
-from app.core.dependencies import get_current_secretaria  # middleware de auth
+from app.api.dependencies.auth import get_current_staff_manager_profile as get_current_secretaria
 
 router = APIRouter(prefix="/grilla", tags=["Grilla de turnos"])
 
@@ -42,7 +42,7 @@ async def generar_grilla_endpoint(
         resultado = await generar_grilla(
             db=db,
             request=request,
-            secretaria_id=secretaria.id,
+            secretaria_id=secretaria["id"],
         )
         return resultado
     except ValueError as e:
@@ -71,7 +71,7 @@ async def bloquear_dia_endpoint(
             db=db,
             fecha=request.fecha,
             motivo=request.motivo or "Bloqueado por administración",
-            secretaria_id=secretaria.id,
+            secretaria_id=secretaria["id"],
         )
         return resultado
     except ValueError as e:
@@ -100,7 +100,7 @@ async def reducir_cupos_endpoint(
             db=db,
             fecha_desde=request.fecha_desde,
             fecha_hasta=request.fecha_hasta,
-            secretaria_id=secretaria.id,
+            secretaria_id=secretaria["id"],
         )
         return resultado
     except ValueError as e:
