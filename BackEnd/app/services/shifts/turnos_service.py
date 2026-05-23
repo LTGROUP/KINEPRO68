@@ -1,11 +1,23 @@
 from datetime import date, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.repositories.shifts.turnos import obtener_turnos_disponibles_por_fecha
 from uuid import UUID
-from app.models.turno import EstadoTurno
-from app.schemas.shifts.turno import SolicitarTurnoRequest, TurnoSolicitadoResponse, MisTurnosResponse, MiTurnoResponse,ListaEsperaResponse,PacienteEnEsperaResponse
+
+from fastapi import HTTPException, status
+from app.models.turno import EstadoTurno, AreaTratamiento
+
+from app.schemas.shifts.turno import (
+    SolicitarTurnoRequest,
+    TurnoSolicitadoResponse,
+    MisTurnosResponse,
+    MiTurnoResponse,
+    ListaEsperaResponse,
+    PacienteEnEsperaResponse
+)
+
 from app.repositories.shifts.turnos import (
+    obtener_turnos_disponibles_por_fecha,
     obtener_turno_existente_del_paciente,
+    actualizar_estado_turno,
     obtener_turno_por_id_con_lock,  
     obtener_turnos_del_paciente,    
     obtener_lista_espera_por_turno
@@ -135,3 +147,43 @@ async def consultar_lista_espera(
         pacientes=pacientes,
         total=len(pacientes),
     )
+# Cancela un turno
+async def cancelar_turno(db: AsyncSession, turno_id: UUID):
+    async with db.begin():
+        turno = await obtener_turno_por_id_con_lock(db, turno_id)
+
+        # Validacion por si existe,no deberia pasar!
+        if not turno:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="El turno solicitado no existe."
+            )
+
+        # Validacion por si no esta reservado,no deberia pasar!
+        if turno.estado != EstadoTurno.RESERVADO: # type: ignore
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No se puede cancelar un turno con estado: {turno.estado}"
+            )
+
+        #Comprobar si el turno es antes de las 48 horas
+        fecha_hora_turno = datetime.combine(turno.fecha, turno.hora_inicio) # type: ignore
+        ahora = datetime.utcnow() # Usamos la hora actual del servidor
+
+        mensaje_advertencia = None
+
+        if (fecha_hora_turno - ahora) < timedelta(hours=48):
+            mensaje_advertencia = "Al cancelar con menos de 48 horas de anticipación, no podrá reasignar este turno."
+
+        #Se busca el turno y se le cambia el estado
+        turno_actualizado = await actualizar_estado_turno(
+            db=db, 
+            turno=turno, 
+            nuevo_estado=EstadoTurno.CANCELADO
+        )
+    
+    # 5. Devolvemos el turno modificado junto con el mensaje (si corresponde)
+    return {
+        "turno": turno_actualizado,
+        "mensaje": mensaje_advertencia
+    }

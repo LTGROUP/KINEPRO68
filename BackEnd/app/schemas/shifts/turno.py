@@ -174,3 +174,9 @@ class ListaEsperaResponse(BaseModel):
     pacientes: List[PacienteEnEsperaResponse]
     total: int
     mensaje: Optional[str] = None
+
+class CancelarTurnoResponse(BaseModel):
+    mensaje: Optional[str] = None
+    turno: TurnoResponse
+
+    model_config = {"from_attributes": True}
