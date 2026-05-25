@@ -1,10 +1,12 @@
 import { useState } from 'react'
 
 import { AuthLayout } from './features/auth'
+import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import { ProfilePage } from './features/check-in'
 import { PatientsPage } from './features/patients'
 import { StaffManagementPage } from './features/staff-management'
 import { AppLayout } from './layouts'
+import { supabase } from './lib/supabase/client'
 import './styles/auth.css'
 import './styles/app-layout.css'
 
@@ -50,6 +52,10 @@ function getInitialSectionForUser(currentUser) {
 }
 
 function App() {
+  const isRecoveryFlow =
+    window.location.hash.includes('type=recovery') ||
+    window.location.search.includes('type=recovery')
+
   const [user, setUser] = useState(getStoredSession)
   const [activeSection, setActiveSection] = useState(() => {
     const storedUser = getStoredSession()
@@ -112,6 +118,16 @@ function App() {
     }
 
     return 'Inicio'
+  }
+
+  async function handleRecoveryFinish() {
+    await supabase.auth.signOut()
+    window.history.replaceState({}, '', '/')
+    window.location.reload()
+  }
+
+  if (isRecoveryFlow) {
+    return <ResetPasswordPage onFinish={handleRecoveryFinish} />
   }
 
   if (user) {

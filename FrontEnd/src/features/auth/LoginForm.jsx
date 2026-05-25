@@ -6,7 +6,7 @@ const initialValues = {
   password: '',
 }
 
-function LoginForm({ onSubmit, loading = false }) {
+function LoginForm({ onSubmit, onForgotPassword, loading = false }) {
   const [values, setValues] = useState(initialValues)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -114,7 +114,7 @@ function LoginForm({ onSubmit, loading = false }) {
         {getSubmitText()}
       </button>
 
-      <button className="auth-link" type="button" disabled>
+      <button className="auth-link" type="button" onClick={onForgotPassword} disabled={loading}>
         ¿Olvidaste tu contraseña?
       </button>
     </form>
