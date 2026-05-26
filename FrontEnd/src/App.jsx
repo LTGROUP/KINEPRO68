@@ -55,11 +55,16 @@ function App() {
   const [activeSection, setActiveSection] = useState(() => {
     const storedUser = getStoredSession()
 
-    if (canUserManage(storedUser)) {
-      return 'personal'
+    // Por seguridad, si no hay usuario, lo mandamos a un lugar neutro
+    if (!storedUser) return 'inicio' 
+
+    // Si es personal de la clínica, su pantalla principal es la Agenda (inicio)
+    if (storedUser.rol === 'secretaria' || storedUser.rol === 'profesional') {
+      return 'inicio'
     }
 
-    return 'inicio'
+    // Si es un paciente (o cualquier otro), su pantalla principal es sacar turnos
+    return 'turnos' 
   })
   const canManageStaff = canUserManage(user)
   const canManagePatients = canUserManage(user)
@@ -67,7 +72,13 @@ function App() {
   function handleLoginSuccess(session) {
     window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
     setUser(session)
-    setActiveSection(getInitialSectionForUser(session))
+    
+    // Usamos 'session' y borramos la otra línea conflictiva del final
+    if (session.rol === 'secretaria' || session.rol === 'profesional') {
+      setActiveSection('inicio')
+    } else {
+      setActiveSection('turnos')
+    }
   }
 
   function handleLogout() {

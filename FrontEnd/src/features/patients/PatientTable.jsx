@@ -17,7 +17,8 @@ function getArrowClass(isOpen) {
   return 'staff-action-arrow'
 }
 
-function PatientTable({ items, loading, onEdit, onView }) {
+// CAMBIO 1: Agregamos onAssignTurno a las propiedades que recibe la tabla
+function PatientTable({ items, loading, onEdit, onView, onAssignTurno }) {
   const [openPatientId, setOpenPatientId] = useState(null)
 
   if (loading) {
@@ -68,6 +69,10 @@ function PatientTable({ items, loading, onEdit, onView }) {
             <div className={actionsTrackClass}>
               {isOpen && (
                 <div className="staff-actions-overlay">
+                  {/* CAMBIO 2: Sumamos el botón llamando a la función onAssignTurno */}
+                  <button type="button" onClick={() => onAssignTurno(patient)}>
+                    Asignar turno
+                  </button>
                   <button type="button" onClick={() => onEdit(patient)}>
                     Editar
                   </button>

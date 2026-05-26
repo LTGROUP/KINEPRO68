@@ -36,8 +36,8 @@ async def consultar_turnos_disponibles(db: AsyncSession, fecha_buscada: date):
     # Esto va a depender de si deja seleccionar o no una fecha invalida
     inicio_fecha_buscada = datetime.combine(fecha_buscada, datetime.min.time())
 
-    if inicio_fecha_buscada < fechayhora_minima:
-        return {"mensaje": "No se puede agendar turnos con menos de 48 horas"}
+    #if inicio_fecha_buscada < fechayhora_minima:
+    #    return {"mensaje": "No se puede agendar turnos con menos de 48 horas"}
 
     # Llamar al repository CON AWAIT
     turnos = await obtener_turnos_disponibles_por_fecha(db, fecha_buscada)

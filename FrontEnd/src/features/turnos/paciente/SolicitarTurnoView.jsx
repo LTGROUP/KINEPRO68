@@ -18,9 +18,8 @@ const DIA_LONG = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes
 
 function getMinDate() {
   const d = new Date()
-  d.setHours(0, 0, 0, 0)
   d.setDate(d.getDate() + 2)
-  return d
+  return d // Ahora el calendario de arriba deja clickear hoy, mañana y pasado
 }
 
 function getWeekStart(date) {
@@ -49,6 +48,17 @@ function formatTime(timeStr) {
   return timeStr.slice(0, 5)
 }
 
+function isTurnoBlocked(fechaStr, horaInicioStr) {
+  // Unimos la fecha y la hora (ej: "2026-05-28T08:00:00")
+  const turnoDateTime = new Date(`${fechaStr}T${horaInicioStr}`)
+  
+  // Calculamos el límite exacto: Ahora + 48 horas
+  const limite = new Date()
+  limite.setHours(limite.getHours() + 48)
+  
+  return turnoDateTime < limite
+}
+
 function groupTurnosByTime(turnos) {
   const seen = new Set()
   const result = []
@@ -69,7 +79,7 @@ function formatLongDate(dateStr) {
   return `${DIA_LONG[date.getDay()]} ${d} de ${MES_NAMES[Number(m) - 1]}`
 }
 
-function SolicitarTurnoView({ user, onSuccess }) {
+function SolicitarTurnoView({ user, targetPatient, onSuccess }) {
   const minDate = getMinDate()
   const [weekStart, setWeekStart] = useState(() => getWeekStart(minDate))
   const [selectedDate, setSelectedDate] = useState(null)
@@ -162,7 +172,7 @@ function SolicitarTurnoView({ user, onSuccess }) {
     setErrorSolicitar('')
   }
 
-  async function handleConfirmarTurno() {
+async function handleConfirmarTurno() {
     if (!areaTratamiento) {
       setErrorSolicitar('Seleccioná un área de tratamiento')
       return
@@ -172,15 +182,24 @@ function SolicitarTurnoView({ user, onSuccess }) {
     setErrorSolicitar('')
 
     try {
-      await solicitarTurno(user, {
+      // Preparamos los datos base
+      const payload = {
         turno_id: selectedTurno.id,
         area_tratamiento: areaTratamiento,
-      })
+      }
+      
+      // Si la secretaria está asignando el turno manualmente, agregamos el ID del paciente
+      if (targetPatient) {
+        payload.paciente_id = targetPatient.id
+      }
+
+      await solicitarTurno(user, payload) // Enviamos la petición
+      
       setSelectedTurno(null)
       setAreaTratamiento('')
       setSelectedDate(null)
       setTurnos([])
-      if (onSuccess) onSuccess('Tu turno fue reservado correctamente.')
+      if (onSuccess) onSuccess('El turno fue reservado correctamente.')
     } catch (err) {
       setErrorSolicitar(err.message)
     } finally {
@@ -282,13 +301,20 @@ function SolicitarTurnoView({ user, onSuccess }) {
                     <span>{formatTime(turno.hora_fin)}</span>
                   </div>
                   <span className="turnos-agenda-duration">60 min</span>
-                  <button
-                    type="button"
-                    className="turnos-agenda-action"
-                    onClick={() => handleSelectTurno(turno)}
-                  >
-                    Reservar
-                  </button>
+                  {(() => {
+                    const blocked = isTurnoBlocked(selectedDate, turno.hora_inicio)
+                    return (
+                      <button
+                        type="button"
+                        className="turnos-agenda-action"
+                        onClick={() => handleSelectTurno(turno)}
+                        disabled={blocked}
+                        style={blocked ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                      >
+                        {blocked ? 'Fuera de término' : 'Reservar'}
+                      </button>
+                    )
+                  })()}
                 </div>
               ))}
             </div>

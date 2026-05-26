@@ -11,6 +11,7 @@ import { CheckInQrModal } from '../check-in'
 import PatientForm from './PatientForm'
 import PatientTable from './PatientTable'
 import '../../styles/staff-management.css'
+import SolicitarTurnoView from '../turnos/paciente/SolicitarTurnoView' // Ajustá la ruta según tus carpetas
 
 function getSearchButtonClass(searchTerm) {
   if (searchTerm) {
@@ -64,6 +65,7 @@ function PatientsPage({ user }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [patientForTurno, setPatientForTurno] = useState(null)
 
   const filteredItems = useMemo(() => {
     const search = searchTerm.trim().toLowerCase()
@@ -151,6 +153,10 @@ function PatientsPage({ user }) {
     } catch (requestError) {
       setError(requestError.message)
     }
+  }
+
+  function handleAssignTurno(patient) {
+    setPatientForTurno(patient)
   }
 
   async function handleCreatePatient(payload) {
@@ -280,6 +286,7 @@ function PatientsPage({ user }) {
             loading={loading}
             onEdit={handleEdit}
             onView={handleView}
+            onAssignTurno={handleAssignTurno}
           />
         </section>
       </section>
@@ -373,8 +380,32 @@ function PatientsPage({ user }) {
       )}
 
       {showQrModal && <CheckInQrModal onClose={handleCloseQrModal} />}
-
-      {(error || message) && (
+      {patientForTurno && (
+        <aside className="staff-detail" aria-label="Asignar turno manual">
+          <div className="staff-detail-card" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => setPatientForTurno(null)}
+              aria-label="Cerrar asignación de turno"
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+            <p className="staff-eyebrow">Asignación manual</p>
+            <h2>Turno para {patientForTurno.nombre}</h2>
+            
+            <SolicitarTurnoView 
+              user={user} 
+              targetPatient={patientForTurno} 
+              onSuccess={(msg) => {
+                setMessage(msg);
+                setPatientForTurno(null);
+              }}
+            />
+          </div>
+        </aside>
+      )}
+        {(error || message) && (
         <aside className="staff-feedback" aria-label="Resultado de la accion">
           <div className={getFeedbackCardClass(error)} role="alert">
             <p className="staff-eyebrow">{getFeedbackEyebrow(error)}</p>
