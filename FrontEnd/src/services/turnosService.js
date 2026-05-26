@@ -49,3 +49,18 @@ export function bloquearDia(actor, payload) {
     body: payload,
   })
 }
+
+export function getAgendaDia(actor, fecha) {
+  return request(`/api/v1/turnos/agenda?fecha=${fecha}`, {
+    method: 'GET',
+    headers: buildActorHeaders(actor), // Le pasamos el token para que sepa que es secretaria
+  })
+}
+
+export function actualizarEstadoTurno(actor, turnoId, payload) {
+  return request(`/api/v1/turnos/${turnoId}/estado`, {
+    method: 'PATCH',
+    headers: buildActorHeaders(actor),
+    body: payload,
+  })
+}

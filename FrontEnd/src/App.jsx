@@ -6,6 +6,7 @@ import { PatientsPage } from './features/patients'
 import { StaffManagementPage } from './features/staff-management'
 import { TurnosPage } from './features/turnos'
 import { AppLayout } from './layouts'
+import { AgendaProfesional } from './features/turnos/secretaria/AgendaProfesional'
 import './styles/auth.css'
 import './styles/app-layout.css'
 
@@ -44,9 +45,8 @@ function canUserManage(currentUser) {
 
 function getInitialSectionForUser(currentUser) {
   if (canUserManage(currentUser)) {
-    return 'personal'
+    return 'inicio' 
   }
-
   return 'inicio'
 }
 
@@ -77,6 +77,14 @@ function App() {
   }
 
   function renderActiveSection() {
+    if (activeSection === 'inicio' && (user.rol === 'secretaria' || user.rol === 'profesional')) {
+      return <AgendaProfesional user={user} />
+    }
+
+    if (activeSection === 'personal' && canManageStaff) {
+      return <StaffManagementPage user={user} />
+    }
+
     if (activeSection === 'personal' && canManageStaff) {
       return <StaffManagementPage user={user} />
     }
