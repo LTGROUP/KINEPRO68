@@ -80,3 +80,17 @@ async def obtener_lista_espera_por_turno(
         ).order_by(ListaEspera.fecha_inscripcion)  # FIFO — primero en inscribirse, primero en la lista
     )
     return result.scalars().all()
+
+async def obtener_agenda_diaria_pura(db: AsyncSession, fecha_buscada: date):
+    query = (
+        select(Turno)
+        .where(
+            and_(
+                Turno.fecha == fecha_buscada,
+                Turno.estado != EstadoTurno.DISPONIBLE # <-- ESTE ES EL FILTRO MAGICO
+            )
+        )
+        .order_by(Turno.hora_inicio)
+    )
+    result = await db.execute(query)
+    return result.scalars().all()

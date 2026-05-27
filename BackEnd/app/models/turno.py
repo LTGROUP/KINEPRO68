@@ -22,6 +22,8 @@ class EstadoTurno(str, enum.Enum):
     RESERVADO   = "reservado"    # Paciente asignado
     BLOQUEADO   = "bloqueado"    # Día cerrado / feriado
     CANCELADO   = "cancelado"    # Fue cancelado
+    PRESENTE    = "presente"     # El paciente asistió (NUEVO)
+    AUSENTE     = "ausente"
 
 
 class ConfiguracionGrilla(Base):

@@ -74,7 +74,7 @@ function ListaEsperaView({ user }) {
   }
 
   return (
-    <div className="turnos-espera-layout">
+    <div className="turnos-espera-layout" style={{ marginTop: '24px' }}>
       <form className="turnos-espera-search" onSubmit={handleBuscarFecha}>
         <label className="staff-form-field" htmlFor="espera-fecha">
           Fecha del turno

@@ -58,7 +58,7 @@ export function getAgendaDia(actor, fecha) {
 }
 
 export function actualizarEstadoTurno(actor, turnoId, payload) {
-  return request(`/api/v1/turnos/${turnoId}/estado`, {
+  return request(`/api/v1/turnos/${turnoId}/asistencia`, {
     method: 'PATCH',
     headers: buildActorHeaders(actor),
     body: payload,
