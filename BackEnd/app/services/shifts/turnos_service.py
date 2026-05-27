@@ -23,6 +23,10 @@ from app.repositories.shifts.turnos import (
     obtener_lista_espera_por_turno
 )
 
+from app.repositories.shifts.turnos import obtener_agenda_diaria_pura
+from app.schemas.shifts.turno import AgendaDiariaResponse, AgendaTurnoResponse, PacienteAgendaInfo
+from app.services.patients.patient_service import get_patient_detail
+
 async def consultar_turnos_disponibles(db: AsyncSession, fecha_buscada: date):
 
     # Validar fecha
@@ -187,3 +191,62 @@ async def cancelar_turno(db: AsyncSession, turno_id: UUID):
         "turno": turno_actualizado,
         "mensaje": mensaje_advertencia
     }
+
+async def consultar_agenda_diaria(db: AsyncSession, fecha_buscada: date, actor_role: str):
+    # 1. Buscamos todos los turnos del día
+    turnos_db = await obtener_agenda_diaria_pura(db, fecha_buscada)
+    
+    turnos_formateados = []
+    
+    for turno in turnos_db:
+        paciente_info = None
+        
+        # 2. Si el turno tiene un paciente, vamos a buscar sus datos
+        if turno.paciente_id:
+            try:
+                # Usamos el servicio de pacientes para no romper el encapsulamiento
+                paciente_detalle = await get_patient_detail(str(turno.paciente_id), actor_role)
+                
+                # 3. Armamos el mini-diccionario con los datos del paciente
+                paciente_info = PacienteAgendaInfo(
+                    id=turno.paciente_id,
+                    nombre=paciente_detalle.nombre,
+                    apellido=paciente_detalle.apellido,
+                    dni=paciente_detalle.dni
+                )
+            except Exception:
+                # Si el paciente fue borrado o hay un error, lo dejamos vacío para que la agenda no explote
+                pass
+        
+        # 4. Formateamos el turno final
+        turno_formateado = AgendaTurnoResponse(
+            id=turno.id,
+            hora_inicio=turno.hora_inicio,
+            hora_fin=turno.hora_fin,
+            estado=turno.estado,
+            area_tratamiento=turno.area_tratamiento,
+            paciente=paciente_info
+        )
+        turnos_formateados.append(turno_formateado)
+        
+    return AgendaDiariaResponse(
+        fecha=fecha_buscada,
+        turnos=turnos_formateados,
+        total=len(turnos_formateados)
+    )
+
+async def marcar_asistencia_turno(db: AsyncSession, turno_id: UUID, nuevo_estado: str):
+    async with db.begin():
+        turno = await obtener_turno_por_id_con_lock(db, turno_id)
+        
+        if not turno:
+            raise ValueError("El turno no existe")
+            
+        if turno.estado != EstadoTurno.RESERVADO:
+            raise ValueError(f"No se puede dar presente a un turno con estado {turno.estado}")
+            
+        # SOLUCIÓN: Cambiamos el estado directamente y dejamos que db.begin() haga el commit solo
+        turno.estado = nuevo_estado
+        db.add(turno)
+        
+    return turno

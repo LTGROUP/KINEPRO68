@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock, UserCheck } from 'lucide-react'
 
-// Acá traemos las funciones reales que le pegan al backend
 import { getAgendaDia, actualizarEstadoTurno } from '../../../services/turnosService'
 
-// FUNCIONES DE AYUDA (Estilos y formato)
 function getEstadoClass(estado) {
   if (estado === 'reservado') return 'turnos-badge reservado'
   if (estado === 'cancelado') return 'turnos-badge cancelado'
@@ -22,21 +20,19 @@ export function AgendaProfesional({ user }) {
   const [turnos, setTurnos] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
 
-  // Efecto para buscar los turnos reales cuando cambia el día
   useEffect(() => {
-    let cancelled = false // Previene errores si el usuario cambia muy rápido de día
+    let cancelled = false 
 
     async function cargarAgenda() {
       setLoading(true)
       setError('')
+      setMessage('')
       setTurnos([])
 
       try {
-        // Formateamos la fecha a "YYYY-MM-DD" para que la entienda FastAPI
         const fechaStr = fecha.toISOString().split('T')[0]
-        
-        // Llamada real al servicio
         const data = await getAgendaDia(user, fechaStr)
         
         if (!cancelled) {
@@ -60,7 +56,6 @@ export function AgendaProfesional({ user }) {
     }
   }, [fecha, user])
 
-  // Funciones para navegar en los días
   function diaAnterior() {
     setFecha((prev) => {
       const nueva = new Date(prev)
@@ -83,27 +78,29 @@ export function AgendaProfesional({ user }) {
     month: 'long',
   })
 
-  // Función conectada al backend para dar el presente
   async function marcarPresente(id) {
+    setError('')
+    setMessage('')
     try {
-      // 1. Le manda el aviso al servidor de FastAPI
-      await actualizarEstadoTurno(user, id, { estado: 'presente' })
+      await actualizarEstadoTurno(user, id, { nuevo_estado: 'presente' })
       
-      // 2. Si el servidor dice "OK", lo actualiza visualmente en React
       setTurnos(turnos.map((t) =>
         t.id === id ? { ...t, estado: 'presente' } : t
       ))
+      
+      setMessage('El turno fue marcado como presente exitosamente.')
+      setTimeout(() => setMessage(''), 5000)
     } catch (err) {
       console.error("No se pudo marcar el presente", err)
-      alert("Hubo un error de conexión al actualizar el estado.")
+      setError("No se pudo actualizar el estado. Verificá la conexión.")
+      setTimeout(() => setError(''), 5000)
     }
   }
 
   return (
     <div className="turnos-solicitar">
       
-      {/* CABECERA: Selector de días */}
-      <div className="turnos-week-strip" style={{ display: 'flex', justifyContent: 'center', padding: '16px' }}>
+      <div className="turnos-week-strip" style={{ display: 'flex', justifyContent: 'center', padding: '16px', marginTop: '24px' }}>
         <div className="turnos-week-header" style={{ width: '100%', maxWidth: '350px' }}>
           <button 
             type="button" 
@@ -129,11 +126,14 @@ export function AgendaProfesional({ user }) {
         </div>
       </div>
 
-      {/* CUERPO: Lista de turnos del día */}
       <div className="turnos-agenda">
         {loading && <p className="turnos-agenda-heading">Cargando agenda del día...</p>}
         
-        {!loading && error && <p className="staff-message error">{error}</p>}
+        {!loading && error && (
+          <div className="staff-feedback-card error" style={{ marginBottom: '16px' }}>
+            <p>{error}</p>
+          </div>
+        )}
         
         {!loading && !error && turnos.length === 0 && (
           <p className="turnos-agenda-heading">No hay turnos agendados para este día.</p>
@@ -144,7 +144,6 @@ export function AgendaProfesional({ user }) {
             {turnos.map((turno) => (
               <div key={turno.id} className="turnos-agenda-item">
                 
-                {/* Bloque 1: Hora */}
                 <div className="turnos-agenda-time">
                   <Clock size={14} aria-hidden="true" />
                   <span>{formatTime(turno.hora_inicio)}</span>
@@ -152,18 +151,19 @@ export function AgendaProfesional({ user }) {
                   <span>{formatTime(turno.hora_fin)}</span>
                 </div>
 
-                {/* Bloque 2: Datos del Paciente */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', padding: '0 16px' }}>
-                  <strong style={{ color: '#111827', fontSize: '1rem' }}>{turno.paciente}</strong>
-                  <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Tratamiento: {turno.area_tratamiento}</span>
+                  <strong style={{ color: '#111827', fontSize: '1rem' }}>
+                    {turno.paciente ? `${turno.paciente.nombre} ${turno.paciente.apellido}` : 'Sin datos del paciente'}
+                  </strong>
+                  <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                    Tratamiento: {turno.area_tratamiento ? turno.area_tratamiento.replace('_', ' ') : 'General'}
+                  </span>
                 </div>
 
-                {/* Bloque 3: Estado (capitaliza la primera letra) */}
                 <span className={getEstadoClass(turno.estado)}>
                   {turno.estado.charAt(0).toUpperCase() + turno.estado.slice(1)}
                 </span>
 
-                {/* Bloque 4: Botón de Acción */}
                 {turno.estado === 'reservado' ? (
                   <button
                     type="button"
@@ -183,7 +183,48 @@ export function AgendaProfesional({ user }) {
           </div>
         )}
       </div>
-
+    {message && (
+        <div style={{
+          position: 'fixed',
+          top: '40px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#ffffff',
+          padding: '24px 32px',
+          borderRadius: '12px',
+          boxShadow: '0px 10px 40px rgba(0, 0, 0, 0.15)',
+          zIndex: 9999,
+          minWidth: '340px',
+          textAlign: 'left',
+          animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <p style={{ 
+            color: '#99e3d0', /* El verde menta de tu diseño */
+            fontWeight: '900', 
+            fontSize: '0.75rem', 
+            letterSpacing: '0.05em', 
+            textTransform: 'uppercase', 
+            margin: '0 0 8px 0' 
+          }}>
+            Confirmacion
+          </p>
+          <h3 style={{ 
+            margin: '0 0 8px 0', 
+            color: '#111827', 
+            fontSize: '1.25rem', 
+            fontWeight: 'bold' 
+          }}>
+            Acción realizada
+          </h3>
+          <p style={{ 
+            margin: 0, 
+            color: '#4b5563', 
+            fontSize: '0.95rem' 
+          }}>
+            {message}
+          </p>
+        </div>
+      )}
     </div>
   )
 }

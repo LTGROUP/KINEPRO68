@@ -14,14 +14,18 @@ from app.schemas.shifts.turno import (
     SolicitarTurnoRequest,
     TurnoSolicitadoResponse,
     MisTurnosResponse,
-    ListaEsperaResponse
+    ListaEsperaResponse,
+    AgendaDiariaResponse,
+    ActualizarEstadoRequest
 )
 from app.services.shifts.turnos_service import (
     consultar_turnos_disponibles, 
     solicitar_turno, 
     ver_mis_turnos, 
     consultar_lista_espera,
-    cancelar_turno
+    cancelar_turno,
+    consultar_agenda_diaria,
+    marcar_asistencia_turno
 )
 
 router = APIRouter(prefix="/turnos", tags=["Turnos"])
@@ -155,6 +159,54 @@ async def cancelar_turno_endpoint(
         return await cancelar_turno(db=db, turno_id=turno_id)
     except HTTPException:
         raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    
+@router.get(
+    "/agenda",
+    response_model=AgendaDiariaResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Consultar agenda completa del día",
+    description="Trae la grilla del día con los nombres de los pacientes para la Secretaria.",
+)
+async def obtener_agenda_del_dia_endpoint(
+    fecha: date = Query(..., description="Fecha en formato YYYY-MM-DD"),
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    try:
+        return await consultar_agenda_diaria(
+            db=db, 
+            fecha_buscada=fecha, 
+            actor_role=secretaria["rol"]
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+@router.patch(
+    "/{turno_id}/asistencia",
+    status_code=status.HTTP_200_OK,
+    summary="Marcar presencia o ausencia del paciente",
+)
+async def marcar_asistencia_endpoint(
+    turno_id: UUID,
+    request: ActualizarEstadoRequest,
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    try:
+        resultado = await marcar_asistencia_turno(
+            db=db, 
+            turno_id=turno_id, 
+            nuevo_estado=request.nuevo_estado
+        )
+        return {"mensaje": f"Turno marcado como {resultado.estado}"}
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -180,3 +180,34 @@ class CancelarTurnoResponse(BaseModel):
     turno: TurnoResponse
 
     model_config = {"from_attributes": True}
+
+class PacienteAgendaInfo(BaseModel):
+    id: UUID
+    nombre: str
+    apellido: str
+    dni: str
+
+    model_config = {"from_attributes": True}
+
+
+class AgendaTurnoResponse(BaseModel):
+    id: UUID
+    hora_inicio: time
+    hora_fin: time
+    estado: EstadoTurno
+    area_tratamiento: Optional[AreaTratamiento] = None
+    paciente: Optional[PacienteAgendaInfo] = None
+
+    model_config = {"from_attributes": True}
+
+
+class AgendaDiariaResponse(BaseModel):
+    fecha: date
+    turnos: List[AgendaTurnoResponse]
+    total: int
+
+    model_config = {"from_attributes": True}
+
+
+class ActualizarEstadoRequest(BaseModel):
+    nuevo_estado: EstadoTurno
