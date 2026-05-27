@@ -13,11 +13,11 @@ function TurnosPage({ user }) {
 
   useEffect(() => {
     if (rol === 'paciente') {
-      setActiveTab('solicitar')
+      setActiveTab('mis-turnos')
     } else if (rol === 'secretaria' || rol === 'administrativo') {
       setActiveTab('grilla')
     } else {
-      setActiveTab('mis-turnos')
+      setActiveTab('solicitar')
     }
   }, [rol])
 
@@ -60,20 +60,21 @@ function TurnosPage({ user }) {
               <button
                 type="button"
                 role="tab"
-                aria-selected={activeTab === 'solicitar'}
-                className={activeTab === 'solicitar' ? 'active' : ''}
-                onClick={() => setActiveTab('solicitar')}
-              >
-                Solicitar turno
-              </button>
-              <button
-                type="button"
-                role="tab"
                 aria-selected={activeTab === 'mis-turnos'}
                 className={activeTab === 'mis-turnos' ? 'active' : ''}
                 onClick={() => setActiveTab('mis-turnos')}
               >
                 Mis turnos
+                
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'solicitar'}
+                className={activeTab === 'solicitar' ? 'active' : ''}
+                onClick={() => setActiveTab('solicitar')}
+              >
+                Solicitar turno
               </button>
             </div>
           )}
