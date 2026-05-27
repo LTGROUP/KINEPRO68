@@ -25,3 +25,5 @@ __pycache__/
 # IDE / editor
 .idea/
 .vscode/
+.agents/
+skills-lock.json
