@@ -23,7 +23,15 @@ function getTodayInputValue() {
 
 function buildInitialValues(initialData) {
   if (!initialData) {
-    return initialValues
+    return {
+      nombre: initialValues.nombre,
+      apellido: initialValues.apellido,
+      dni: initialValues.dni,
+      telefono: initialValues.telefono,
+      email: initialValues.email,
+      obra_social: initialValues.obra_social,
+      fecha_nacimiento: getTodayInputValue(),
+    }
   }
 
   return {

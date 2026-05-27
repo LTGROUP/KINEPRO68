@@ -676,6 +676,14 @@
   background: rgba(255, 255, 255, 0.22);
 }
 
+.staff-actions-overlay .staff-action-danger {
+  background: #b42318;
+}
+
+.staff-actions-overlay .staff-action-danger:hover:not(:disabled) {
+  background: #991b1b;
+}
+
 .staff-actions-overlay button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -811,6 +819,11 @@
   display: none;
 }
 
+.staff-detail-card::-webkit-scrollbar,
+.time-picker-options::-webkit-scrollbar {
+  display: none;
+}
+
 .staff-detail-card h2 {
   margin: 0 0 18px;
   color: #12241f;
@@ -900,6 +913,17 @@
 
 .staff-confirm-button.primary:hover:not(:disabled) {
   background: #125648;
+  transform: translateY(-1px);
+}
+
+.staff-confirm-button.danger {
+  border: 0;
+  color: #ffffff;
+  background: #b42318;
+}
+
+.staff-confirm-button.danger:hover:not(:disabled) {
+  background: #991b1b;
   transform: translateY(-1px);
 }
 
@@ -999,6 +1023,7 @@
   width: 100%;
   max-height: 210px;
   overflow-y: auto;
+  scrollbar-width: none;
   border: 1px solid #c8d9d4;
   border-radius: 8px;
   padding: 4px;
@@ -1056,6 +1081,24 @@
 }
 
 @media (max-width: 760px) {
+  .staff-shell,
+  .staff-page,
+  .staff-panel,
+  .staff-tools,
+  .staff-filters,
+  .staff-filter-left,
+  .staff-filter-tabs,
+  .staff-table-wrap,
+  .staff-table,
+  .staff-table tbody,
+  .staff-table tbody tr,
+  .personal-mobile-section-header,
+  .personal-mobile-heading {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
   .staff-page {
     padding: 0;
   }
@@ -1241,11 +1284,26 @@
   }
 
   .staff-table {
+    display: block;
     min-width: 0;
+    width: 100%;
     border-collapse: separate;
     table-layout: auto;
     border-spacing: 0 12px;
     background: transparent;
+  }
+
+  .staff-table th:nth-child(1),
+  .staff-table td:nth-child(1),
+  .staff-table th:nth-child(2),
+  .staff-table td:nth-child(2),
+  .staff-table th:nth-child(3),
+  .staff-table td:nth-child(3),
+  .staff-table th:last-child,
+  .staff-table td:last-child {
+    width: auto;
+    min-width: 0;
+    text-align: left;
   }
 
   .staff-table thead {
@@ -1254,12 +1312,15 @@
 
   .staff-table tbody {
     display: grid;
+    width: 100%;
     gap: 12px;
   }
 
   .staff-table tbody tr {
     position: relative;
     display: grid;
+    width: 100%;
+    max-width: 100%;
     gap: 10px;
     padding: 14px;
     border: 1px solid #d7e3df;
@@ -1365,6 +1426,15 @@
 
   .staff-actions-overlay button:hover:not(:disabled) {
     background: #edf5f2;
+  }
+
+  .staff-actions-overlay .staff-action-danger {
+    color: #b42318;
+    background: #fff1f1;
+  }
+
+  .staff-actions-overlay .staff-action-danger:hover:not(:disabled) {
+    background: #ffe4e4;
   }
 
   .staff-detail {

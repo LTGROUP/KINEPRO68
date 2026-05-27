@@ -5,6 +5,113 @@ if (!apiBaseUrl) {
 }
 
 export const API_BASE_URL = apiBaseUrl
+export const SESSION_STORAGE_KEY = 'kinepro_session'
+export const SESSION_EXPIRED_EVENT = 'kinepro:session-expired'
+export const SESSION_REFRESHED_EVENT = 'kinepro:session-refreshed'
+
+export function clearStoredSession() {
+  window.localStorage.removeItem(SESSION_STORAGE_KEY)
+  window.sessionStorage.removeItem(SESSION_STORAGE_KEY)
+}
+
+export function readStoredSession() {
+  let storedSession = window.sessionStorage.getItem(SESSION_STORAGE_KEY)
+  let storageArea = window.sessionStorage
+
+  if (!storedSession) {
+    storedSession = window.localStorage.getItem(SESSION_STORAGE_KEY)
+    storageArea = window.localStorage
+  }
+
+  if (!storedSession) {
+    return null
+  }
+
+  try {
+    return JSON.parse(storedSession)
+  } catch {
+    storageArea.removeItem(SESSION_STORAGE_KEY)
+    return null
+  }
+}
+
+export function saveStoredSession(session, keepSession) {
+  const sessionToSave = {
+    message: session.message,
+    user_id: session.user_id,
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    nombre: session.nombre,
+    apellido: session.apellido,
+    dni: session.dni,
+    rol: session.rol,
+    keep_session: keepSession,
+  }
+
+  if (keepSession) {
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY)
+    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionToSave))
+    return sessionToSave
+  }
+
+  window.localStorage.removeItem(SESSION_STORAGE_KEY)
+  window.sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionToSave))
+  return sessionToSave
+}
+
+function notifySessionExpired() {
+  clearStoredSession()
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+}
+
+function notifySessionRefreshed(session) {
+  window.dispatchEvent(
+    new CustomEvent(SESSION_REFRESHED_EVENT, {
+      detail: session,
+    }),
+  )
+}
+
+async function refreshStoredSession() {
+  const storedSession = readStoredSession()
+
+  if (!storedSession) {
+    return null
+  }
+
+  if (!storedSession.keep_session) {
+    return null
+  }
+
+  if (!storedSession.refresh_token) {
+    return null
+  }
+
+  let response
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        refresh_token: storedSession.refresh_token,
+      }),
+    })
+  } catch {
+    return null
+  }
+
+  if (!response.ok) {
+    return null
+  }
+
+  const refreshedSession = await response.json()
+  const savedSession = saveStoredSession(refreshedSession, true)
+  notifySessionRefreshed(savedSession)
+  return savedSession
+}
 
 export function getErrorMessage(detail) {
   // FastAPI puede devolver un string o una lista de errores de Pydantic.
@@ -73,6 +180,24 @@ export async function request(path, options) {
     throw new Error('Error de conexión con el servidor')
   }
 
+  if (response.status === 401 && path !== '/api/v1/auth/refresh') {
+    const refreshedSession = await refreshStoredSession()
+
+    if (refreshedSession) {
+      fetchOptions.headers.Authorization = `Bearer ${refreshedSession.access_token}`
+
+      try {
+        response = await fetch(`${API_BASE_URL}${path}`, fetchOptions)
+      } catch {
+        if (navigator.onLine === false) {
+          throw new Error('No hay conexión a internet')
+        }
+
+        throw new Error('Error de conexión con el servidor')
+      }
+    }
+  }
+
   const rawResponse = await response.text()
   let data
 
@@ -91,6 +216,10 @@ export async function request(path, options) {
 
     if (data) {
       detail = data.detail
+    }
+
+    if (response.status === 401) {
+      notifySessionExpired()
     }
 
     throw new Error(getErrorMessage(detail))

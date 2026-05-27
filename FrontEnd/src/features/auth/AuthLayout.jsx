@@ -103,7 +103,11 @@ function AuthLayout({ onLoginSuccess }) {
         data-open={getPanelOpenValue()}
         aria-label="Acceso a KinePro"
       >
-        <div className="auth-mode-tabs" aria-label="Elegir modo de acceso">
+        <div
+          className="auth-mode-tabs"
+          data-active={formView}
+          aria-label="Elegir modo de acceso"
+        >
           <button
             type="button"
             className={getLoginTabClass()}

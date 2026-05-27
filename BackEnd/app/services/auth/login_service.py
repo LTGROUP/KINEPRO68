@@ -1,5 +1,10 @@
-from app.repositories.auth import login_with_dni
-from app.schemas.auth.login_schema import LoginRequest, LoginResponse
+from app.repositories.auth import login_with_dni, refresh_auth_session
+from app.schemas.auth.login_schema import (
+    LoginRequest,
+    LoginResponse,
+    RefreshSessionRequest,
+    RefreshSessionResponse,
+)
 
 
 def login_user(data: LoginRequest) -> LoginResponse:
@@ -16,6 +21,28 @@ def login_user(data: LoginRequest) -> LoginResponse:
         message="Inicio de sesion exitoso",
         user_id=user["id"],
         access_token=user["access_token"],
+        refresh_token=user["refresh_token"],
+        nombre=user["nombre"],
+        apellido=user["apellido"],
+        dni=user["dni"],
+        rol=user["rol"],
+    )
+
+
+def refresh_user_session(data: RefreshSessionRequest) -> RefreshSessionResponse:
+    user = refresh_auth_session(data.refresh_token)
+
+    if not user:
+        raise ValueError("La sesion no se pudo renovar")
+
+    if not user["activo"]:
+        raise ValueError("La cuenta se encuentra inactiva")
+
+    return RefreshSessionResponse(
+        message="Sesion renovada correctamente",
+        user_id=user["id"],
+        access_token=user["access_token"],
+        refresh_token=user["refresh_token"],
         nombre=user["nombre"],
         apellido=user["apellido"],
         dni=user["dni"],

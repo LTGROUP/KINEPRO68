@@ -12,8 +12,13 @@ function LoginPage({ onLoginSuccess, onSwitchToRegister }) {
     setError('')
 
     try {
-      const response = await loginUser(payload)
-      onLoginSuccess?.(response)
+      const loginPayload = {
+        dni: payload.dni,
+        password: payload.password,
+      }
+
+      const response = await loginUser(loginPayload)
+      onLoginSuccess?.(response, payload.keep_session)
     } catch (requestError) {
       setError(requestError.message)
     } finally {

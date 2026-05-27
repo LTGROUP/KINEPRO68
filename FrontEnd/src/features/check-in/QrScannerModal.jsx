@@ -15,21 +15,25 @@ function QrScannerModal({ onClose }) {
   const [successMessage, setSuccessMessage] = useState('')
   const [scannerAttempt, setScannerAttempt] = useState(1)
 
-  async function stopScanner() {
-    if (!scannerRef.current) {
+  async function stopScanner(scannerToStop = scannerRef.current) {
+    if (!scannerToStop) {
       return
     }
 
     try {
-      await scannerRef.current.stop()
+      await scannerToStop.stop()
     } catch {
       // Si la cámara ya estaba cerrada, no hace falta mostrar error.
     }
 
     try {
-      scannerRef.current.clear()
+      scannerToStop.clear()
     } catch {
       // Clear puede fallar si el lector todavía no terminó de montar.
+    }
+
+    if (scannerRef.current === scannerToStop) {
+      scannerRef.current = null
     }
   }
 
@@ -63,6 +67,11 @@ function QrScannerModal({ onClose }) {
     setScannerAttempt((currentAttempt) => currentAttempt + 1)
   }
 
+  async function handleClose() {
+    await stopScanner()
+    onClose()
+  }
+
   function shouldShowRetryButton() {
     if (error) {
       return true
@@ -76,6 +85,7 @@ function QrScannerModal({ onClose }) {
   }
 
   useEffect(() => {
+    let shouldStopAfterStart = false
     const scanner = new Html5Qrcode(QR_READER_ID)
     scannerRef.current = scanner
 
@@ -93,8 +103,17 @@ function QrScannerModal({ onClose }) {
           handleQrDetected,
         )
 
+        if (shouldStopAfterStart) {
+          await stopScanner(scanner)
+          return
+        }
+
         setStatus('Apuntá la cámara al QR de recepción')
       } catch {
+        if (shouldStopAfterStart) {
+          return
+        }
+
         setError('No se pudo abrir la cámara. Revisá los permisos del navegador.')
         setStatus('Cámara no disponible')
       }
@@ -103,7 +122,8 @@ function QrScannerModal({ onClose }) {
     startScanner()
 
     return () => {
-      stopScanner()
+      shouldStopAfterStart = true
+      stopScanner(scanner)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scannerAttempt])
@@ -114,7 +134,7 @@ function QrScannerModal({ onClose }) {
         <button
           type="button"
           className="staff-detail-close"
-          onClick={onClose}
+          onClick={handleClose}
           aria-label="Cerrar escáner"
         >
           <X size={18} strokeWidth={3} aria-hidden="true" />
