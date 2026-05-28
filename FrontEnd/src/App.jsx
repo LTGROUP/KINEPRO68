@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 
 import { AuthLayout } from './features/auth'
-import { ProfilePage } from './features/check-in'
+import ResetPasswordPage from './features/auth/ResetPasswordPage'
+import { HomePage, ProfilePage } from './features/check-in'
 import { PatientsPage } from './features/patients'
 import { StaffManagementPage } from './features/staff-management'
 import { AppLayout } from './layouts'
+import { clearPasswordRecoveryFlow, hasPasswordRecoveryFlow, supabase } from './lib/supabase/client'
 import {
   SESSION_EXPIRED_EVENT,
   SESSION_REFRESHED_EVENT,
@@ -39,7 +41,16 @@ function getInitialSectionForUser(currentUser) {
   return 'inicio'
 }
 
+function getIsRecoveryFlow() {
+  if (hasPasswordRecoveryFlow()) {
+    return true
+  }
+
+  return false
+}
+
 function App() {
+  const isRecoveryFlow = getIsRecoveryFlow()
   const [user, setUser] = useState(readStoredSession)
   const [activeSection, setActiveSection] = useState(() => {
     const storedUser = readStoredSession()
@@ -67,7 +78,7 @@ function App() {
     window.addEventListener(SESSION_EXPIRED_EVENT, handleExpiredSession)
     window.addEventListener(SESSION_REFRESHED_EVENT, handleRefreshedSession)
 
-    return function cleanupExpiredSessionListener() {
+    return function cleanupSessionListeners() {
       window.removeEventListener(SESSION_EXPIRED_EVENT, handleExpiredSession)
       window.removeEventListener(SESSION_REFRESHED_EVENT, handleRefreshedSession)
     }
@@ -85,7 +96,28 @@ function App() {
     setActiveSection('inicio')
   }
 
+  function getSectionTitle(sectionId) {
+    const titles = {
+      inicio: 'Inicio',
+      turnos: 'Turnos',
+      pacientes: 'Pacientes',
+      personal: 'Gestión del personal',
+      metricas: 'Métricas',
+      perfil: 'Perfil',
+    }
+
+    if (titles[sectionId]) {
+      return titles[sectionId]
+    }
+
+    return 'Inicio'
+  }
+
   function renderActiveSection() {
+    if (activeSection === 'inicio') {
+      return <HomePage user={user} />
+    }
+
     if (activeSection === 'personal' && canManageStaff) {
       return <StaffManagementPage user={user} />
     }
@@ -107,21 +139,19 @@ function App() {
     )
   }
 
-  function getSectionTitle(sectionId) {
-    const titles = {
-      inicio: 'Inicio',
-      turnos: 'Turnos',
-      pacientes: 'Pacientes',
-      personal: 'Gestión del personal',
-      metricas: 'Métricas',
-      perfil: 'Perfil',
+  async function handleRecoveryFinish() {
+    if (supabase) {
+      await supabase.auth.signOut()
     }
 
-    if (titles[sectionId]) {
-      return titles[sectionId]
-    }
+    clearStoredSession()
+    clearPasswordRecoveryFlow()
+    window.history.replaceState({}, '', '/')
+    window.location.reload()
+  }
 
-    return 'Inicio'
+  if (isRecoveryFlow) {
+    return <ResetPasswordPage onFinish={handleRecoveryFinish} />
   }
 
   if (user) {

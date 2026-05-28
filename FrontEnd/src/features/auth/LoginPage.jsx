@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { loginUser } from '../../services/authService'
 import LoginForm from './LoginForm'
 
-function LoginPage({ onLoginSuccess, onSwitchToRegister }) {
+function LoginPage({ onLoginSuccess, onSwitchToRegister, onForgotPassword }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -45,7 +45,11 @@ function LoginPage({ onLoginSuccess, onSwitchToRegister }) {
         <p>Ingresá con tu DNI y contraseña para continuar.</p>
       </div>
 
-      <LoginForm onSubmit={handleLogin} loading={loading} />
+      <LoginForm
+        onSubmit={handleLogin}
+        onForgotPassword={onForgotPassword}
+        loading={loading}
+      />
 
       {error && (
         <p className="auth-message error" role="alert">

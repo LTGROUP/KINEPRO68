@@ -241,3 +241,46 @@ export function loginUser(payload) {
     body: payload,
   })
 }
+
+export function buildActorHeaders(actor) {
+  return {
+    Authorization: `Bearer ${actor.access_token}`,
+  }
+}
+
+export function getMyProfile(actor) {
+  return request('/api/v1/auth/me', {
+    method: 'GET',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+export function updateMyProfile(actor, payload) {
+  return request('/api/v1/auth/me', {
+    method: 'PATCH',
+    headers: buildActorHeaders(actor),
+    body: payload,
+  })
+}
+
+export function changePassword(actor, payload) {
+  return request('/api/v1/auth/change-password', {
+    method: 'POST',
+    headers: buildActorHeaders(actor),
+    body: payload,
+  })
+}
+
+export function forgotPassword(payload) {
+  return request('/api/v1/auth/forgot-password', {
+    method: 'POST',
+    body: payload,
+  })
+}
+
+export function resetPassword(payload) {
+  return request('/api/v1/auth/reset-password', {
+    method: 'POST',
+    body: payload,
+  })
+}

@@ -149,6 +149,10 @@ input {
   scrollbar-width: none;
 }
 
+.auth-panel[data-view="forgot"] {
+  padding-top: 96px;
+}
+
 .auth-panel::-webkit-scrollbar,
 .country-code-menu::-webkit-scrollbar {
   display: none;
@@ -548,11 +552,28 @@ input {
 }
 
 .auth-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 32px;
   border: 0;
+  border-radius: 8px;
+  padding: 0 10px;
   color: #61746f;
   background: transparent;
   font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.auth-link:hover:not(:disabled) {
+  color: #176b5b;
+  background: #e8f3ef;
+  transform: translateY(-1px);
+  text-decoration: underline;
 }
 
 .auth-link:disabled {
@@ -640,9 +661,75 @@ input {
   width: 100%;
 }
 
+.reset-password-shell {
+  display: grid;
+  grid-template-columns: 1fr;
+  place-items: center;
+  padding: 24px;
+  background:
+    linear-gradient(rgba(20, 71, 62, 0.86), rgba(20, 71, 62, 0.9)),
+    url("https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1400&q=80");
+  background-position: center;
+  background-size: cover;
+}
+
+.reset-password-panel {
+  width: min(100%, 520px);
+  min-height: auto;
+  max-height: calc(100dvh - 48px);
+  margin: 0;
+  padding: 42px;
+  border-radius: 28px;
+}
+
+.reset-password-panel .auth-content {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  justify-items: center;
+  text-align: center;
+}
+
+.reset-password-icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border-radius: 18px;
+  color: #176b5b;
+  background: #e3f2ed;
+}
+
+.reset-password-panel .auth-heading {
+  margin-bottom: 0;
+}
+
+.reset-password-panel .auth-form {
+  width: 100%;
+  text-align: left;
+}
+
+.reset-password-panel .auth-submit {
+  width: 100%;
+}
+
 @media (max-width: 860px) {
   .auth-shell {
     display: block;
+  }
+
+  .reset-password-shell {
+    display: grid;
+    padding: 18px;
+  }
+
+  .reset-password-panel {
+    position: static;
+    width: min(100%, 520px);
+    max-height: calc(100dvh - 36px);
+    margin: 0;
+    padding: 34px 20px;
+    transform: none;
   }
 
   .auth-brand {
@@ -723,6 +810,10 @@ input {
     border-radius: 28px;
   }
 
+  .reset-password-panel {
+    justify-content: flex-start;
+  }
+
   .auth-panel[data-open="false"] {
     display: none;
   }
@@ -798,6 +889,23 @@ input {
     max-height: calc(100dvh - 28px);
     padding: 46px 12px 16px;
     border-radius: 18px;
+  }
+
+  .reset-password-shell {
+    padding: 12px;
+  }
+
+  .reset-password-panel {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    padding: 28px 14px 18px;
+    border-radius: 20px;
+  }
+
+  .reset-password-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
   }
 
   .auth-close {
