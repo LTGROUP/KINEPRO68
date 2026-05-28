@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
 from uuid import UUID
+from typing import Optional
+
 from app.api.dependencies.auth import (
     get_current_profile as get_current_user,
     get_current_staff_manager_profile as get_current_secretaria,
@@ -170,10 +172,10 @@ async def cancelar_turno_endpoint(
     response_model=AgendaDiariaResponse,
     status_code=status.HTTP_200_OK,
     summary="Consultar agenda completa del día",
-    description="Trae la grilla del día con los nombres de los pacientes para la Secretaria.",
 )
 async def obtener_agenda_del_dia_endpoint(
     fecha: date = Query(..., description="Fecha en formato YYYY-MM-DD"),
+    area: Optional[str] = Query(None, description="Filtrar por área (ej: tren_superior)"),
     db: AsyncSession = Depends(get_db),
     secretaria=Depends(get_current_secretaria),
 ):
@@ -181,14 +183,12 @@ async def obtener_agenda_del_dia_endpoint(
         return await consultar_agenda_diaria(
             db=db, 
             fecha_buscada=fecha, 
-            actor_role=secretaria["rol"]
+            actor_role=secretaria["rol"],
+            area=area
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    
 @router.patch(
     "/{turno_id}/asistencia",
     status_code=status.HTTP_200_OK,

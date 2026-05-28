@@ -3,6 +3,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from app.models.turno import Turno, EstadoTurno ,ListaEspera
+from typing import Optional
+from sqlalchemy.orm import joinedload
 
 # Busca todos los turnos que coincidan con la fecha
 async def obtener_turnos_disponibles_por_fecha(db: AsyncSession, fecha_buscada: date):
@@ -81,15 +83,18 @@ async def obtener_lista_espera_por_turno(
     )
     return result.scalars().all()
 
-async def obtener_agenda_diaria_pura(db: AsyncSession, fecha_buscada: date):
+async def obtener_agenda_diaria_pura(db: AsyncSession, fecha_buscada: date, area: Optional[str] = None):
+    filtros = [
+        Turno.fecha == fecha_buscada,
+        Turno.estado != EstadoTurno.DISPONIBLE
+    ]
+    
+    if area:
+        filtros.append(Turno.area_tratamiento == area)
+        
     query = (
         select(Turno)
-        .where(
-            and_(
-                Turno.fecha == fecha_buscada,
-                Turno.estado != EstadoTurno.DISPONIBLE # <-- ESTE ES EL FILTRO MAGICO
-            )
-        )
+        .where(and_(*filtros))
         .order_by(Turno.hora_inicio)
     )
     result = await db.execute(query)
