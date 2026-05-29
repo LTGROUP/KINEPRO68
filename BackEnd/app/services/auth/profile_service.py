@@ -37,9 +37,11 @@ def update_user_profile(user_id: str, data: ProfileUpdateRequest) -> dict:
     if email_owner.data and email_owner.data[0]["id"] != user_id:
         return {"error": "El email ingresado ya pertenece a un usuario registrado"}
 
-    fields = data.model_dump()
-    fields["email"] = str(data.email)
-    fields["fecha_nacimiento"] = data.fecha_nacimiento.isoformat()
+    fields = {
+        "telefono": data.telefono,
+        "email": str(data.email),
+        "obra_social": data.obra_social,
+    }
 
     get_supabase_admin_client().table("profiles").update(fields).eq("id", user_id).execute()
     get_supabase_admin_client().auth.admin.update_user_by_id(

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 
 import { changePassword, getMyProfile, updateMyProfile } from '../../services/authService'
 import '../../styles/check-in.css'
@@ -13,6 +14,9 @@ function ProfilePage({ user }) {
   const [activeProfileSection, setActiveProfileSection] = useState('datos')
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [profileForm, setProfileForm] = useState({
     nombre: '',
     apellido: '',
@@ -113,6 +117,34 @@ function ProfilePage({ user }) {
       ...current,
       [name]: value,
     }))
+  }
+
+  function toggleCurrentPassword() {
+    setShowCurrentPassword((currentValue) => !currentValue)
+  }
+
+  function toggleNewPassword() {
+    setShowNewPassword((currentValue) => !currentValue)
+  }
+
+  function toggleConfirmPassword() {
+    setShowConfirmPassword((currentValue) => !currentValue)
+  }
+
+  function getPasswordType(showPassword) {
+    if (showPassword) {
+      return 'text'
+    }
+
+    return 'password'
+  }
+
+  function getPasswordLabel(showPassword) {
+    if (showPassword) {
+      return 'Ocultar contraseña'
+    }
+
+    return 'Mostrar contraseña'
   }
 
   async function handleChangePassword(event) {
@@ -300,33 +332,75 @@ function ProfilePage({ user }) {
                   <form className="auth-form profile-form" onSubmit={handleChangePassword}>
                     <label className="auth-field">
                       <span>Contraseña actual</span>
-                      <input
-                        type="password"
-                        name="current_password"
-                        value={passwordForm.current_password}
-                        onChange={handlePasswordInputChange}
-                        required
-                      />
+                      <div className="password-input-wrap">
+                        <input
+                          type={getPasswordType(showCurrentPassword)}
+                          name="current_password"
+                          value={passwordForm.current_password}
+                          onChange={handlePasswordInputChange}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="password-toggle"
+                          onClick={toggleCurrentPassword}
+                          aria-label={getPasswordLabel(showCurrentPassword)}
+                        >
+                          {showCurrentPassword ? (
+                            <EyeOff size={20} strokeWidth={2.4} aria-hidden="true" />
+                          ) : (
+                            <Eye size={20} strokeWidth={2.4} aria-hidden="true" />
+                          )}
+                        </button>
+                      </div>
                     </label>
                     <label className="auth-field">
                       <span>Nueva contraseña</span>
-                      <input
-                        type="password"
-                        name="new_password"
-                        value={passwordForm.new_password}
-                        onChange={handlePasswordInputChange}
-                        required
-                      />
+                      <div className="password-input-wrap">
+                        <input
+                          type={getPasswordType(showNewPassword)}
+                          name="new_password"
+                          value={passwordForm.new_password}
+                          onChange={handlePasswordInputChange}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="password-toggle"
+                          onClick={toggleNewPassword}
+                          aria-label={getPasswordLabel(showNewPassword)}
+                        >
+                          {showNewPassword ? (
+                            <EyeOff size={20} strokeWidth={2.4} aria-hidden="true" />
+                          ) : (
+                            <Eye size={20} strokeWidth={2.4} aria-hidden="true" />
+                          )}
+                        </button>
+                      </div>
                     </label>
                     <label className="auth-field">
                       <span>Confirmar nueva contraseña</span>
-                      <input
-                        type="password"
-                        name="confirm_password"
-                        value={passwordForm.confirm_password}
-                        onChange={handlePasswordInputChange}
-                        required
-                      />
+                      <div className="password-input-wrap">
+                        <input
+                          type={getPasswordType(showConfirmPassword)}
+                          name="confirm_password"
+                          value={passwordForm.confirm_password}
+                          onChange={handlePasswordInputChange}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="password-toggle"
+                          onClick={toggleConfirmPassword}
+                          aria-label={getPasswordLabel(showConfirmPassword)}
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff size={20} strokeWidth={2.4} aria-hidden="true" />
+                          ) : (
+                            <Eye size={20} strokeWidth={2.4} aria-hidden="true" />
+                          )}
+                        </button>
+                      </div>
                     </label>
                     <button className="auth-submit" type="submit" disabled={passwordLoading}>
                       {passwordLoading ? 'Actualizando...' : 'Cambiar contraseña'}

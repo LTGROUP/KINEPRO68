@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Guía de demo - KinePro Grupo B</title>
+    <style>
+      @page {
+        margin: 28mm 20mm;
+      }
+
+      body {
+        margin: 0;
+        color: #17211d;
+        font-family: Arial, Helvetica, sans-serif;
+        line-height: 1.45;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #123f36;
+        line-height: 1.15;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 30px;
+      }
+
+      h2 {
+        margin: 26px 0 10px;
+        border-bottom: 2px solid #d7e3df;
+        padding-bottom: 6px;
+        font-size: 20px;
+      }
+
+      h3 {
+        margin: 18px 0 8px;
+        font-size: 16px;
+      }
+
+      p {
+        margin: 6px 0;
+      }
+
+      ul {
+        margin: 8px 0 12px 20px;
+        padding: 0;
+      }
+
+      li {
+        margin: 4px 0;
+      }
+
+      .cover {
+        border-radius: 16px;
+        padding: 24px;
+        color: #ffffff;
+        background: #176b5b;
+      }
+
+      .cover h1 {
+        color: #ffffff;
+      }
+
+      .cover p {
+        color: #e3f2ed;
+        font-size: 14px;
+      }
+
+      .note {
+        border-left: 4px solid #176b5b;
+        margin: 14px 0;
+        padding: 10px 12px;
+        background: #edf5f2;
+      }
+
+      .hu {
+        page-break-inside: avoid;
+        border: 1px solid #d7e3df;
+        border-radius: 10px;
+        margin: 14px 0;
+        padding: 14px;
+        background: #ffffff;
+      }
+
+      .tag {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 3px 9px;
+        color: #176b5b;
+        background: #e3f2ed;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .script {
+        border-radius: 8px;
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: #f6faf8;
+      }
+
+      .script strong {
+        color: #123f36;
+      }
+
+      .footer {
+        margin-top: 26px;
+        color: #61746f;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="cover">
+      <h1>Guía de demo por Historias de Usuario</h1>
+      <p>KinePro - Grupo B</p>
+      <p>
+        Recorrido sugerido para mostrar las funcionalidades implementadas hasta el momento:
+        cuentas, perfiles, gestión de personal, pacientes, auditoría y QR.
+      </p>
+    </section>
+
+    <div class="note">
+      <strong>Idea general:</strong> conviene demo por HU, no por pantalla. Para cada historia,
+      mostrar un caso correcto y, si hay tiempo, un caso fallido importante.
+    </div>
+
+    <h2>Preparación antes de la demo</h2>
+    <ul>
+      <li>Tener el backend y frontend levantados.</li>
+      <li>Tener una cuenta secretaria o administrativa para la parte de gestión.</li>
+      <li>Tener una cuenta paciente para mostrar inicio, perfil y QR.</li>
+      <li>Tener abierto el correo de prueba para recuperación de contraseña.</li>
+      <li>Preparar un DNI nuevo y un email nuevo para registrar usuarios sin errores.</li>
+      <li>Preparar un DNI ya existente para mostrar validaciones.</li>
+    </ul>
+
+    <h2>Gestión de cuentas y perfiles</h2>
+
+    <article class="hu">
+      <span class="tag">HU: Registrar usuario</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Registro correcto de un paciente.</li>
+        <li>Validación por DNI existente.</li>
+        <li>Validación por email inválido.</li>
+        <li>Validación de fecha de nacimiento y teléfono si se quiere sumar detalle.</li>
+      </ul>
+      <div class="script">
+        <strong>Frase para explicar:</strong>
+        En nuestro flujo actual, la cuenta se crea con contraseña temporal igual al DNI.
+        Luego el usuario puede cambiarla desde su perfil o recuperar contraseña por email.
+      </div>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Iniciar sesión</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Login correcto con DNI y contraseña.</li>
+        <li>Login fallido por contraseña incorrecta.</li>
+        <li>Checkbox de mantener sesión iniciada.</li>
+      </ul>
+      <div class="script">
+        <strong>Cierre:</strong>
+        Mostrar que al iniciar sesión se accede a la aplicación según el rol del usuario.
+      </div>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Cerrar sesión</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Ingresar con una cuenta.</li>
+        <li>Abrir el menú de usuario.</li>
+        <li>Presionar cerrar sesión.</li>
+        <li>Confirmar que vuelve al login.</li>
+      </ul>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Recuperar contraseña</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Entrar a "Olvidaste tu contraseña".</li>
+        <li>Ingresar un email registrado.</li>
+        <li>Mostrar el email recibido con el botón de recuperación.</li>
+        <li>Abrir el enlace y cargar una nueva contraseña.</li>
+        <li>Mostrar redirección automática al login.</li>
+      </ul>
+      <h3>Caso fallido sugerido</h3>
+      <ul>
+        <li>Ingresar una contraseña menor a 8 caracteres.</li>
+        <li>Ingresar una contraseña igual a la anterior.</li>
+      </ul>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Cambiar contraseña</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Entrar a Perfil.</li>
+        <li>Seleccionar la sección Seguridad.</li>
+        <li>Cambiar contraseña con datos válidos.</li>
+      </ul>
+      <h3>Caso fallido sugerido</h3>
+      <ul>
+        <li>Nueva contraseña menor a 8 caracteres.</li>
+        <li>Nueva contraseña igual a la anterior.</li>
+      </ul>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Ver datos personales</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Entrar a Perfil.</li>
+        <li>Seleccionar Datos personales.</li>
+        <li>Mostrar nombre, apellido, DNI, email, teléfono, obra social, fecha de nacimiento y rol.</li>
+      </ul>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Editar datos personales</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Presionar Editar datos.</li>
+        <li>Mostrar que nombre, apellido, DNI y fecha de nacimiento están bloqueados.</li>
+        <li>Editar email, teléfono u obra social.</li>
+        <li>Guardar cambios.</li>
+      </ul>
+      <h3>Caso fallido sugerido</h3>
+      <ul>
+        <li>Intentar guardar un email con formato inválido.</li>
+      </ul>
+    </article>
+
+    <h2>Pacientes y personal</h2>
+
+    <article class="hu">
+      <span class="tag">HU: Registrar cuenta de personal / paciente</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Entrar como secretaria o administrativo.</li>
+        <li>Ir a Gestión del personal o Pacientes.</li>
+        <li>Registrar un nuevo miembro o paciente.</li>
+        <li>Mostrar selector de rol.</li>
+        <li>Si el rol es profesional, mostrar campos extra de profesional.</li>
+      </ul>
+      <h3>Caso fallido sugerido</h3>
+      <ul>
+        <li>Registrar con DNI existente.</li>
+        <li>Registrar con email inválido.</li>
+      </ul>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Listar plantel</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Listado de personal.</li>
+        <li>Buscador.</li>
+        <li>Filtros por rol: profesionales, secretarias, administrativos.</li>
+        <li>Acciones por miembro.</li>
+      </ul>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Crear profesional</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Registrar miembro.</li>
+        <li>Seleccionar rol Profesional.</li>
+        <li>Completar matrícula, especialidad, área de tratamiento, horario de entrada y salida.</li>
+        <li>Confirmar creación.</li>
+      </ul>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Editar profesional</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Abrir acciones de un profesional.</li>
+        <li>Seleccionar Editar.</li>
+        <li>Modificar datos permitidos.</li>
+        <li>Mostrar que la matrícula no se puede editar.</li>
+      </ul>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Crear / Editar secretaria</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Crear una secretaria desde Registrar miembro.</li>
+        <li>Editar email, teléfono u obra social.</li>
+        <li>Mostrar que los campos bloqueados quedan en gris.</li>
+      </ul>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Eliminar profesional / secretaria</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Abrir acciones.</li>
+        <li>Seleccionar Dar de baja.</li>
+        <li>Mostrar modal de confirmación.</li>
+        <li>Confirmar baja y ver que desaparece del listado.</li>
+      </ul>
+      <div class="script">
+        <strong>Aclaración:</strong>
+        Para testing se implementó eliminación directa. En producción podría pasarse a baja lógica.
+      </div>
+    </article>
+
+    <article class="hu">
+      <span class="tag">HU: Consultar auditoría</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Entrar a Gestión del personal.</li>
+        <li>Cambiar a la sección Auditoría.</li>
+        <li>Mostrar registros de acciones realizadas.</li>
+        <li>Filtrar por acción.</li>
+        <li>Filtrar por fecha, sin permitir fechas futuras.</li>
+      </ul>
+      <div class="script">
+        <strong>Dato para mencionar:</strong>
+        La auditoría muestra quién realizó la operación, por ejemplo: secretaria · DNI.
+      </div>
+    </article>
+
+    <h2>Acreditación por QR</h2>
+
+    <article class="hu">
+      <span class="tag">HU: Acreditar acceso por QR</span>
+      <h3>Qué mostrar</h3>
+      <ul>
+        <li>Ingresar como paciente.</li>
+        <li>Ir a Inicio.</li>
+        <li>Presionar Escanear QR.</li>
+        <li>Mostrar apertura de cámara y botón Reintentar.</li>
+      </ul>
+      <div class="script">
+        <strong>Aclaración para la demo:</strong>
+        Esta parte ya tiene preparado el flujo visual y de cámara. La conexión final con turnos reales queda para cuando esté lista la grilla de horarios.
+      </div>
+    </article>
+
+    <h2>Orden recomendado para presentar</h2>
+    <ol>
+      <li>Registro, login y cerrar sesión.</li>
+      <li>Recuperación y cambio de contraseña.</li>
+      <li>Perfil: ver y editar datos personales.</li>
+      <li>Gestión de personal: listar, crear, editar y dar de baja.</li>
+      <li>Gestión de pacientes: listar, buscar, registrar y editar.</li>
+      <li>Auditoría: registros y filtros.</li>
+      <li>QR de asistencia desde Inicio del paciente.</li>
+    </ol>
+
+    <div class="footer">
+      Guía generada para la demo de KinePro - Grupo B.
+    </div>
+  </body>
+</html>

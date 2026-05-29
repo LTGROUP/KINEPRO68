@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 # ==================== ESQUEMA PARA DATOS DEL PERFIL ====================
 
@@ -25,5 +25,11 @@ class ProfileUpdateRequest(BaseModel):
     apellido: str = Field(..., min_length=1)
     telefono: str = Field(..., min_length=1)
     email: EmailStr
-    obra_social: str = Field(..., min_length=1)
+    obra_social: str = ""
     fecha_nacimiento: date
+
+    @field_validator("obra_social")
+    @classmethod
+    def validate_obra_social(cls, value: str) -> str:
+        value = value.strip()
+        return value or "Sin obra social"
