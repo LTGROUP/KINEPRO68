@@ -164,7 +164,10 @@ class PacienteEnEsperaResponse(BaseModel):
     id: UUID
     paciente_id: UUID
     fecha_inscripcion: datetime
-    posicion: int  # orden de prioridad
+    posicion: int
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    dni: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -174,6 +177,27 @@ class ListaEsperaResponse(BaseModel):
     pacientes: List[PacienteEnEsperaResponse]
     total: int
     mensaje: Optional[str] = None
+
+
+class InscribirseListaEsperaResponse(BaseModel):
+    mensaje: str
+    turno_id: UUID
+
+
+class TurnoFechaResponse(BaseModel):
+    id: UUID
+    hora_inicio: time
+    hora_fin: time
+    estado: EstadoTurno
+    area_tratamiento: Optional[AreaTratamiento] = None
+
+    model_config = {"from_attributes": True}
+
+
+class TurnosFechaResponse(BaseModel):
+    fecha: date
+    turnos: List[TurnoFechaResponse]
+    total: int
 
 class CancelarTurnoResponse(BaseModel):
     mensaje: Optional[str] = None

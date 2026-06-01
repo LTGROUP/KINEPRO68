@@ -19,9 +19,12 @@ from app.repositories.shifts.turnos import (
     obtener_turnos_disponibles_por_fecha,
     obtener_turno_existente_del_paciente,
     actualizar_estado_turno,
-    obtener_turno_por_id_con_lock,  
-    obtener_turnos_del_paciente,    
-    obtener_lista_espera_por_turno
+    obtener_turno_por_id_con_lock,
+    obtener_turnos_del_paciente,
+    obtener_lista_espera_por_turno,
+    inscribir_en_lista_espera,
+    verificar_paciente_en_lista,
+    obtener_todos_turnos_por_fecha,
 )
 
 from app.repositories.shifts.turnos import obtener_agenda_diaria_pura
@@ -133,11 +136,11 @@ async def ver_mis_turnos(
 async def consultar_lista_espera(
     db: AsyncSession,
     turno_id: UUID,
+    actor_role: str = "secretaria",
 ) -> ListaEsperaResponse:
 
     lista = await obtener_lista_espera_por_turno(db, turno_id)
 
-    # Escenario 2: sin pacientes
     if not lista:
         return ListaEsperaResponse(
             turno_id=turno_id,
@@ -146,22 +149,63 @@ async def consultar_lista_espera(
             mensaje="No hay pacientes en lista de espera para este turno"
         )
 
-    # Escenario 1: con pacientes — asignar posición
-    pacientes = [
-        PacienteEnEsperaResponse(
+    pacientes = []
+    for i, p in enumerate(lista):
+        nombre = apellido = dni = None
+        try:
+            detalle = get_patient_detail(str(p.paciente_id), actor_role)
+            nombre = detalle.nombre
+            apellido = detalle.apellido
+            dni = detalle.dni
+        except Exception:
+            pass
+
+        pacientes.append(PacienteEnEsperaResponse(
             id=p.id,
             paciente_id=p.paciente_id,
             fecha_inscripcion=p.fecha_inscripcion,
             posicion=i + 1,
-        )
-        for i, p in enumerate(lista)
-    ]
+            nombre=nombre,
+            apellido=apellido,
+            dni=dni,
+        ))
 
     return ListaEsperaResponse(
         turno_id=turno_id,
         pacientes=pacientes,
         total=len(pacientes),
     )
+
+
+async def inscribirse_en_lista_espera(
+    db: AsyncSession,
+    turno_id: UUID,
+    paciente_id: UUID,
+):
+    async with db.begin():
+        turno = await obtener_turno_por_id_con_lock(db, turno_id)
+
+        if not turno:
+            raise ValueError("El turno especificado no existe")
+
+        if turno.estado == EstadoTurno.DISPONIBLE:
+            raise ValueError("El turno tiene disponibilidad, podés solicitarlo directamente")
+
+        if turno.estado != EstadoTurno.RESERVADO:
+            raise ValueError("No es posible anotarse en lista de espera para este turno")
+
+        ya_inscripto = await verificar_paciente_en_lista(db, turno_id, paciente_id)
+        if ya_inscripto:
+            raise ValueError("Ya te encontrás en la lista de espera para este turno")
+
+        await inscribir_en_lista_espera(db, turno_id, paciente_id)
+
+    return {"mensaje": "Fuiste agregado a la lista de espera. Te notificaremos si se libera un cupo", "turno_id": turno_id}
+
+
+async def consultar_todos_turnos_fecha(db: AsyncSession, fecha_buscada: date):
+    turnos = await obtener_todos_turnos_por_fecha(db, fecha_buscada)
+    return turnos
 
 # Cancela un turno
 async def cancelar_turno(db: AsyncSession, turno_id: UUID):
@@ -303,7 +347,7 @@ async def reprogramar_turno(
         # EJECUCIÓN: Ocupamos el turno nuevo
         turno_nuevo.estado = EstadoTurno.RESERVADO
         turno_nuevo.paciente_id = paciente_id
-        turno_nuevo.area_tratamiento = nueva_area
+        turno_nuevo.area_tratamiento = AreaTratamiento(nueva_area)
 
         db.add(turno_viejo)
         db.add(turno_nuevo)
