@@ -50,16 +50,38 @@ export function bloquearDia(actor, payload) {
   })
 }
 
-export function getAgendaDia(actor, fecha) {
-  return request(`/api/v1/turnos/agenda?fecha=${fecha}`, {
+export function getAgendaDia(actor, fecha, area = '') {
+  let url = `/api/v1/turnos/agenda?fecha=${fecha}`
+  if (area) {
+    url += `&area=${area}`
+  }
+  return request(url, {
     method: 'GET',
-    headers: buildActorHeaders(actor), // Le pasamos el token para que sepa que es secretaria
+    headers: buildActorHeaders(actor),
   })
 }
 
 export function actualizarEstadoTurno(actor, turnoId, payload) {
   return request(`/api/v1/turnos/${turnoId}/asistencia`, {
     method: 'PATCH',
+    headers: buildActorHeaders(actor),
+    body: payload,
+  })
+}
+
+// ---> ESTA ES LA FUNCIÓN NUEVA QUE PERMITE CANCELAR TURNOS <---
+export function cancelarTurno(actor, turnoId) {
+  return request(`/api/v1/turnos/${turnoId}/cancelar`, {
+    method: 'PATCH', 
+    headers: buildActorHeaders(actor),
+  })
+}
+
+// ---> FUNCIÓN PARA LA HU DE REPROGRAMACIÓN <---
+export function reprogramarTurno(actor, turnoId, payload) {
+  // El payload va a llevar { nueva_fecha, nueva_hora_inicio, nueva_hora_fin }
+  return request(`/api/v1/turnos/${turnoId}/reprogramar`, {
+    method: 'PATCH', 
     headers: buildActorHeaders(actor),
     body: payload,
   })

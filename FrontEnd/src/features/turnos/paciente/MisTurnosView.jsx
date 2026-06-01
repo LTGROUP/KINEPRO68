@@ -1,30 +1,21 @@
-import { useEffect, useState } from 'react'
-import { CalendarDays } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { CalendarDays, X } from 'lucide-react'
+// Asegurate de ajustar estas rutas a las de tu proyecto:
+import { getMisTurnos, cancelarTurno } from '../../../services/turnosService'
+import SolicitarTurnoView from './SolicitarTurnoView'
 
-import { getMisTurnos } from '../../../services/turnosService'
-
+// Constantes y funciones de formato
 const AREA_LABELS = {
-  tren_superior: 'Tren superior',
-  tren_medio: 'Tren medio',
-  tren_inferior: 'Tren inferior',
+  tren_superior: 'Tren Superior',
+  tren_medio: 'Tren Medio',
+  tren_inferior: 'Tren Inferior'
 }
 
 const ESTADO_LABELS = {
-  disponible: 'Disponible',
   reservado: 'Reservado',
-  bloqueado: 'Bloqueado',
   cancelado: 'Cancelado',
-}
-
-function getEstadoClass(estado) {
-  if (estado === 'reservado') return 'turnos-badge reservado'
-  if (estado === 'cancelado') return 'turnos-badge cancelado'
-  return 'turnos-badge'
-}
-
-function formatTime(timeStr) {
-  if (!timeStr) return ''
-  return timeStr.slice(0, 5)
+  presente: 'Presente',
+  ausente: 'Ausente'
 }
 
 function formatFecha(dateStr) {
@@ -33,28 +24,55 @@ function formatFecha(dateStr) {
   return `${d}/${m}/${y}`
 }
 
+function formatTime(timeStr) {
+  if (!timeStr) return ''
+  return timeStr.slice(0, 5)
+}
+
+function getEstadoClass(estado) {
+  if (estado === 'reservado') return 'turnos-badge reservado'
+  if (estado === 'cancelado') return 'turnos-badge cancelado'
+  return 'turnos-badge'
+}
+
 function MisTurnosView({ user }) {
   const [turnos, setTurnos] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  
+  // NUEVO ESTADO: Guarda el turno que el paciente tocó para reprogramar
+  const [turnoEditando, setTurnoEditando] = useState(null)
+
+  // Extraemos la función afuera para poder recargar la lista cuando reprogramamos con éxito
+  const cargarMisTurnos = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const data = await getMisTurnos(user)
+      setTurnos(data.turnos || [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [user])
 
   useEffect(() => {
-    async function cargarMisTurnos() {
-      setLoading(true)
-      setError('')
+    cargarMisTurnos()
+  }, [cargarMisTurnos])
 
-      try {
-        const data = await getMisTurnos(user)
-        setTurnos(data.turnos || [])
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
+  async function handleCancelar(turnoId) {
+    if (!window.confirm('¿Estás seguro de que querés cancelar este turno?')) return;
+    try {
+      await cancelarTurno(user, turnoId);
+      setTurnos(turnos.map(t => t.id === turnoId ? { ...t, estado: 'cancelado' } : t));
+      setMessage('El turno fue cancelado y el espacio liberado correctamente.');
+      setTimeout(() => setMessage(''), 5000);
+    } catch (err) {
+      alert("No se pudo cancelar el turno. Verificá tu conexión.");
     }
-
-    Promise.resolve().then(cargarMisTurnos)
-  }, [user])
+  }
 
   if (loading) {
     return <p className="staff-empty">Cargando tus turnos...</p>
@@ -74,26 +92,129 @@ function MisTurnosView({ user }) {
   }
 
   return (
-    <div className="turnos-list">
-      {turnos.map((turno) => (
-        <div key={turno.id} className="turnos-list-item">
-          <div className="turnos-list-date">
-            <strong>{formatFecha(turno.fecha)}</strong>
-            <span>{formatTime(turno.hora_inicio)} – {formatTime(turno.hora_fin)}</span>
-          </div>
-          <div className="turnos-list-info">
-            {turno.area_tratamiento && (
-              <span className="turnos-list-area">
-                {AREA_LABELS[turno.area_tratamiento] || turno.area_tratamiento}
+    <>
+      <div className="turnos-list">
+        {turnos.map((turno) => (
+          <div key={turno.id} className="turnos-list-item">
+            <div className="turnos-list-date">
+              <strong>{formatFecha(turno.fecha)}</strong>
+              <span>{formatTime(turno.hora_inicio)} – {formatTime(turno.hora_fin)}</span>
+            </div>
+            <div className="turnos-list-info">
+              {turno.area_tratamiento && (
+                <span className="turnos-list-area">
+                  {AREA_LABELS[turno.area_tratamiento] || turno.area_tratamiento}
+                </span>
+              )}
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span className={getEstadoClass(turno.estado)}>
+                {ESTADO_LABELS[turno.estado] || turno.estado}
               </span>
-            )}
+
+              {turno.estado === 'reservado' && (
+                <>
+                  {/* BOTÓN REPROGRAMAR */}
+                  <button
+                    type="button"
+                    onClick={() => setTurnoEditando(turno)}
+                    style={{
+                      backgroundColor: '#eff6ff',
+                      color: '#1d4ed8',
+                      border: '1px solid #93c5fd',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    Reprogramar
+                  </button>
+
+                  {/* BOTÓN CANCELAR */}
+                  <button
+                    type="button"
+                    onClick={() => handleCancelar(turno.id)}
+                    style={{
+                      backgroundColor: '#fee2e2',
+                      color: '#b91c1c',
+                      border: '1px solid #f87171',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <span className={getEstadoClass(turno.estado)}>
-            {ESTADO_LABELS[turno.estado] || turno.estado}
-          </span>
+        ))}
+      </div>
+
+      {/* TOAST FLOTANTE PARA MENSAJES DE ÉXITO */}
+      {message && (
+        <div style={{
+          position: 'fixed', top: '40px', left: '50%', transform: 'translateX(-50%)',
+          backgroundColor: '#ffffff', padding: '24px 32px', borderRadius: '12px',
+          boxShadow: '0px 10px 40px rgba(0, 0, 0, 0.15)', zIndex: 9999, minWidth: '340px',
+          textAlign: 'left', animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <p style={{ color: '#99e3d0', fontWeight: '900', fontSize: '0.75rem', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '0 0 8px 0' }}>
+            Confirmación
+          </p>
+          <h3 style={{ margin: '0 0 8px 0', color: '#111827', fontSize: '1.25rem', fontWeight: 'bold' }}>
+            Acción realizada
+          </h3>
+          <p style={{ margin: 0, color: '#4b5563', fontSize: '0.95rem' }}>{message}</p>
         </div>
-      ))}
-    </div>
+      )}
+
+      {/* MODAL DE REPROGRAMACIÓN (EL PUENTE) */}
+      {turnoEditando && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9998,
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          padding: '20px', backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            backgroundColor: '#f9fafb', borderRadius: '12px', width: '100%', maxWidth: '850px',
+            maxHeight: '90vh', overflowY: 'auto', position: 'relative', padding: '24px',
+            boxShadow: '0px 20px 25px -5px rgba(0, 0, 0, 0.1), 0px 10px 10px -5px rgba(0, 0, 0, 0.04)'
+          }}>
+            {/* Botón para cerrar el modal por si el paciente se arrepiente */}
+            <button 
+              onClick={() => setTurnoEditando(null)}
+              style={{
+                position: 'absolute', top: '16px', right: '16px', background: 'none',
+                border: 'none', cursor: 'pointer', color: '#6b7280'
+              }}
+              aria-label="Cerrar modal"
+            >
+              <X size={24} />
+            </button>
+
+            {/* Inyectamos el calendario en Modo Reprogramación */}
+            <SolicitarTurnoView 
+              user={user} 
+              turnoAReprogramar={turnoEditando}
+              onSuccess={(msg) => {
+                setTurnoEditando(null); // 1. Cerramos el modal oscurecido
+                setMessage(msg);        // 2. Disparamos la notificación verde con el mensaje
+                setTimeout(() => setMessage(''), 5000);
+                cargarMisTurnos();      // 3. Volvemos a pedirle los datos al backend para refrescar la lista
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
