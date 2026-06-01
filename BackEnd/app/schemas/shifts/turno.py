@@ -211,3 +211,10 @@ class AgendaDiariaResponse(BaseModel):
 
 class ActualizarEstadoRequest(BaseModel):
     nuevo_estado: EstadoTurno
+
+from pydantic import BaseModel
+from uuid import UUID
+
+class ReprogramarTurnoRequest(BaseModel):
+    nuevo_turno_id: UUID
+    area_tratamiento: str  
