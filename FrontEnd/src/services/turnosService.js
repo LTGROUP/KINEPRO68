@@ -77,12 +77,24 @@ export function cancelarTurno(actor, turnoId) {
   })
 }
 
-// ---> FUNCIÓN PARA LA HU DE REPROGRAMACIÓN <---
 export function reprogramarTurno(actor, turnoId, payload) {
-  // El payload va a llevar { nueva_fecha, nueva_hora_inicio, nueva_hora_fin }
   return request(`/api/v1/turnos/${turnoId}/reprogramar`, {
-    method: 'PATCH', 
+    method: 'PATCH',
     headers: buildActorHeaders(actor),
     body: payload,
+  })
+}
+
+export function inscribirseListaEspera(actor, turnoId) {
+  return request(`/api/v1/turnos/${turnoId}/lista-espera`, {
+    method: 'POST',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+export function getTodosLosTurnos(actor, fecha) {
+  return request(`/api/v1/turnos/todos?fecha=${fecha}`, {
+    method: 'GET',
+    headers: buildActorHeaders(actor),
   })
 }

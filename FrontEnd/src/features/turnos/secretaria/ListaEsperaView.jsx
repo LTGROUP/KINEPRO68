@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Users } from 'lucide-react'
 
-import { getTurnosDisponibles, getListaEspera } from '../../../services/turnosService'
+import { getTodosLosTurnos, getListaEspera } from '../../../services/turnosService'
 
 function formatTime(timeStr) {
   if (!timeStr) return ''
@@ -48,8 +48,10 @@ function ListaEsperaView({ user }) {
     setListaEspera(null)
 
     try {
-      const data = await getTurnosDisponibles(fecha)
-      setTurnos(data.turnos || [])
+      const data = await getTodosLosTurnos(user, fecha)
+      // Solo mostramos los turnos RESERVADOS (los que pueden tener lista de espera)
+      const reservados = (data.turnos || []).filter(t => t.estado === 'reservado')
+      setTurnos(reservados)
     } catch (err) {
       setErrorTurnos(err.message)
     } finally {
@@ -95,13 +97,13 @@ function ListaEsperaView({ user }) {
       )}
 
       {!loadingTurnos && fecha && turnos.length === 0 && !errorTurnos && (
-        <p className="staff-empty">No se encontraron turnos para esta fecha.</p>
+        <p className="staff-empty">No hay turnos llenos (reservados) para esta fecha.</p>
       )}
 
       {turnos.length > 0 && (
         <div className="turnos-espera-slots">
           <p className="turnos-slots-heading">
-            Turnos del <strong>{formatDateLabel(fecha)}</strong> — seleccioná uno para ver su lista de espera
+            Turnos llenos del <strong>{formatDateLabel(fecha)}</strong> — seleccioná uno para ver su lista de espera
           </p>
           <div className="turnos-slots-grid">
             {turnos.map((turno) => (
@@ -149,8 +151,11 @@ function ListaEsperaView({ user }) {
                   </div>
                   <div className="turnos-list-info">
                     <strong className="turnos-list-id">
-                      Paciente ID: {String(paciente.paciente_id).slice(0, 8)}…
+                      {paciente.nombre && paciente.apellido
+                        ? `${paciente.nombre} ${paciente.apellido}`
+                        : `Paciente ${String(paciente.paciente_id).slice(0, 8)}…`}
                     </strong>
+                    {paciente.dni && <span>DNI: {paciente.dni}</span>}
                     <span>Inscripto el {formatDatetime(paciente.fecha_inscripcion)}</span>
                   </div>
                 </div>

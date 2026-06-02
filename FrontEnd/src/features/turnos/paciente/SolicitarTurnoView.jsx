@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
 
-// AGREGAMOS reprogramarTurno al import
-import { getTurnosDisponibles, solicitarTurno, reprogramarTurno } from '../../../services/turnosService'
+import { getTurnosDisponibles, solicitarTurno, reprogramarTurno, inscribirseListaEspera } from '../../../services/turnosService'
 
 const AREAS = [
   { value: 'tren_superior', label: 'Tren superior' },
@@ -88,6 +87,9 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
   const [areaTratamiento, setAreaTratamiento] = useState('')
   const [saving, setSaving] = useState(false)
   const [errorSolicitar, setErrorSolicitar] = useState('')
+  const [turnoLlenoId, setTurnoLlenoId] = useState(null)
+  const [inscribiendo, setInscribiendo] = useState(false)
+  const [mensajeEspera, setMensajeEspera] = useState('')
 
   const weekDays = getWeekDays(weekStart)
 
@@ -161,12 +163,31 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
     setSelectedTurno(turno)
     setAreaTratamiento('')
     setErrorSolicitar('')
+    setTurnoLlenoId(null)
+    setMensajeEspera('')
   }
 
   function handleCloseModal() {
     setSelectedTurno(null)
     setAreaTratamiento('')
     setErrorSolicitar('')
+    setTurnoLlenoId(null)
+    setMensajeEspera('')
+  }
+
+  async function handleInscribirseEspera() {
+    if (!turnoLlenoId) return
+    setInscribiendo(true)
+    try {
+      const data = await inscribirseListaEspera(user, turnoLlenoId)
+      setMensajeEspera(data.mensaje)
+      setTurnoLlenoId(null)
+      setErrorSolicitar('')
+    } catch (err) {
+      setErrorSolicitar(err.message)
+    } finally {
+      setInscribiendo(false)
+    }
   }
 
   // LOGICA FUERTE: Bifurcación entre Reservar y Reprogramar
@@ -181,15 +202,13 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
 
     try {
       if (turnoAReprogramar) {
-        // MODO REPROGRAMACIÓN
         const payload = {
           nuevo_turno_id: selectedTurno.id,
           area_tratamiento: areaTratamiento,
         }
-        await reprogramarTurno(user, turnoAReprogramar.id, payload)
-        if (onSuccess) onSuccess('El turno fue reprogramado correctamente.')
+        const data = await reprogramarTurno(user, turnoAReprogramar.id, payload)
+        if (onSuccess) onSuccess(data.mensaje || 'El turno fue reprogramado correctamente.')
       } else {
-        // MODO RESERVA NORMAL
         const payload = {
           turno_id: selectedTurno.id,
           area_tratamiento: areaTratamiento,
@@ -200,13 +219,18 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
         await solicitarTurno(user, payload)
         if (onSuccess) onSuccess('El turno fue reservado correctamente.')
       }
-      
+
       setSelectedTurno(null)
       setAreaTratamiento('')
       setSelectedDate(null)
       setTurnos([])
     } catch (err) {
-      setErrorSolicitar(err.message)
+      const msg = err.message || ''
+      // Si el turno ya no está disponible (otro paciente lo tomó), ofrecemos lista de espera
+      if (!turnoAReprogramar && msg.toLowerCase().includes('no est')) {
+        setTurnoLlenoId(selectedTurno.id)
+      }
+      setErrorSolicitar(msg)
     } finally {
       setSaving(false)
     }
@@ -332,17 +356,44 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
               ))}
             </div>
 
-            {errorSolicitar && <p className="staff-message error" style={{ marginTop: '12px' }}>{errorSolicitar}</p>}
+            {mensajeEspera && (
+              <p className="staff-message" style={{ marginTop: '12px', color: '#065f46', backgroundColor: '#d1fae5', padding: '10px', borderRadius: '6px' }}>
+                {mensajeEspera}
+              </p>
+            )}
+
+            {errorSolicitar && (
+              <>
+                <p className="staff-message error" style={{ marginTop: '12px' }}>{errorSolicitar}</p>
+                {turnoLlenoId && (
+                  <button
+                    type="button"
+                    onClick={handleInscribirseEspera}
+                    disabled={inscribiendo}
+                    style={{
+                      marginTop: '8px', width: '100%', padding: '10px',
+                      backgroundColor: '#eff6ff', color: '#1d4ed8',
+                      border: '1px solid #93c5fd', borderRadius: '6px',
+                      cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem',
+                    }}
+                  >
+                    {inscribiendo ? 'Anotando...' : 'Anotarme en lista de espera'}
+                  </button>
+                )}
+              </>
+            )}
 
             <div className="staff-confirm-actions">
               <button type="button" className="staff-confirm-button secondary" onClick={handleCloseModal}>
                 Cancelar
               </button>
-              <button type="button" className="staff-confirm-button primary" onClick={handleConfirmarTurno} disabled={saving}>
-                {saving 
-                  ? (turnoAReprogramar ? 'Reprogramando...' : 'Reservando...') 
-                  : (turnoAReprogramar ? 'Reprogramar turno' : 'Confirmar turno')}
-              </button>
+              {!mensajeEspera && (
+                <button type="button" className="staff-confirm-button primary" onClick={handleConfirmarTurno} disabled={saving}>
+                  {saving
+                    ? (turnoAReprogramar ? 'Reprogramando...' : 'Reservando...')
+                    : (turnoAReprogramar ? 'Reprogramar turno' : 'Confirmar turno')}
+                </button>
+              )}
             </div>
           </div>
         </aside>

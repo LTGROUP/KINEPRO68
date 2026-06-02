@@ -83,6 +83,46 @@ async def obtener_lista_espera_por_turno(
     )
     return result.scalars().all()
 
+async def obtener_todos_turnos_por_fecha(
+    db: AsyncSession,
+    fecha_buscada: date,
+) -> list[Turno]:
+    result = await db.execute(
+        select(Turno)
+        .where(Turno.fecha == fecha_buscada)
+        .order_by(Turno.hora_inicio)
+    )
+    return result.scalars().all()
+
+
+async def verificar_paciente_en_lista(
+    db: AsyncSession,
+    turno_id: UUID,
+    paciente_id: UUID,
+) -> bool:
+    result = await db.execute(
+        select(ListaEspera).where(
+            and_(
+                ListaEspera.turno_id == turno_id,
+                ListaEspera.paciente_id == paciente_id,
+                ListaEspera.activo == True,
+            )
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def inscribir_en_lista_espera(
+    db: AsyncSession,
+    turno_id: UUID,
+    paciente_id: UUID,
+) -> ListaEspera:
+    entrada = ListaEspera(turno_id=turno_id, paciente_id=paciente_id)
+    db.add(entrada)
+    await db.flush()
+    return entrada
+
+
 async def obtener_agenda_diaria_pura(db: AsyncSession, fecha_buscada: date, area: Optional[str] = None):
     filtros = [
         Turno.fecha == fecha_buscada,
