@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AuditLogCreate(BaseModel):
@@ -12,7 +12,7 @@ class AuditLogCreate(BaseModel):
     entity_id: str | None = None
     entity_role: str | None = None
     description: str
-    metadata: dict[str, Any] = {}
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class AuditLogResponse(BaseModel):

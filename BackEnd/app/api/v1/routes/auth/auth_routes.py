@@ -17,13 +17,9 @@ from app.schemas.auth.login_schema import (
 )
 from app.schemas.auth.profile_schema import ProfileResponse, ProfileUpdateRequest
 from app.schemas.auth.register_schema import RegisterRequest, RegisterResponse
-from app.schemas.auth.reset_password_schema import (
-    ResetPasswordRequest,
-    ResetPasswordResponse,
-)
 from app.services.auth.change_password_service import change_password
 from app.services.auth.login_service import login_user, refresh_user_session
-from app.services.auth.password_recovery_service import forgot_password, reset_password
+from app.services.auth.password_recovery_service import forgot_password
 from app.services.auth.profile_service import get_user_profile, update_user_profile
 from app.services.auth.register_service import register_user
 
@@ -99,16 +95,6 @@ def forgot_password_endpoint(request: ForgotPasswordRequest):
         raise HTTPException(status_code=400, detail=result["error"])
 
     return ForgotPasswordResponse(message=result["message"])
-
-
-@router.post("/reset-password", response_model=ResetPasswordResponse)
-def reset_password_endpoint(request: ResetPasswordRequest):
-    result = reset_password(request.token, request.new_password)
-
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-
-    return ResetPasswordResponse(message=result["message"])
 
 
 @router.get("/me", response_model=ProfileResponse)

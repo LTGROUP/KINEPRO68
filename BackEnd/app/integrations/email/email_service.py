@@ -1,6 +1,8 @@
 import logging
 import os
 import smtplib
+import ssl
+from html import escape
 from email.message import EmailMessage
 from pathlib import Path
 
@@ -14,29 +16,38 @@ logger = logging.getLogger(__name__)
 
 
 def get_email_config() -> dict[str, str | int | bool] | None:
-    host = os.getenv("SMTP_HOST")
-    port = os.getenv("SMTP_PORT")
-    username = os.getenv("SMTP_USERNAME")
-    password = os.getenv("SMTP_PASSWORD")
-    from_email = os.getenv("SMTP_FROM_EMAIL")
+    host = os.getenv("SMTP_HOST", "").strip()
+    port = os.getenv("SMTP_PORT", "").strip()
+    username = os.getenv("SMTP_USERNAME", "").strip()
+    password = os.getenv("SMTP_PASSWORD", "").strip()
+    from_email = os.getenv("SMTP_FROM_EMAIL", "").strip()
 
     if not all([host, port, username, password, from_email]):
         return None
 
+    try:
+        parsed_port = int(port)
+    except ValueError:
+        logger.error("SMTP_PORT no es un numero valido")
+        return None
+
     return {
         "host": host,
-        "port": int(port),
+        "port": parsed_port,
         "username": username,
         "password": password,
         "from_email": from_email,
-        "from_name": os.getenv("SMTP_FROM_NAME", "KinePro"),
+        "from_name": os.getenv("SMTP_FROM_NAME", "KinePro").strip(),
         "use_tls": os.getenv("SMTP_USE_TLS", "true").lower() == "true",
-        "login_url": os.getenv("APP_LOGIN_URL", "http://127.0.0.1:5173/"),
+        "login_url": os.getenv("APP_LOGIN_URL", "http://127.0.0.1:5173/").strip(),
     }
 
 
 def build_account_created_email(nombre: str, rol: str, login_url: str) -> tuple[str, str, str]:
     subject = "Tu cuenta de KinePro fue creada"
+    safe_nombre = escape(nombre)
+    safe_rol = escape(rol)
+    safe_login_url = escape(login_url, quote=True)
     plain_text = (
         f"Hola {nombre},\n\n"
         "Tu cuenta fue creada con exito.\n"
@@ -48,15 +59,15 @@ def build_account_created_email(nombre: str, rol: str, login_url: str) -> tuple[
     html = f"""
     <div style="font-family: Arial, sans-serif; color: #17352f; line-height: 1.5;">
       <h1 style="color: #167761;">Cuenta creada con exito</h1>
-      <p>Hola {nombre}, tu cuenta de KinePro fue creada correctamente.</p>
+      <p>Hola {safe_nombre}, tu cuenta de KinePro fue creada correctamente.</p>
       <p>
         Tu contrasena por defecto es tu numero de documento.
         Por seguridad, te recomendamos cambiarla desde tu perfil cuando ingreses al sistema.
       </p>
-      <p>Rol asignado: <strong>{rol}</strong></p>
+      <p>Rol asignado: <strong>{safe_rol}</strong></p>
       <p>
         <a
-          href="{login_url}"
+          href="{safe_login_url}"
           style="display: inline-block; background: #167761; color: white; padding: 12px 18px; border-radius: 8px; text-decoration: none;"
         >
           Iniciar sesion
@@ -92,7 +103,7 @@ def send_account_created_email(email: str, nombre: str, rol: str) -> bool:
     try:
         with smtplib.SMTP(str(config["host"]), int(config["port"]), timeout=15) as server:
             if config["use_tls"]:
-                server.starttls()
+                server.starttls(context=ssl.create_default_context())
             server.login(str(config["username"]), str(config["password"]))
             server.send_message(message)
     except Exception:

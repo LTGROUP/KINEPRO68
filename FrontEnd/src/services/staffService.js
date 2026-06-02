@@ -1,10 +1,4 @@
-import { request } from './authService'
-
-function buildActorHeaders(actor) {
-  return {
-    Authorization: `Bearer ${actor.access_token}`,
-  }
-}
+import { buildActorHeaders, request } from './authService'
 
 function buildStaffPath(filters) {
   const params = new URLSearchParams()

@@ -14,6 +14,34 @@ export function clearStoredSession() {
   window.sessionStorage.removeItem(SESSION_STORAGE_KEY)
 }
 
+function isStoredSessionValid(session) {
+  if (!session) {
+    return false
+  }
+
+  if (typeof session !== 'object') {
+    return false
+  }
+
+  if (!session.access_token) {
+    return false
+  }
+
+  if (!session.refresh_token) {
+    return false
+  }
+
+  if (!session.dni) {
+    return false
+  }
+
+  if (!session.rol) {
+    return false
+  }
+
+  return true
+}
+
 export function readStoredSession() {
   let storedSession = window.sessionStorage.getItem(SESSION_STORAGE_KEY)
   let storageArea = window.sessionStorage
@@ -28,7 +56,14 @@ export function readStoredSession() {
   }
 
   try {
-    return JSON.parse(storedSession)
+    const parsedSession = JSON.parse(storedSession)
+
+    if (!isStoredSessionValid(parsedSession)) {
+      storageArea.removeItem(SESSION_STORAGE_KEY)
+      return null
+    }
+
+    return parsedSession
   } catch {
     storageArea.removeItem(SESSION_STORAGE_KEY)
     return null
@@ -243,6 +278,10 @@ export function loginUser(payload) {
 }
 
 export function buildActorHeaders(actor) {
+  if (!actor || !actor.access_token) {
+    throw new Error('No se encontró una sesión activa')
+  }
+
   return {
     Authorization: `Bearer ${actor.access_token}`,
   }
@@ -273,13 +312,6 @@ export function changePassword(actor, payload) {
 
 export function forgotPassword(payload) {
   return request('/api/v1/auth/forgot-password', {
-    method: 'POST',
-    body: payload,
-  })
-}
-
-export function resetPassword(payload) {
-  return request('/api/v1/auth/reset-password', {
     method: 'POST',
     body: payload,
   })

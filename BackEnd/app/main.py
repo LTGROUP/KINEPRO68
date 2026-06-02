@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,15 +11,31 @@ from app.api.v1.routes.staff_management.staff_routes import router as staff_rout
 
 app = FastAPI(title="KinePro API")
 
+
+def get_cors_origins() -> list[str]:
+    configured_origins = os.getenv("CORS_ALLOWED_ORIGINS")
+
+    if not configured_origins:
+        return [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+
+    origins = []
+    for origin in configured_origins.split(","):
+        clean_origin = origin.strip()
+        if clean_origin:
+            origins.append(clean_origin)
+
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 

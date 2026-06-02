@@ -76,7 +76,7 @@ function ResetPasswordPage({ onFinish }) {
         throw updateError
       }
 
-      setSuccess('Contraseña actualizada con éxito. Redirigiendo al login...')
+      setSuccess('Contraseña actualizada con éxito.')
     } catch (requestError) {
       setError(getFriendlyErrorMessage(requestError.message))
     } finally {

@@ -84,6 +84,9 @@ def login_with_dni(dni: str, password: str) -> dict | None:
     if not profile:
         return None
 
+    if not profile["activo"]:
+        raise ValueError("La cuenta se encuentra inactiva")
+
     try:
         auth_response = get_supabase_auth_client().auth.sign_in_with_password(
             {
@@ -121,7 +124,7 @@ def refresh_auth_session(refresh_token: str) -> dict | None:
     if not response.data:
         return None
 
-    profile = response.data[0]
+    profile = normalize_profile(response.data[0])
     profile["access_token"] = auth_response.session.access_token
     profile["refresh_token"] = auth_response.session.refresh_token
     return profile

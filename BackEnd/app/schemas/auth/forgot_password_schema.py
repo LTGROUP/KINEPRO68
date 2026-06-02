@@ -13,7 +13,7 @@ class ForgotPasswordRequest(BaseModel):
 class ForgotPasswordResponse(BaseModel):
     """
     Respuesta que el backend devuelve después de procesar la solicitud.
-    No se devuelve el token por seguridad (solo se muestra en consola).
+    No se devuelve ningun token al frontend.
     """
     message: str  # Mensaje de éxito o error
 
