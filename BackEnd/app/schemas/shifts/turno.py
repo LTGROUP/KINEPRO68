@@ -175,6 +175,12 @@ class ListaEsperaResponse(BaseModel):
     total: int
     mensaje: Optional[str] = None
 
+class InscripcionListaEsperaResponse(BaseModel):
+    mensaje: str
+    turno_id: UUID
+
+    model_config = {"from_attributes": True}
+
 class CancelarTurnoResponse(BaseModel):
     mensaje: Optional[str] = None
     turno: TurnoResponse
@@ -208,6 +214,9 @@ class AgendaDiariaResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+# ── Request: Inscribirse en Lista de Espera ───────────────────────
+class InscripcionListaEsperaRequest(BaseModel):
+    area_tratamiento: AreaTratamiento
 
 class ActualizarEstadoRequest(BaseModel):
     nuevo_estado: EstadoTurno

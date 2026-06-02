@@ -34,6 +34,37 @@ export function getListaEspera(actor, turnoId) {
   })
 }
 
+export const inscribirseListaEspera = async (user, turno_id, area_tratamiento) => {
+  const token = user?.access_token || user?.token;
+
+  console.log('🔍 Debug Token:', {
+    access_token: !!user?.access_token,
+    token: !!user?.token,
+    tokenUsado: token ? 'SÍ' : 'NO'
+  });
+
+  const response = await fetch(`/api/v1/turnos/${turno_id}/lista-espera`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      area_tratamiento: area_tratamiento
+    }),
+  });
+
+  const errorData = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    console.error('❌ Error backend:', errorData);
+    throw new Error(errorData.detail || 'Error al inscribirse en lista de espera');
+  }
+
+  console.log('✅ Éxito en lista de espera:', errorData);
+  return errorData;
+};
+
 export function generarGrilla(actor, payload) {
   return request('/api/v1/grilla/generar', {
     method: 'POST',
@@ -64,3 +95,17 @@ export function actualizarEstadoTurno(actor, turnoId, payload) {
     body: payload,
   })
 }
+
+export function getTurnosParaPaciente(fecha) {
+  return request(`/api/v1/turnos/paciente?fecha=${fecha}`, {
+    method: 'GET',
+  })
+}
+
+export const getAuthHeader = (user) => {
+  const token = user?.access_token || user?.token;
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+};

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
 
-import { getTurnosDisponibles, solicitarTurno } from '../../../services/turnosService'
+import { getTurnosParaPaciente, solicitarTurno, inscribirseListaEspera } from '../../../services/turnosService'
 
 const AREAS = [
   { value: 'tren_superior', label: 'Tren superior' },
@@ -80,6 +80,11 @@ function formatLongDate(dateStr) {
 }
 
 function SolicitarTurnoView({ user, targetPatient, onSuccess }) {
+  console.log('User en SolicitarTurnoView:', {
+    user: user,
+    tieneToken: !!user?.token,
+    rol: user?.rol
+  });
   const minDate = getMinDate()
   const [weekStart, setWeekStart] = useState(() => getWeekStart(minDate))
   const [selectedDate, setSelectedDate] = useState(null)
@@ -90,6 +95,8 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess }) {
   const [areaTratamiento, setAreaTratamiento] = useState('')
   const [saving, setSaving] = useState(false)
   const [errorSolicitar, setErrorSolicitar] = useState('')
+  const [showListaEspera, setShowListaEspera] = useState(false)
+  const [turnoListaEspera, setTurnoListaEspera] = useState(null)
 
   const weekDays = getWeekDays(weekStart)
 
@@ -122,7 +129,7 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess }) {
       setTurnos([])
 
       try {
-        const data = await getTurnosDisponibles(selectedDate)
+        const data = await getTurnosParaPaciente(selectedDate)
         if (!cancelled) setTurnos(data.turnos || [])
       } catch (err) {
         if (!cancelled) setErrorTurnos(err.message)
@@ -171,6 +178,53 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess }) {
     setAreaTratamiento('')
     setErrorSolicitar('')
   }
+
+  function handleListaEspera(turno) {
+    setTurnoListaEspera(turno)
+    setAreaTratamiento('')
+    setErrorSolicitar('')
+    setShowListaEspera(true)
+  }
+
+  function handleCloseListaEspera() {
+    setShowListaEspera(false)
+    setTurnoListaEspera(null)
+    setAreaTratamiento('')
+  }
+
+async function handleInscribirseListaEspera() {
+  if (!areaTratamiento) {
+    setErrorSolicitar('Debes seleccionar un área de tratamiento');
+    return;
+  }
+
+  console.log('Enviando a lista de espera:', {
+    turno_id: turnoListaEspera.id,
+    area_tratamiento: areaTratamiento
+  });
+
+  if (!turnoListaEspera) return;
+
+  setSaving(true);
+  setErrorSolicitar('');
+
+  try {
+    await inscribirseListaEspera(user, turnoListaEspera.id, areaTratamiento);
+
+    setShowListaEspera(false);
+    setTurnoListaEspera(null);
+    setAreaTratamiento('');
+
+    if (onSuccess) {
+      onSuccess('✅ Te inscribiste correctamente en la lista de espera, te notificaremos cuando se libere un cupo');
+    }
+
+  } catch (err) {
+    setErrorSolicitar(err.message || 'Error al inscribirse en lista de espera');
+  } finally {
+    setSaving(false);
+  }
+}
 
 async function handleConfirmarTurno() {
     if (!areaTratamiento) {
@@ -303,15 +357,38 @@ async function handleConfirmarTurno() {
                   <span className="turnos-agenda-duration">60 min</span>
                   {(() => {
                     const blocked = isTurnoBlocked(selectedDate, turno.hora_inicio)
+
+                    if (blocked) {
+                      return (
+                        <button
+                          type="button"
+                          className="turnos-agenda-action"
+                          disabled
+                        >
+                          Fuera de término
+                        </button>
+                      )
+                    }
+
+                    if (turno.estado === 'reservado') {
+                      return (
+                        <button
+                          type="button"
+                          className="turnos-agenda-action"
+                          onClick={() => handleListaEspera(turno)}
+                        >
+                          Lista de espera
+                        </button>
+                      )
+                    }
+
                     return (
                       <button
                         type="button"
                         className="turnos-agenda-action"
                         onClick={() => handleSelectTurno(turno)}
-                        disabled={blocked}
-                        style={blocked ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
-                        {blocked ? 'Fuera de término' : 'Reservar'}
+                        Reservar
                       </button>
                     )
                   })()}
@@ -320,6 +397,72 @@ async function handleConfirmarTurno() {
             </div>
           )}
         </div>
+      )}
+
+      {showListaEspera && turnoListaEspera && (
+        <aside className="staff-detail">
+          <div className="staff-detail-card staff-confirm-card">
+
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={handleCloseListaEspera}
+            >
+              <X size={18} />
+            </button>
+
+            <p className="staff-eyebrow">
+              Lista de espera
+            </p>
+
+            <h2>
+              {formatLongDate(selectedDate)} ·
+              {' '}
+              {formatTime(turnoListaEspera.hora_inicio)}
+              {' - '}
+              {formatTime(turnoListaEspera.hora_fin)}
+            </h2>
+
+            <p className="staff-confirm-copy">
+              Seleccioná el área de tratamiento.
+            </p>
+
+            <div className="turnos-confirm-area">
+              {AREAS.map((area) => (
+                <button
+                  key={area.value}
+                  type="button"
+                  className={`turnos-area-option${
+                    areaTratamiento === area.value ? ' active' : ''
+                  }`}
+                  onClick={() => setAreaTratamiento(area.value)}
+                >
+                  {area.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="staff-confirm-actions">
+              <button
+                type="button"
+                className="staff-confirm-button secondary"
+                onClick={handleCloseListaEspera}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="staff-confirm-button primary"
+                onClick={handleInscribirseListaEspera}
+                disabled={saving || !areaTratamiento}
+              >
+                {saving ? 'Inscribiendo...' : 'Inscribirse en lista de espera'}
+              </button>
+            </div>
+
+          </div>
+        </aside>
       )}
 
       {selectedTurno && (

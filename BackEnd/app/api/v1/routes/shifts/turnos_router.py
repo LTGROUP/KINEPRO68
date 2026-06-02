@@ -16,7 +16,9 @@ from app.schemas.shifts.turno import (
     MisTurnosResponse,
     ListaEsperaResponse,
     AgendaDiariaResponse,
-    ActualizarEstadoRequest
+    ActualizarEstadoRequest,
+    InscripcionListaEsperaResponse,
+    InscripcionListaEsperaRequest
 )
 from app.services.shifts.turnos_service import (
     consultar_turnos_disponibles, 
@@ -25,7 +27,9 @@ from app.services.shifts.turnos_service import (
     consultar_lista_espera,
     cancelar_turno,
     consultar_agenda_diaria,
-    marcar_asistencia_turno
+    marcar_asistencia_turno,
+    inscribirse_lista_espera,
+    consultar_turnos_para_paciente
 )
 
 router = APIRouter(prefix="/turnos", tags=["Turnos"])
@@ -74,7 +78,47 @@ async def obtener_turnos_disponibles(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
-    
+
+@router.get(
+    "/paciente",
+    response_model=TurnosDisponiblesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Consultar turnos para paciente",
+    description="Devuelve los turnos disponibles y ocupados para que el paciente pueda solicitar turno o anotarse en lista de espera.",
+)
+async def obtener_turnos_para_paciente_endpoint(
+    fecha: date = Query(..., description="Fecha en formato YYYY-MM-DD"),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        resultado = await consultar_turnos_para_paciente(
+            db=db,
+            fecha_buscada=fecha,
+        )
+
+        if isinstance(resultado, dict) and "mensaje" in resultado:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=resultado["mensaje"],
+            )
+
+        turnos_response = [
+            TurnoDisponibleResponse.model_validate(turno)
+            for turno in resultado
+        ]
+
+        return TurnosDisponiblesResponse(
+            fecha=fecha,
+            turnos=turnos_response,
+            total=len(turnos_response),
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
 @router.post(
     "/solicitar",
     response_model=TurnoSolicitadoResponse,
@@ -143,6 +187,32 @@ async def consultar_lista_espera_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+    
+@router.post(
+    "/{turno_id}/lista-espera",
+    response_model=InscripcionListaEsperaResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Inscribirse en lista de espera",
+    description="Permite a un paciente anotarse en la lista de espera de un turno ocupado.",
+)
+async def inscribirse_lista_espera_endpoint(
+    turno_id: UUID,
+    request: InscripcionListaEsperaRequest,  
+    db: AsyncSession = Depends(get_db),
+    paciente=Depends(get_current_user),
+):
+    try:
+        return await inscribirse_lista_espera(
+            db=db,
+            turno_id=turno_id,
+            paciente_id=paciente["id"],
+            area_tratamiento=request.area_tratamiento,   
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
 @router.patch(
     "/{turno_id}/cancelar",
@@ -156,7 +226,7 @@ async def cancelar_turno_endpoint(
     paciente=Depends(get_current_user),
 ):
     try:
-        return await cancelar_turno(db=db, turno_id=turno_id)
+        return await cancelar_turno(db=db, turno_id=turno_id, paciente_id=paciente["id"])
     except HTTPException:
         raise
     except ValueError as e:
