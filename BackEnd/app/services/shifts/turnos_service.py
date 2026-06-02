@@ -12,19 +12,22 @@ from app.schemas.shifts.turno import (
     MisTurnosResponse,
     MiTurnoResponse,
     ListaEsperaResponse,
-    PacienteEnEsperaResponse
+    PacienteEnEsperaResponse,
+    InscripcionListaEsperaResponse
 )
 
 from app.repositories.shifts.turnos import (
     obtener_turnos_disponibles_por_fecha,
     obtener_turno_existente_del_paciente,
     actualizar_estado_turno,
-    obtener_turno_por_id_con_lock,
-    obtener_turnos_del_paciente,
+    obtener_turno_por_id_con_lock,  
+    obtener_turnos_del_paciente,    
     obtener_lista_espera_por_turno,
-    inscribir_en_lista_espera,
-    verificar_paciente_en_lista,
+    crear_inscripcion_lista_espera,
+    obtener_inscripcion_lista_espera,
+    obtener_turnos_para_paciente_por_fecha,
     obtener_todos_turnos_por_fecha,
+    verificar_paciente_en_lista,
 )
 
 from app.repositories.shifts.turnos import obtener_agenda_diaria_pura
@@ -44,9 +47,6 @@ async def consultar_turnos_disponibles(db: AsyncSession, fecha_buscada: date):
     # Esto va a depender de si deja seleccionar o no una fecha invalida
     inicio_fecha_buscada = datetime.combine(fecha_buscada, datetime.min.time())
 
-    #if inicio_fecha_buscada < fechayhora_minima:
-    #    return {"mensaje": "No se puede agendar turnos con menos de 48 horas"}
-
     # Llamar al repository CON AWAIT
     turnos = await obtener_turnos_disponibles_por_fecha(db, fecha_buscada)
 
@@ -57,7 +57,40 @@ async def consultar_turnos_disponibles(db: AsyncSession, fecha_buscada: date):
     # Si se encontraron se devuelven
     return turnos
 
-from uuid import UUID
+
+async def consultar_turnos_para_paciente(
+    db: AsyncSession,
+    fecha_buscada: date,
+):
+
+    if not fecha_buscada:
+        raise ValueError("Fecha inválida")
+
+    fechayhora_ahora = datetime.utcnow()
+    fechayhora_minima = fechayhora_ahora + timedelta(hours=48)
+
+    inicio_fecha_buscada = datetime.combine(
+        fecha_buscada,
+        datetime.min.time()
+    )
+
+    if inicio_fecha_buscada < fechayhora_minima:
+        raise ValueError(
+            "No se puede solicitar turnos con menos de 48 horas de anticipación"
+        )
+
+    turnos = await obtener_turnos_para_paciente_por_fecha(
+        db,
+        fecha_buscada,
+    )
+
+    if not turnos:
+        return {
+            "mensaje": f"No existen turnos para la fecha {fecha_buscada}"
+        }
+
+    return turnos
+
 
 async def solicitar_turno(
         db: AsyncSession,
@@ -177,59 +210,69 @@ async def consultar_lista_espera(
     )
 
 
-async def inscribirse_en_lista_espera(
+async def inscribirse_lista_espera(
     db: AsyncSession,
     turno_id: UUID,
     paciente_id: UUID,
+    area_tratamiento: AreaTratamiento,   
 ):
-    async with db.begin():
-        turno = await obtener_turno_por_id_con_lock(db, turno_id)
 
-        if not turno:
-            raise ValueError("El turno especificado no existe")
+    # Se busca el turno por id
+    turno = await obtener_turno_por_id_con_lock(db, turno_id)
+    if not turno:
+        raise ValueError("El turno indicado no existe")
 
-        if turno.estado == EstadoTurno.DISPONIBLE:
-            raise ValueError("El turno tiene disponibilidad, podés solicitarlo directamente")
+    # Validar que el turno no esté disponible
+    if turno.estado == EstadoTurno.DISPONIBLE:  # type: ignore
+        raise ValueError("El turno seleccionado posee disponibilidad")
+        
+    if turno.estado != EstadoTurno.RESERVADO:
+        raise ValueError("No es posible anotarse en lista de espera para este turno")
 
-        if turno.estado != EstadoTurno.RESERVADO:
-            raise ValueError("No es posible anotarse en lista de espera para este turno")
+    # Verificar que el paciente no esté ya anotado
+    existente = await verificar_paciente_en_lista(db, turno_id, paciente_id)
+    if existente:
+        raise ValueError("Ya te encuentras registrado en la lista de espera de este turno")
 
-        ya_inscripto = await verificar_paciente_en_lista(db, turno_id, paciente_id)
-        if ya_inscripto:
-            raise ValueError("Ya te encontrás en la lista de espera para este turno")
+    # Crear inscripción
+    inscripcion = await crear_inscripcion_lista_espera(
+        db,
+        turno_id,
+        paciente_id,
+        area_tratamiento   # ← PASAR EL ÁREA
+    )
 
-        await inscribir_en_lista_espera(db, turno_id, paciente_id)
-
-    return {"mensaje": "Fuiste agregado a la lista de espera. Te notificaremos si se libera un cupo", "turno_id": turno_id}
+    return InscripcionListaEsperaResponse(
+        mensaje="Fuiste agregado a la lista de espera. Te notificaremos si se libera un cupo",
+        turno_id=turno_id,
+    )
 
 
 async def consultar_todos_turnos_fecha(db: AsyncSession, fecha_buscada: date):
     turnos = await obtener_todos_turnos_por_fecha(db, fecha_buscada)
     return turnos
 
+
 # Cancela un turno
-async def cancelar_turno(db: AsyncSession, turno_id: UUID):
+async def cancelar_turno(db: AsyncSession, turno_id: UUID, paciente_id: UUID):
     async with db.begin():
         turno = await obtener_turno_por_id_con_lock(db, turno_id)
 
         # Validacion por si existe, no deberia pasar!
         if not turno:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail="El turno solicitado no existe."
-            )
+            raise HTTPException(status_code=404, detail="El turno no existe.")
 
         # Validacion por si no esta reservado, no deberia pasar!
         if turno.estado != EstadoTurno.RESERVADO: # type: ignore
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"No se puede cancelar un turno con estado: {turno.estado}"
-            )
+            raise HTTPException(status_code=400, detail=f"No se puede cancelar un turno con estado: {turno.estado}")
+
+        # VALIDACIÓN: solo el dueño puede cancelar
+        if turno.paciente_id != paciente_id: # type: ignore
+            raise HTTPException(status_code=403, detail="No tenés permiso para cancelar este turno.")
 
         # Comprobar si el turno es antes de las 48 horas
         fecha_hora_turno = datetime.combine(turno.fecha, turno.hora_inicio) # type: ignore
-        ahora = datetime.utcnow() # Usamos la hora actual del servidor
-
+        ahora = datetime.utcnow()
         mensaje_advertencia = None
 
         if (fecha_hora_turno - ahora) < timedelta(hours=48):
@@ -240,7 +283,7 @@ async def cancelar_turno(db: AsyncSession, turno_id: UUID):
         db.add(turno)
         turno_actualizado = turno
     
-    # 5. Devolvemos el turno modificado junto con el mensaje (si corresponde)
+    # Devolvemos el turno modificado junto con el mensaje (si corresponde)
     return {
         "turno": turno_actualizado,
         "mensaje": mensaje_advertencia
@@ -251,28 +294,30 @@ async def consultar_agenda_diaria(db: AsyncSession, fecha_buscada: date, actor_r
     turnos_db = await obtener_agenda_diaria_pura(db, fecha_buscada, area)
     
     turnos_formateados = []
-    
+
     for turno in turnos_db:
         paciente_info = None
-        
-        # 2. Si el turno tiene un paciente, vamos a buscar sus datos
+        print(f"Turno={turno.id} paciente_id={turno.paciente_id}")
+        # Si el turno tiene un paciente, vamos a buscar sus datos
         if turno.paciente_id:
             try:
                 # Usamos el servicio de pacientes para no romper el encapsulamiento
-                paciente_detalle = await get_patient_detail(str(turno.paciente_id), actor_role)
-                
-                # 3. Armamos el mini-diccionario con los datos del paciente
+                paciente_detalle = get_patient_detail(str(turno.paciente_id), actor_role)
+                print("PACIENTE ENCONTRADO:", paciente_detalle)
+
+                # Armamos el mini-diccionario con los datos del paciente
                 paciente_info = PacienteAgendaInfo(
                     id=turno.paciente_id,
                     nombre=paciente_detalle.nombre,
                     apellido=paciente_detalle.apellido,
                     dni=paciente_detalle.dni
                 )
-            except Exception:
-                # Si el paciente fue borrado o hay un error, lo dejamos vacío para que la agenda no explote
-                pass
+                
+            # Si el paciente fue borrado o hay un error, mandamos mensaje para comprobar que entro al except
+            except Exception as e:
+                print("ERROR PACIENTE:", e)
         
-        # 4. Formateamos el turno final
+        # Formateamos el turno final
         turno_formateado = AgendaTurnoResponse(
             id=turno.id,
             hora_inicio=turno.hora_inicio,

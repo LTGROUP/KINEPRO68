@@ -84,16 +84,13 @@ class DiasCerrados(Base):
     creado_en   = Column(DateTime, default=datetime.utcnow)
 
 class ListaEspera(Base):
-    """
-    Pacientes que quedaron en lista de espera para un turno ocupado.
-    Se ordenan por fecha de inscripción (prioridad FIFO).
-    """
     __tablename__ = "lista_espera"
 
     id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     turno_id    = Column(UUID(as_uuid=True), ForeignKey("turnos.id"), nullable=False)
     paciente_id = Column(UUID(as_uuid=True), nullable=False)
+    area_tratamiento = Column(SAEnum(AreaTratamiento, name="area_tratamiento", values_callable=lambda x: [e.value for e in x]), nullable=False)  # ← agregar
     fecha_inscripcion = Column(DateTime, default=datetime.utcnow, nullable=False)
-    activo      = Column(Boolean, default=True, nullable=False)  # False si ya fue notificado
+    activo      = Column(Boolean, default=True, nullable=False)
 
     turno = relationship("Turno", back_populates="lista_espera")

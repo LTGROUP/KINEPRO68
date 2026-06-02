@@ -2,7 +2,7 @@ from datetime import date, time
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from app.models.turno import Turno, EstadoTurno ,ListaEspera
+from app.models.turno import Turno, EstadoTurno, ListaEspera, AreaTratamiento
 from typing import Optional
 from sqlalchemy.orm import joinedload
 
@@ -15,6 +15,28 @@ async def obtener_turnos_disponibles_por_fecha(db: AsyncSession, fecha_buscada: 
         )
     ).order_by(Turno.hora_inicio)
     
+    result = await db.execute(query)
+    return result.scalars().all()
+
+#Busca todos los turnos por fecha Disponibles y Reservados
+async def obtener_turnos_para_paciente_por_fecha(
+    db: AsyncSession,
+    fecha_buscada: date,
+):
+    query = (
+        select(Turno)
+        .where(
+            and_(
+                Turno.fecha == fecha_buscada,
+                Turno.estado.in_([
+                    EstadoTurno.DISPONIBLE,
+                    EstadoTurno.RESERVADO,
+                ])
+            )
+        )
+        .order_by(Turno.hora_inicio)
+    )
+
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -69,6 +91,22 @@ async def obtener_turnos_del_paciente(
         )
         return result.scalars().all()
 
+async def crear_inscripcion_lista_espera(
+    db: AsyncSession,
+    turno_id: UUID,
+    paciente_id: UUID,
+    area_tratamiento: AreaTratamiento, 
+):
+    inscripcion = ListaEspera(
+        turno_id=turno_id,
+        paciente_id=paciente_id,
+        area_tratamiento=area_tratamiento 
+    )
+    db.add(inscripcion)
+    await db.commit()
+    await db.refresh(inscripcion)
+    return inscripcion
+
 async def obtener_lista_espera_por_turno(
     db: AsyncSession,
     turno_id: UUID,
@@ -83,6 +121,22 @@ async def obtener_lista_espera_por_turno(
     )
     return result.scalars().all()
 
+async def obtener_inscripcion_lista_espera(
+    db: AsyncSession,
+    turno_id: UUID,
+    paciente_id: UUID,
+):
+    result = await db.execute(
+        select(ListaEspera).where(
+            and_(
+                ListaEspera.turno_id == turno_id,
+                ListaEspera.paciente_id == paciente_id,
+                ListaEspera.activo == True
+            )
+        )
+    )
+    return result.scalar_one_or_none()
+
 async def obtener_todos_turnos_por_fecha(
     db: AsyncSession,
     fecha_buscada: date,
@@ -93,7 +147,6 @@ async def obtener_todos_turnos_por_fecha(
         .order_by(Turno.hora_inicio)
     )
     return result.scalars().all()
-
 
 async def verificar_paciente_en_lista(
     db: AsyncSession,
