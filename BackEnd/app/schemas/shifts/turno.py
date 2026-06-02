@@ -1,10 +1,8 @@
-# app/schemas/turno.py
 from pydantic import BaseModel, field_validator, model_validator
 from datetime import date, time, datetime
 from typing import Optional, List
 from uuid import UUID
 from app.models.turno import EstadoTurno, AreaTratamiento
-
 
 # ── Request: Generar grilla (Escenario 1, 2 y 3) ─────────────────
 class FranjaHoraria(BaseModel):
@@ -16,6 +14,7 @@ class FranjaHoraria(BaseModel):
         if self.hora_fin <= self.hora_inicio:
             raise ValueError("La hora de fin debe ser posterior a la hora de inicio")
         return self
+
 class GenerarGrillaRequest(BaseModel):
     mes: int
     anio: int
@@ -164,7 +163,10 @@ class PacienteEnEsperaResponse(BaseModel):
     id: UUID
     paciente_id: UUID
     fecha_inscripcion: datetime
-    posicion: int  # orden de prioridad
+    posicion: int
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None
+    dni: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -180,6 +182,20 @@ class InscripcionListaEsperaResponse(BaseModel):
     turno_id: UUID
 
     model_config = {"from_attributes": True}
+
+class TurnoFechaResponse(BaseModel):
+    id: UUID
+    hora_inicio: time
+    hora_fin: time
+    estado: EstadoTurno
+    area_tratamiento: Optional[AreaTratamiento] = None
+
+    model_config = {"from_attributes": True}
+
+class TurnosFechaResponse(BaseModel):
+    fecha: date
+    turnos: List[TurnoFechaResponse]
+    total: int
 
 class CancelarTurnoResponse(BaseModel):
     mensaje: Optional[str] = None
@@ -220,3 +236,7 @@ class InscripcionListaEsperaRequest(BaseModel):
 
 class ActualizarEstadoRequest(BaseModel):
     nuevo_estado: EstadoTurno
+
+class ReprogramarTurnoRequest(BaseModel):
+    nuevo_turno_id: UUID
+    area_tratamiento: str

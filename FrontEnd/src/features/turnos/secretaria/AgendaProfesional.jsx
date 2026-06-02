@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, Clock, UserCheck } from 'lucide-react'
+// IMPORTANTE: Agregamos el ícono "Filter" acá
+import { ChevronLeft, ChevronRight, Clock, UserCheck, Filter } from 'lucide-react'
 
 import { getAgendaDia, actualizarEstadoTurno } from '../../../services/turnosService'
 
@@ -21,7 +22,12 @@ export function AgendaProfesional({ user }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  
+  // NUEVOS ESTADOS PARA EL FILTRO
+  const [areaFiltro, setAreaFiltro] = useState('')
+  const [mostrarFiltros, setMostrarFiltros] = useState(false)
 
+  // ACTUALIZADO: Agregamos areaFiltro a las dependencias y a la llamada
   useEffect(() => {
     let cancelled = false 
 
@@ -33,7 +39,7 @@ export function AgendaProfesional({ user }) {
 
       try {
         const fechaStr = fecha.toISOString().split('T')[0]
-        const data = await getAgendaDia(user, fechaStr)
+        const data = await getAgendaDia(user, fechaStr, areaFiltro)
         
         if (!cancelled) {
           setTurnos(data.turnos || [])
@@ -54,7 +60,7 @@ export function AgendaProfesional({ user }) {
     return () => {
       cancelled = true
     }
-  }, [fecha, user])
+  }, [fecha, user, areaFiltro])
 
   function diaAnterior() {
     setFecha((prev) => {
@@ -72,11 +78,19 @@ export function AgendaProfesional({ user }) {
     })
   }
 
-  const fechaFormateada = fecha.toLocaleDateString('es-AR', {
+  // NUEVA LÓGICA: Detectar si es "HOY"
+  const hoy = new Date()
+  const esHoy = fecha.getDate() === hoy.getDate() &&
+                fecha.getMonth() === hoy.getMonth() &&
+                fecha.getFullYear() === hoy.getFullYear()
+
+  const textoFecha = fecha.toLocaleDateString('es-AR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
   })
+  
+  const fechaFormateada = esHoy ? `HOY - ${textoFecha}` : textoFecha
 
   async function marcarPresente(id) {
     setError('')
@@ -97,33 +111,68 @@ export function AgendaProfesional({ user }) {
     }
   }
 
+  // Estilo reutilizable para los botones del menú de filtros
+  const botonFiltroEstilo = (isActive) => ({
+    padding: '8px 12px', 
+    background: isActive ? '#d1fae5' : 'transparent', 
+    color: isActive ? '#065f46' : '#374151', 
+    border: 'none', 
+    borderRadius: '6px', 
+    textAlign: 'left', 
+    cursor: 'pointer', 
+    fontSize: '0.875rem',
+    fontWeight: isActive ? 'bold' : 'normal'
+  })
+
   return (
     <div className="turnos-solicitar">
       
-      <div className="turnos-week-strip" style={{ display: 'flex', justifyContent: 'center', padding: '16px', marginTop: '24px' }}>
-        <div className="turnos-week-header" style={{ width: '100%', maxWidth: '350px' }}>
-          <button 
-            type="button" 
-            className="turnos-week-nav" 
-            onClick={diaAnterior} 
-            aria-label="Día anterior"
-          >
+      {/* CABECERA CON MARGEN, FECHA Y BOTÓN DE FILTRO */}
+      <div className="turnos-week-strip" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px', marginTop: '24px' }}>
+        
+        <div className="turnos-week-header" style={{ width: '100%', maxWidth: '380px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button type="button" className="turnos-week-nav" onClick={diaAnterior} aria-label="Día anterior">
             <ChevronLeft size={18} aria-hidden="true" />
           </button>
           
-          <span className="turnos-month-label" style={{ textTransform: 'capitalize' }}>
+          <span className="turnos-month-label" style={{ textTransform: 'capitalize', textAlign: 'center', flex: 1 }}>
             {fechaFormateada}
           </span>
           
-          <button 
-            type="button" 
-            className="turnos-week-nav" 
-            onClick={diaSiguiente} 
-            aria-label="Día siguiente"
-          >
+          <button type="button" className="turnos-week-nav" onClick={diaSiguiente} aria-label="Día siguiente">
             <ChevronRight size={18} aria-hidden="true" />
           </button>
         </div>
+
+        {/* BOTÓN Y MENÚ DE FILTRO FLOTANTE */}
+        <div style={{ marginTop: '12px', position: 'relative' }}>
+          <button 
+            type="button"
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: areaFiltro ? '#d1fae5' : '#f3f4f6', border: 'none', padding: '6px 14px', borderRadius: '16px', fontSize: '0.85rem', cursor: 'pointer', color: areaFiltro ? '#065f46' : '#374151', fontWeight: '500' }}
+          >
+            <Filter size={14} /> 
+            {areaFiltro ? `Filtrado: ${areaFiltro.replace('_', ' ')}` : 'Filtrar por Área'}
+          </button>
+
+          {mostrarFiltros && (
+            <div style={{ position: 'absolute', top: '35px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 50, padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '160px' }}>
+              <button onClick={() => { setAreaFiltro(''); setMostrarFiltros(false); }} style={botonFiltroEstilo(areaFiltro === '')}>
+                Todas las áreas
+              </button>
+              <button onClick={() => { setAreaFiltro('tren_superior'); setMostrarFiltros(false); }} style={botonFiltroEstilo(areaFiltro === 'tren_superior')}>
+                Tren Superior
+              </button>
+              <button onClick={() => { setAreaFiltro('tren_medio'); setMostrarFiltros(false); }} style={botonFiltroEstilo(areaFiltro === 'tren_medio')}>
+                Tren Medio
+              </button>
+              <button onClick={() => { setAreaFiltro('tren_inferior'); setMostrarFiltros(false); }} style={botonFiltroEstilo(areaFiltro === 'tren_inferior')}>
+                Tren Inferior
+              </button>
+            </div>
+          )}
+        </div>
+
       </div>
 
       <div className="turnos-agenda">
@@ -136,7 +185,9 @@ export function AgendaProfesional({ user }) {
         )}
         
         {!loading && !error && turnos.length === 0 && (
-          <p className="turnos-agenda-heading">No hay turnos agendados para este día.</p>
+          <p className="turnos-agenda-heading">
+            {areaFiltro ? 'No hay turnos agendados para esta área hoy.' : 'No hay turnos agendados para este día.'}
+          </p>
         )}
         
         {!loading && !error && turnos.length > 0 && (
@@ -183,7 +234,9 @@ export function AgendaProfesional({ user }) {
           </div>
         )}
       </div>
-    {message && (
+
+      {/* NUEVA NOTIFICACIÓN FLOTANTE (TOAST) */}
+      {message && (
         <div style={{
           position: 'fixed',
           top: '40px',
@@ -199,14 +252,14 @@ export function AgendaProfesional({ user }) {
           animation: 'fadeIn 0.3s ease-out'
         }}>
           <p style={{ 
-            color: '#99e3d0', /* El verde menta de tu diseño */
+            color: '#99e3d0', 
             fontWeight: '900', 
             fontSize: '0.75rem', 
             letterSpacing: '0.05em', 
             textTransform: 'uppercase', 
             margin: '0 0 8px 0' 
           }}>
-            Confirmacion
+            Confirmación
           </p>
           <h3 style={{ 
             margin: '0 0 8px 0', 
@@ -225,6 +278,7 @@ export function AgendaProfesional({ user }) {
           </p>
         </div>
       )}
+
     </div>
   )
 }

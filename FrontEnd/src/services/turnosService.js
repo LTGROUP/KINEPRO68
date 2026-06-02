@@ -81,10 +81,14 @@ export function bloquearDia(actor, payload) {
   })
 }
 
-export function getAgendaDia(actor, fecha) {
-  return request(`/api/v1/turnos/agenda?fecha=${fecha}`, {
+export function getAgendaDia(actor, fecha, area = '') {
+  let url = `/api/v1/turnos/agenda?fecha=${fecha}`
+  if (area) {
+    url += `&area=${area}`
+  }
+  return request(url, {
     method: 'GET',
-    headers: buildActorHeaders(actor), // Le pasamos el token para que sepa que es secretaria
+    headers: buildActorHeaders(actor),
   })
 }
 
@@ -109,3 +113,26 @@ export const getAuthHeader = (user) => {
     'Authorization': `Bearer ${token}`,
   };
 };
+
+// ---> FUNCIONES AGREGADAS PARA REPROGRAMAR Y CANCELAR <---
+export function cancelarTurno(actor, turnoId) {
+  return request(`/api/v1/turnos/${turnoId}/cancelar`, {
+    method: 'PATCH', 
+    headers: buildActorHeaders(actor),
+  })
+}
+
+export function reprogramarTurno(actor, turnoId, payload) {
+  return request(`/api/v1/turnos/${turnoId}/reprogramar`, {
+    method: 'PATCH',
+    headers: buildActorHeaders(actor),
+    body: payload,
+  })
+}
+
+export function getTodosLosTurnos(actor, fecha) {
+  return request(`/api/v1/turnos/todos?fecha=${fecha}`, {
+    method: 'GET',
+    headers: buildActorHeaders(actor),
+  })
+}

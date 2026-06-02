@@ -2,7 +2,9 @@ from datetime import date, time
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from app.models.turno import Turno, EstadoTurno ,ListaEspera, AreaTratamiento
+from app.models.turno import Turno, EstadoTurno, ListaEspera, AreaTratamiento
+from typing import Optional
+from sqlalchemy.orm import joinedload
 
 # Busca todos los turnos que coincidan con la fecha
 async def obtener_turnos_disponibles_por_fecha(db: AsyncSession, fecha_buscada: date):
@@ -133,18 +135,59 @@ async def obtener_inscripcion_lista_espera(
             )
         )
     )
-
     return result.scalar_one_or_none()
 
-async def obtener_agenda_diaria_pura(db: AsyncSession, fecha_buscada: date):
-    query = (
+async def obtener_todos_turnos_por_fecha(
+    db: AsyncSession,
+    fecha_buscada: date,
+) -> list[Turno]:
+    result = await db.execute(
         select(Turno)
-        .where(
+        .where(Turno.fecha == fecha_buscada)
+        .order_by(Turno.hora_inicio)
+    )
+    return result.scalars().all()
+
+async def verificar_paciente_en_lista(
+    db: AsyncSession,
+    turno_id: UUID,
+    paciente_id: UUID,
+) -> bool:
+    result = await db.execute(
+        select(ListaEspera).where(
             and_(
-                Turno.fecha == fecha_buscada,
-                Turno.estado != EstadoTurno.DISPONIBLE # <-- ESTE ES EL FILTRO MAGICO
+                ListaEspera.turno_id == turno_id,
+                ListaEspera.paciente_id == paciente_id,
+                ListaEspera.activo == True,
             )
         )
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def inscribir_en_lista_espera(
+    db: AsyncSession,
+    turno_id: UUID,
+    paciente_id: UUID,
+) -> ListaEspera:
+    entrada = ListaEspera(turno_id=turno_id, paciente_id=paciente_id)
+    db.add(entrada)
+    await db.flush()
+    return entrada
+
+
+async def obtener_agenda_diaria_pura(db: AsyncSession, fecha_buscada: date, area: Optional[str] = None):
+    filtros = [
+        Turno.fecha == fecha_buscada,
+        Turno.estado != EstadoTurno.DISPONIBLE
+    ]
+    
+    if area:
+        filtros.append(Turno.area_tratamiento == area)
+        
+    query = (
+        select(Turno)
+        .where(and_(*filtros))
         .order_by(Turno.hora_inicio)
     )
     result = await db.execute(query)

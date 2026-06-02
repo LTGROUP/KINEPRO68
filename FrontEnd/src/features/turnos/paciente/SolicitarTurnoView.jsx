@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
 
-import { getTurnosParaPaciente, solicitarTurno, inscribirseListaEspera } from '../../../services/turnosService'
+import { getTurnosParaPaciente, solicitarTurno, reprogramarTurno, inscribirseListaEspera } from '../../../services/turnosService'
 
 const AREAS = [
   { value: 'tren_superior', label: 'Tren superior' },
@@ -19,7 +19,7 @@ const DIA_LONG = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes
 function getMinDate() {
   const d = new Date()
   d.setDate(d.getDate() + 2)
-  return d // Ahora el calendario de arriba deja clickear hoy, mañana y pasado
+  return d
 }
 
 function getWeekStart(date) {
@@ -49,13 +49,9 @@ function formatTime(timeStr) {
 }
 
 function isTurnoBlocked(fechaStr, horaInicioStr) {
-  // Unimos la fecha y la hora (ej: "2026-05-28T08:00:00")
   const turnoDateTime = new Date(`${fechaStr}T${horaInicioStr}`)
-  
-  // Calculamos el límite exacto: Ahora + 48 horas
   const limite = new Date()
   limite.setHours(limite.getHours() + 48)
-  
   return turnoDateTime < limite
 }
 
@@ -79,12 +75,7 @@ function formatLongDate(dateStr) {
   return `${DIA_LONG[date.getDay()]} ${d} de ${MES_NAMES[Number(m) - 1]}`
 }
 
-function SolicitarTurnoView({ user, targetPatient, onSuccess }) {
-  console.log('User en SolicitarTurnoView:', {
-    user: user,
-    tieneToken: !!user?.token,
-    rol: user?.rol
-  });
+function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar }) {
   const minDate = getMinDate()
   const [weekStart, setWeekStart] = useState(() => getWeekStart(minDate))
   const [selectedDate, setSelectedDate] = useState(null)
@@ -95,6 +86,8 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess }) {
   const [areaTratamiento, setAreaTratamiento] = useState('')
   const [saving, setSaving] = useState(false)
   const [errorSolicitar, setErrorSolicitar] = useState('')
+  
+  // Estados para lista de espera
   const [showListaEspera, setShowListaEspera] = useState(false)
   const [turnoListaEspera, setTurnoListaEspera] = useState(null)
 
@@ -120,7 +113,6 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess }) {
       setTurnos([])
       return
     }
-
     let cancelled = false
 
     async function cargarTurnos() {
@@ -190,43 +182,40 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess }) {
     setShowListaEspera(false)
     setTurnoListaEspera(null)
     setAreaTratamiento('')
+    setErrorSolicitar('')
   }
 
-async function handleInscribirseListaEspera() {
-  if (!areaTratamiento) {
-    setErrorSolicitar('Debes seleccionar un área de tratamiento');
-    return;
-  }
-
-  console.log('Enviando a lista de espera:', {
-    turno_id: turnoListaEspera.id,
-    area_tratamiento: areaTratamiento
-  });
-
-  if (!turnoListaEspera) return;
-
-  setSaving(true);
-  setErrorSolicitar('');
-
-  try {
-    await inscribirseListaEspera(user, turnoListaEspera.id, areaTratamiento);
-
-    setShowListaEspera(false);
-    setTurnoListaEspera(null);
-    setAreaTratamiento('');
-
-    if (onSuccess) {
-      onSuccess('✅ Te inscribiste correctamente en la lista de espera, te notificaremos cuando se libere un cupo');
+  async function handleInscribirseListaEspera() {
+    if (!areaTratamiento) {
+      setErrorSolicitar('Debes seleccionar un área de tratamiento');
+      return;
     }
 
-  } catch (err) {
-    setErrorSolicitar(err.message || 'Error al inscribirse en lista de espera');
-  } finally {
-    setSaving(false);
-  }
-}
+    if (!turnoListaEspera) return;
 
-async function handleConfirmarTurno() {
+    setSaving(true);
+    setErrorSolicitar('');
+
+    try {
+      await inscribirseListaEspera(user, turnoListaEspera.id, areaTratamiento);
+
+      setShowListaEspera(false);
+      setTurnoListaEspera(null);
+      setAreaTratamiento('');
+
+      if (onSuccess) {
+        onSuccess('Te inscribiste correctamente en la lista de espera, te notificaremos cuando se libere un cupo');
+      }
+
+    } catch (err) {
+      setErrorSolicitar(err.message || 'Error al inscribirse en lista de espera');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // LOGICA FUERTE: Bifurcación entre Reservar y Reprogramar
+  async function handleConfirmarTurno() {
     if (!areaTratamiento) {
       setErrorSolicitar('Seleccioná un área de tratamiento')
       return
@@ -236,26 +225,31 @@ async function handleConfirmarTurno() {
     setErrorSolicitar('')
 
     try {
-      // Preparamos los datos base
-      const payload = {
-        turno_id: selectedTurno.id,
-        area_tratamiento: areaTratamiento,
-      }
-      
-      // Si la secretaria está asignando el turno manualmente, agregamos el ID del paciente
-      if (targetPatient) {
-        payload.paciente_id = targetPatient.id
+      if (turnoAReprogramar) {
+        const payload = {
+          nuevo_turno_id: selectedTurno.id,
+          area_tratamiento: areaTratamiento,
+        }
+        const data = await reprogramarTurno(user, turnoAReprogramar.id, payload)
+        if (onSuccess) onSuccess(data.mensaje || 'El turno fue reprogramado correctamente.')
+      } else {
+        const payload = {
+          turno_id: selectedTurno.id,
+          area_tratamiento: areaTratamiento,
+        }
+        if (targetPatient) {
+          payload.paciente_id = targetPatient.id
+        }
+        await solicitarTurno(user, payload)
+        if (onSuccess) onSuccess('El turno fue reservado correctamente.')
       }
 
-      await solicitarTurno(user, payload) // Enviamos la petición
-      
       setSelectedTurno(null)
       setAreaTratamiento('')
       setSelectedDate(null)
       setTurnos([])
-      if (onSuccess) onSuccess('El turno fue reservado correctamente.')
     } catch (err) {
-      setErrorSolicitar(err.message)
+      setErrorSolicitar(err.message || 'Error al procesar el turno')
     } finally {
       setSaving(false)
     }
@@ -265,29 +259,28 @@ async function handleConfirmarTurno() {
 
   return (
     <div className="turnos-solicitar">
+      
+      {/* Indicador visual de que estamos reprogramando */}
+      {turnoAReprogramar && (
+        <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #bfdbfe' }}>
+          <p style={{ margin: 0, color: '#1e3a8a', fontSize: '0.9rem' }}>
+            <strong>Reprogramando turno:</strong> Elegí la nueva fecha y horario.
+          </p>
+        </div>
+      )}
+
       <div className="turnos-week-strip">
         <div className="turnos-week-header">
-          <button
-            type="button"
-            className="turnos-week-nav"
-            onClick={prevWeek}
-            disabled={!canGoPrev}
-            aria-label="Semana anterior"
-          >
+          <button type="button" className="turnos-week-nav" onClick={prevWeek} disabled={!canGoPrev}>
             <ChevronLeft size={18} aria-hidden="true" />
           </button>
           <span className="turnos-month-label">{monthLabel}</span>
-          <button
-            type="button"
-            className="turnos-week-nav"
-            onClick={nextWeek}
-            aria-label="Semana siguiente"
-          >
+          <button type="button" className="turnos-week-nav" onClick={nextWeek}>
             <ChevronRight size={18} aria-hidden="true" />
           </button>
         </div>
 
-        <div className="turnos-week-days" role="group" aria-label="Elegí un día">
+        <div className="turnos-week-days">
           {weekDays.map((day) => {
             const dateStr = toDateStr(day)
             const isDisabled = day < minDate
@@ -298,15 +291,9 @@ async function handleConfirmarTurno() {
               <button
                 key={dateStr}
                 type="button"
-                className={[
-                  'turnos-day-btn',
-                  isSelected && 'selected',
-                  isToday && 'today',
-                ].filter(Boolean).join(' ')}
+                className={['turnos-day-btn', isSelected && 'selected', isToday && 'today'].filter(Boolean).join(' ')}
                 disabled={isDisabled}
                 onClick={() => handleSelectDay(day)}
-                aria-pressed={isSelected}
-                aria-label={`${DIA_NAMES[day.getDay()]} ${day.getDate()}`}
               >
                 <span className="turnos-day-name">{DIA_NAMES[day.getDay()]}</span>
                 <span className="turnos-day-number">{day.getDate()}</span>
@@ -316,38 +303,25 @@ async function handleConfirmarTurno() {
         </div>
       </div>
 
-      {!selectedDate && (
-        <p className="turnos-no-date">Seleccioná un día para ver los turnos disponibles.</p>
-      )}
+      {!selectedDate && <p className="turnos-no-date">Seleccioná un día para ver los turnos disponibles.</p>}
 
       {selectedDate && (
         <div className="turnos-agenda">
-          {loadingTurnos && (
-            <p className="turnos-agenda-heading">Cargando turnos...</p>
-          )}
-
-          {!loadingTurnos && errorTurnos && (
-            <p className="staff-message error">{errorTurnos}</p>
-          )}
-
+          {loadingTurnos && <p className="turnos-agenda-heading">Cargando turnos...</p>}
+          {!loadingTurnos && errorTurnos && <p className="staff-message error">{errorTurnos}</p>}
+          
           {!loadingTurnos && !errorTurnos && (
             <p className="turnos-agenda-heading">
               {turnos.length === 0
                 ? `No hay turnos disponibles el ${formatLongDate(selectedDate)}.`
-                : (() => {
-                    const franjas = groupTurnosByTime(turnos).length
-                    return `${franjas} horario${franjas !== 1 ? 's' : ''} disponible${franjas !== 1 ? 's' : ''} el ${formatLongDate(selectedDate)}`
-                  })()}
+                : `${groupTurnosByTime(turnos).length} horarios disponibles el ${formatLongDate(selectedDate)}`}
             </p>
           )}
 
           {!loadingTurnos && turnos.length > 0 && (
             <div className="turnos-agenda-list">
               {groupTurnosByTime(turnos).map((turno) => (
-                <div
-                  key={`${turno.hora_inicio}-${turno.hora_fin}`}
-                  className={`turnos-agenda-item${selectedTurno?.id === turno.id ? ' selected' : ''}`}
-                >
+                <div key={`${turno.hora_inicio}-${turno.hora_fin}`} className={`turnos-agenda-item${selectedTurno?.id === turno.id ? ' selected' : ''}`}>
                   <div className="turnos-agenda-time">
                     <Clock size={14} aria-hidden="true" />
                     <span>{formatTime(turno.hora_inicio)}</span>
@@ -388,7 +362,7 @@ async function handleConfirmarTurno() {
                         className="turnos-agenda-action"
                         onClick={() => handleSelectTurno(turno)}
                       >
-                        Reservar
+                        Seleccionar
                       </button>
                     )
                   })()}
@@ -399,6 +373,7 @@ async function handleConfirmarTurno() {
         </div>
       )}
 
+      {/* MODAL: LISTA DE ESPERA */}
       {showListaEspera && turnoListaEspera && (
         <aside className="staff-detail">
           <div className="staff-detail-card staff-confirm-card">
@@ -424,7 +399,7 @@ async function handleConfirmarTurno() {
             </h2>
 
             <p className="staff-confirm-copy">
-              Seleccioná el área de tratamiento.
+              Seleccioná el área de tratamiento para anotarte en lista de espera.
             </p>
 
             <div className="turnos-confirm-area">
@@ -441,6 +416,8 @@ async function handleConfirmarTurno() {
                 </button>
               ))}
             </div>
+
+            {errorSolicitar && <p className="staff-message error" style={{ marginTop: '12px' }}>{errorSolicitar}</p>}
 
             <div className="staff-confirm-actions">
               <button
@@ -465,28 +442,20 @@ async function handleConfirmarTurno() {
         </aside>
       )}
 
+      {/* MODAL: SOLICITAR / REPROGRAMAR */}
       {selectedTurno && (
-        <aside className="staff-detail" aria-label="Confirmar turno">
+        <aside className="staff-detail">
           <div className="staff-detail-card staff-confirm-card">
-            <button
-              type="button"
-              className="staff-detail-close"
-              onClick={handleCloseModal}
-              aria-label="Cerrar"
-            >
-              <X size={18} strokeWidth={3} aria-hidden="true" />
+            <button type="button" className="staff-detail-close" onClick={handleCloseModal}>
+              <X size={18} strokeWidth={3} />
             </button>
 
-            <p className="staff-eyebrow">Reservar turno</p>
-            <h2>
-              {formatLongDate(selectedDate)} · {formatTime(selectedTurno.hora_inicio)} – {formatTime(selectedTurno.hora_fin)}
-            </h2>
+            <p className="staff-eyebrow">{turnoAReprogramar ? 'Confirmar Reprogramación' : 'Reservar turno'}</p>
+            <h2>{formatLongDate(selectedDate)} · {formatTime(selectedTurno.hora_inicio)} – {formatTime(selectedTurno.hora_fin)}</h2>
 
-            <p className="staff-confirm-copy">
-              Seleccioná el área de tratamiento para este turno.
-            </p>
+            <p className="staff-confirm-copy">Seleccioná el área de tratamiento para este turno.</p>
 
-            <div className="turnos-confirm-area" role="group" aria-label="Área de tratamiento">
+            <div className="turnos-confirm-area">
               {AREAS.map((area) => (
                 <button
                   key={area.value}
@@ -500,26 +469,17 @@ async function handleConfirmarTurno() {
             </div>
 
             {errorSolicitar && (
-              <p className="staff-message error" style={{ marginTop: '12px' }}>
-                {errorSolicitar}
-              </p>
+              <p className="staff-message error" style={{ marginTop: '12px' }}>{errorSolicitar}</p>
             )}
 
             <div className="staff-confirm-actions">
-              <button
-                type="button"
-                className="staff-confirm-button secondary"
-                onClick={handleCloseModal}
-              >
+              <button type="button" className="staff-confirm-button secondary" onClick={handleCloseModal}>
                 Cancelar
               </button>
-              <button
-                type="button"
-                className="staff-confirm-button primary"
-                onClick={handleConfirmarTurno}
-                disabled={saving}
-              >
-                {saving ? 'Reservando...' : 'Confirmar turno'}
+              <button type="button" className="staff-confirm-button primary" onClick={handleConfirmarTurno} disabled={saving}>
+                {saving
+                  ? (turnoAReprogramar ? 'Reprogramando...' : 'Reservando...')
+                  : (turnoAReprogramar ? 'Reprogramar turno' : 'Confirmar turno')}
               </button>
             </div>
           </div>
