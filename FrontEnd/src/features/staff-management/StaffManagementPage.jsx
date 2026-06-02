@@ -995,7 +995,7 @@ function StaffManagementPage({ user }) {
               </button>
               <button
                 type="button"
-                className="staff-confirm-button primary"
+                className="staff-confirm-button danger"
                 onClick={confirmDeactivateStaff}
                 disabled={deactivating}
               >

@@ -4,9 +4,10 @@ import { Eye, EyeOff } from 'lucide-react'
 const initialValues = {
   dni: '',
   password: '',
+  keep_session: false,
 }
 
-function LoginForm({ onSubmit, loading = false }) {
+function LoginForm({ onSubmit, onForgotPassword, loading = false }) {
   const [values, setValues] = useState(initialValues)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -17,9 +18,14 @@ function LoginForm({ onSubmit, loading = false }) {
       const nextValues = {
         dni: currentValues.dni,
         password: currentValues.password,
+        keep_session: currentValues.keep_session,
       }
 
-      nextValues[name] = value
+      if (name === 'keep_session') {
+        nextValues.keep_session = event.target.checked
+      } else {
+        nextValues[name] = value
+      }
 
       return nextValues
     })
@@ -107,6 +113,16 @@ function LoginForm({ onSubmit, loading = false }) {
             </button>
           </div>
         </label>
+
+        <label className="auth-remember">
+          <input
+            name="keep_session"
+            type="checkbox"
+            checked={values.keep_session}
+            onChange={handleChange}
+          />
+          <span>Mantener sesión iniciada</span>
+        </label>
       </fieldset>
 
       <button className="auth-submit" type="submit" disabled={loading}>
@@ -114,7 +130,7 @@ function LoginForm({ onSubmit, loading = false }) {
         {getSubmitText()}
       </button>
 
-      <button className="auth-link" type="button" disabled>
+      <button className="auth-link" type="button" onClick={onForgotPassword} disabled={loading}>
         ¿Olvidaste tu contraseña?
       </button>
     </form>

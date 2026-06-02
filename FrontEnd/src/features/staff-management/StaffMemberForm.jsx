@@ -120,7 +120,21 @@ function getTodayInputValue() {
 
 function buildInitialValues(initialData) {
   if (!initialData) {
-    return initialValues
+    return {
+      nombre: initialValues.nombre,
+      apellido: initialValues.apellido,
+      dni: initialValues.dni,
+      telefono: initialValues.telefono,
+      email: initialValues.email,
+      obra_social: initialValues.obra_social,
+      fecha_nacimiento: getTodayInputValue(),
+      rol: initialValues.rol,
+      matricula: initialValues.matricula,
+      especialidad: initialValues.especialidad,
+      area_tratamiento: initialValues.area_tratamiento,
+      horario_entrada: initialValues.horario_entrada,
+      horario_salida: initialValues.horario_salida,
+    }
   }
 
   let professionalData = {}

@@ -84,6 +84,9 @@ def login_with_dni(dni: str, password: str) -> dict | None:
     if not profile:
         return None
 
+    if not profile["activo"]:
+        raise ValueError("La cuenta se encuentra inactiva")
+
     try:
         auth_response = get_supabase_auth_client().auth.sign_in_with_password(
             {
@@ -95,4 +98,33 @@ def login_with_dni(dni: str, password: str) -> dict | None:
         raise ValueError("El DNI o la contrasena son incorrectos") from error
 
     profile["access_token"] = auth_response.session.access_token
+    profile["refresh_token"] = auth_response.session.refresh_token
+    return profile
+
+
+def refresh_auth_session(refresh_token: str) -> dict | None:
+    try:
+        auth_response = get_supabase_auth_client().auth.refresh_session(refresh_token)
+    except Exception as error:
+        raise ValueError("La sesion no se pudo renovar") from error
+
+    if not auth_response.session:
+        return None
+
+    user_id = auth_response.user.id
+    response = (
+        get_supabase_admin_client()
+        .table("profiles")
+        .select("*")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
+
+    if not response.data:
+        return None
+
+    profile = normalize_profile(response.data[0])
+    profile["access_token"] = auth_response.session.access_token
+    profile["refresh_token"] = auth_response.session.refresh_token
     return profile

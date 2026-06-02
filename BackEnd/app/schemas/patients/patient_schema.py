@@ -30,21 +30,6 @@ class PatientBase(BaseModel):
             raise ValueError("El DNI debe contener solo numeros")
         return value
 
-    @field_validator("telefono")
-    @classmethod
-    def validate_telefono(cls, value: str) -> str:
-        value = value.strip()
-        number = value
-
-        if value.startswith("+"):
-            number = value[1:]
-
-        if len(value) < 8 or len(value) > 18:
-            raise ValueError("El telefono debe tener entre 8 y 18 caracteres")
-        if not number.isdigit():
-            raise ValueError("El telefono debe contener numeros y puede comenzar con +")
-        return value
-
     @field_validator("obra_social")
     @classmethod
     def validate_obra_social(cls, value: str) -> str:
@@ -79,23 +64,6 @@ class PatientUpdateRequest(BaseModel):
         value = value.strip()
         if len(value) < 3:
             raise ValueError("Debe tener al menos 3 caracteres")
-        return value
-
-    @field_validator("telefono")
-    @classmethod
-    def validate_telefono(cls, value: str | None) -> str | None:
-        if value is None:
-            return value
-        value = value.strip()
-        number = value
-
-        if value.startswith("+"):
-            number = value[1:]
-
-        if len(value) < 8 or len(value) > 18:
-            raise ValueError("El telefono debe tener entre 8 y 18 caracteres")
-        if not number.isdigit():
-            raise ValueError("El telefono debe contener numeros y puede comenzar con +")
         return value
 
     @field_validator("obra_social")

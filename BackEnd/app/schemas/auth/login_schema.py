@@ -27,6 +27,22 @@ class LoginResponse(BaseModel):
     message: str
     user_id: str
     access_token: str
+    refresh_token: str
+    nombre: str
+    apellido: str
+    dni: str
+    rol: str
+
+
+class RefreshSessionRequest(BaseModel):
+    refresh_token: str
+
+
+class RefreshSessionResponse(BaseModel):
+    message: str
+    user_id: str
+    access_token: str
+    refresh_token: str
     nombre: str
     apellido: str
     dni: str

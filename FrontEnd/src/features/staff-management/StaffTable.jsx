@@ -105,16 +105,17 @@ function StaffTable({ items, loading, currentUserId, onEdit, onView, onDeactivat
                   <button type="button" onClick={() => onEdit(staff)}>
                     Editar
                   </button>
+                  <button type="button" onClick={() => onView(staff)}>
+                    Ver datos
+                  </button>
                   <button
                     type="button"
+                    className="staff-action-danger"
                     disabled={!staff.activo || isCurrentUser}
                     onClick={() => onDeactivate(staff)}
                     title={deactivateTitle}
                   >
                     Dar de baja
-                  </button>
-                  <button type="button" onClick={() => onView(staff)}>
-                    Ver datos
                   </button>
                 </div>
               )}

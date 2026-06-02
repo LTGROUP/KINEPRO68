@@ -1,11 +1,30 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { getNavigationForRole } from './navigation'
 
 function AppNavbar({ user, activeSection, onSectionChange, onLogout }) {
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
   const navItems = getNavigationForRole(user.rol)
   let userInitial = 'U'
+
+  useEffect(() => {
+    function checkScrollPosition() {
+      if (window.scrollY > 8) {
+        setIsScrolled(true)
+        return
+      }
+
+      setIsScrolled(false)
+    }
+
+    checkScrollPosition()
+    window.addEventListener('scroll', checkScrollPosition)
+
+    return function cleanupScrollListener() {
+      window.removeEventListener('scroll', checkScrollPosition)
+    }
+  }, [])
 
   if (user.nombre) {
     userInitial = user.nombre.charAt(0).toUpperCase()
@@ -18,6 +37,10 @@ function AppNavbar({ user, activeSection, onSectionChange, onLogout }) {
 
   function handleToggleUserMenu() {
     setShowUserMenu((currentValue) => !currentValue)
+  }
+
+  function handleCloseUserMenu() {
+    setShowUserMenu(false)
   }
 
   function getNavButtonClass(itemId) {
@@ -48,7 +71,7 @@ function AppNavbar({ user, activeSection, onSectionChange, onLogout }) {
   }
 
   return (
-    <header className="app-navbar">
+    <header className={isScrolled ? 'app-navbar app-navbar-scrolled' : 'app-navbar'}>
       <div className="app-navbar-mobile-top">
         <button
           type="button"
@@ -76,26 +99,33 @@ function AppNavbar({ user, activeSection, onSectionChange, onLogout }) {
           <span>
             {user.nombre} · {user.rol}
           </span>
-          <button type="button" onClick={onLogout}>
+          <button type="button" className="app-logout-button" onClick={onLogout}>
             Cerrar sesión
           </button>
         </div>
       </div>
 
       {showUserMenu && (
-        <div className="app-user-menu" role="dialog" aria-label="Menu de usuario">
-          <div className="app-user-menu-profile">
-            <div className="app-user-avatar" aria-hidden="true">
-              {userInitial}
+        <div className="app-user-menu-layer" onClick={handleCloseUserMenu}>
+          <div
+            className="app-user-menu"
+            role="dialog"
+            aria-label="Menu de usuario"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="app-user-menu-profile">
+              <div className="app-user-avatar" aria-hidden="true">
+                {userInitial}
+              </div>
+              <div>
+                <strong>{user.nombre}</strong>
+                <span>{user.rol}</span>
+              </div>
             </div>
-            <div>
-              <strong>{user.nombre}</strong>
-              <span>{user.rol}</span>
-            </div>
+            <button type="button" className="app-logout-button" onClick={onLogout}>
+              Cerrar sesión
+            </button>
           </div>
-          <button type="button" onClick={onLogout}>
-            Cerrar sesión
-          </button>
         </div>
       )}
     </header>

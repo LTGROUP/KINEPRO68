@@ -24,7 +24,17 @@ function getTodayInputValue() {
 }
 
 function RegisterForm({ onSubmit, loading = false }) {
-  const [values, setValues] = useState(initialValues)
+  const [values, setValues] = useState(() => {
+    return {
+      nombre: initialValues.nombre,
+      apellido: initialValues.apellido,
+      dni: initialValues.dni,
+      telefono: initialValues.telefono,
+      email: initialValues.email,
+      obra_social: initialValues.obra_social,
+      fecha_nacimiento: getTodayInputValue(),
+    }
+  })
   const todayInputValue = getTodayInputValue()
 
   function handleChange(event) {

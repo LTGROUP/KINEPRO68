@@ -1,29 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { AuthLayout } from './features/auth'
-import { ProfilePage } from './features/check-in'
+import ResetPasswordPage from './features/auth/ResetPasswordPage'
+import { HomePage, ProfilePage } from './features/check-in'
 import { PatientsPage } from './features/patients'
 import { StaffManagementPage } from './features/staff-management'
 import { AppLayout } from './layouts'
+import { clearPasswordRecoveryFlow, hasPasswordRecoveryFlow, supabase } from './lib/supabase/client'
+import {
+  SESSION_EXPIRED_EVENT,
+  SESSION_REFRESHED_EVENT,
+  clearStoredSession,
+  readStoredSession,
+  saveStoredSession,
+} from './services/authService'
 import './styles/auth.css'
 import './styles/app-layout.css'
-
-const SESSION_STORAGE_KEY = 'kinepro_session'
-
-function getStoredSession() {
-  const storedSession = window.localStorage.getItem(SESSION_STORAGE_KEY)
-
-  if (!storedSession) {
-    return null
-  }
-
-  try {
-    return JSON.parse(storedSession)
-  } catch {
-    window.localStorage.removeItem(SESSION_STORAGE_KEY)
-    return null
-  }
-}
 
 function canUserManage(currentUser) {
   if (!currentUser) {
@@ -49,10 +41,19 @@ function getInitialSectionForUser(currentUser) {
   return 'inicio'
 }
 
+function getIsRecoveryFlow() {
+  if (hasPasswordRecoveryFlow()) {
+    return true
+  }
+
+  return false
+}
+
 function App() {
-  const [user, setUser] = useState(getStoredSession)
+  const isRecoveryFlow = getIsRecoveryFlow()
+  const [user, setUser] = useState(readStoredSession)
   const [activeSection, setActiveSection] = useState(() => {
-    const storedUser = getStoredSession()
+    const storedUser = readStoredSession()
 
     if (canUserManage(storedUser)) {
       return 'personal'
@@ -63,19 +64,60 @@ function App() {
   const canManageStaff = canUserManage(user)
   const canManagePatients = canUserManage(user)
 
-  function handleLoginSuccess(session) {
-    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
-    setUser(session)
-    setActiveSection(getInitialSectionForUser(session))
+  useEffect(() => {
+    function handleExpiredSession() {
+      clearStoredSession()
+      setUser(null)
+      setActiveSection('inicio')
+    }
+
+    function handleRefreshedSession(event) {
+      setUser(event.detail)
+    }
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleExpiredSession)
+    window.addEventListener(SESSION_REFRESHED_EVENT, handleRefreshedSession)
+
+    return function cleanupSessionListeners() {
+      window.removeEventListener(SESSION_EXPIRED_EVENT, handleExpiredSession)
+      window.removeEventListener(SESSION_REFRESHED_EVENT, handleRefreshedSession)
+    }
+  }, [])
+
+  function handleLoginSuccess(session, keepSession) {
+    const savedSession = saveStoredSession(session, keepSession)
+    setUser(savedSession)
+    setActiveSection(getInitialSectionForUser(savedSession))
   }
 
   function handleLogout() {
-    window.localStorage.removeItem(SESSION_STORAGE_KEY)
+    clearStoredSession()
     setUser(null)
     setActiveSection('inicio')
   }
 
+  function getSectionTitle(sectionId) {
+    const titles = {
+      inicio: 'Inicio',
+      turnos: 'Turnos',
+      pacientes: 'Pacientes',
+      personal: 'Gestión del personal',
+      metricas: 'Métricas',
+      perfil: 'Perfil',
+    }
+
+    if (titles[sectionId]) {
+      return titles[sectionId]
+    }
+
+    return 'Inicio'
+  }
+
   function renderActiveSection() {
+    if (activeSection === 'inicio') {
+      return <HomePage user={user} />
+    }
+
     if (activeSection === 'personal' && canManageStaff) {
       return <StaffManagementPage user={user} />
     }
@@ -97,21 +139,19 @@ function App() {
     )
   }
 
-  function getSectionTitle(sectionId) {
-    const titles = {
-      inicio: 'Inicio',
-      turnos: 'Turnos',
-      pacientes: 'Pacientes',
-      personal: 'Gestión del personal',
-      metricas: 'Métricas',
-      perfil: 'Perfil',
+  async function handleRecoveryFinish() {
+    if (supabase) {
+      await supabase.auth.signOut()
     }
 
-    if (titles[sectionId]) {
-      return titles[sectionId]
-    }
+    clearStoredSession()
+    clearPasswordRecoveryFlow()
+    window.history.replaceState({}, '', '/')
+    window.location.reload()
+  }
 
-    return 'Inicio'
+  if (isRecoveryFlow) {
+    return <ResetPasswordPage onFinish={handleRecoveryFinish} />
   }
 
   if (user) {
