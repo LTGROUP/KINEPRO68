@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import Optional
+from collections import defaultdict
 
 from fastapi import HTTPException, status
 from app.models.turno import EstadoTurno, AreaTratamiento
@@ -28,6 +29,8 @@ from app.repositories.shifts.turnos import (
     obtener_turnos_para_paciente_por_fecha,
     obtener_todos_turnos_por_fecha,
     verificar_paciente_en_lista,
+    obtener_metricas_cancelaciones,
+    obtener_cancelaciones_por_mes
 )
 
 from app.repositories.shifts.turnos import obtener_agenda_diaria_pura
@@ -349,6 +352,54 @@ async def marcar_asistencia_turno(db: AsyncSession, turno_id: UUID, nuevo_estado
         db.add(turno)
         
     return turno
+
+MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+
+async def consultar_metricas_cancelaciones(db: AsyncSession):
+    
+    filas = await obtener_metricas_cancelaciones(db)
+    datos = {estado.value if hasattr(estado, 'value') else str(estado): total for estado, total in filas}
+    
+    total_turnos = sum(datos.values())
+    cancelados = datos.get("cancelado", 0)
+    reservados = datos.get("reservado", 0)
+    presentes = datos.get("presente", 0)
+
+    # Gráfico por mes
+    filas_mes = await obtener_cancelaciones_por_mes(db)
+    agrupado = defaultdict(lambda: {"cancelados": 0, "reservados": 0, "presentes": 0})
+    
+    for mes, anio, estado, total in filas_mes:
+        clave = (int(anio), int(mes))
+        estado_str = estado.value if hasattr(estado, 'value') else str(estado)
+        if estado_str == "cancelado":
+            agrupado[clave]["cancelados"] = total
+        elif estado_str == "reservado":
+            agrupado[clave]["reservados"] = total
+        elif estado_str == "presente":
+            agrupado[clave]["presentes"] = total
+
+    grafico = [
+        {
+            "mes": f"{MESES[mes - 1]} {anio}",
+            "cancelados": vals["cancelados"],
+            "reservados": vals["reservados"],
+            "presentes": vals["presentes"],
+        }
+        for (anio, mes), vals in sorted(agrupado.items())
+    ]
+
+    if total_turnos == 0:
+        return {"mensaje": "No hay datos disponibles"}
+
+    return {
+        "total_turnos": total_turnos,
+        "cancelados": cancelados,
+        "reservados": reservados,
+        "presentes": presentes,
+        "tasa_cancelacion": round((cancelados / total_turnos) * 100, 1),
+        "grafico_por_mes": grafico,
+    }
 
 async def reprogramar_turno(
     db: AsyncSession, 

@@ -7,6 +7,7 @@ import { StaffManagementPage } from './features/staff-management'
 import { TurnosPage } from './features/turnos'
 import { AppLayout } from './layouts'
 import { AgendaProfesional } from './features/turnos/secretaria/AgendaProfesional'
+import { MetricasPage } from './features/metricas'
 import './styles/auth.css'
 import './styles/app-layout.css'
 
@@ -110,6 +111,10 @@ function App() {
 
     if (activeSection === 'perfil') {
       return <ProfilePage user={user} />
+    }
+
+    if (activeSection === 'metricas' && canUserManage(user)) {
+    return <MetricasPage user={user} />
     }
 
     return (

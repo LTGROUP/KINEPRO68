@@ -1,7 +1,7 @@
 from datetime import date, time
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func, extract
 from app.models.turno import Turno, EstadoTurno, ListaEspera, AreaTratamiento
 from typing import Optional
 from sqlalchemy.orm import joinedload
@@ -192,3 +192,28 @@ async def obtener_agenda_diaria_pura(db: AsyncSession, fecha_buscada: date, area
     )
     result = await db.execute(query)
     return result.scalars().all()
+
+async def obtener_metricas_cancelaciones(db: AsyncSession):
+    result = await db.execute(
+        select(Turno.estado, func.count(Turno.id).label("total"))
+        .group_by(Turno.estado)
+    )
+    return result.all()
+
+async def obtener_cancelaciones_por_mes(db: AsyncSession):
+    result = await db.execute(
+        select(
+            extract('month', Turno.fecha).label("mes"),
+            extract('year', Turno.fecha).label("anio"),
+            Turno.estado,
+            func.count(Turno.id).label("total")
+        )
+        .where(Turno.estado.in_([
+            EstadoTurno.CANCELADO,
+            EstadoTurno.RESERVADO,
+            EstadoTurno.PRESENTE,
+        ]))
+        .group_by("anio", "mes", Turno.estado)
+        .order_by("anio", "mes")
+    )
+    return result.all()

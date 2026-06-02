@@ -36,6 +36,7 @@ from app.services.shifts.turnos_service import (
     consultar_turnos_para_paciente,
     reprogramar_turno,
     consultar_todos_turnos_fecha,
+    consultar_metricas_cancelaciones
 )
 
 router = APIRouter(prefix="/turnos", tags=["Turnos"])
@@ -334,3 +335,19 @@ async def reprogramar_turno_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+@router.get(
+    "/metricas",
+    status_code=status.HTTP_200_OK,
+    summary="Métricas de cancelaciones",
+)
+async def obtener_metricas_endpoint(
+    db: AsyncSession = Depends(get_db),
+    usuario=Depends(get_current_user)
+):
+    if usuario["rol"] not in ["secretaria", "administrativo"]:
+        raise HTTPException(status_code=403, detail="No tenés permiso para ver las métricas.")
+    try:
+        return await consultar_metricas_cancelaciones(db)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

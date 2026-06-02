@@ -43,7 +43,7 @@ export const NAV_ITEMS = [
     label: 'Métricas',
     shortLabel: 'Métricas',
     Icon: BarChart3,
-    roles: ['administrativo'],
+    roles: ['secretaria', 'administrativo'],
   },
   {
     id: 'perfil',
