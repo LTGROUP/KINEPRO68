@@ -138,7 +138,7 @@ function ConfigurarGrillaView({ user, onSuccess }) {
         </div>
 
         <div className="staff-form-field">
-          <label htmlFor="grilla-turnos">Turnos por slot</label>
+          <label htmlFor="grilla-turnos">Cupos por turno</label>
           <input
             id="grilla-turnos"
             type="number"
