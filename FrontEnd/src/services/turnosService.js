@@ -115,11 +115,24 @@ export const getAuthHeader = (user) => {
 };
 
 // ---> FUNCIONES AGREGADAS PARA REPROGRAMAR Y CANCELAR <---
-export function cancelarTurno(actor, turnoId) {
-  return request(`/api/v1/turnos/${turnoId}/cancelar`, {
-    method: 'PATCH', 
-    headers: buildActorHeaders(actor),
+export async function cancelarTurno(actor, turnoId) {
+  const token = actor?.access_token || actor?.token
+  
+  const response = await fetch(`/api/v1/turnos/${turnoId}/cancelar`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
   })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Error al cancelar el turno')
+  }
+
+  return data
 }
 
 export function reprogramarTurno(actor, turnoId, payload) {

@@ -260,6 +260,8 @@ async def consultar_todos_turnos_fecha(db: AsyncSession, fecha_buscada: date):
 async def cancelar_turno(db: AsyncSession, turno_id: UUID, paciente_id: UUID):
     async with db.begin():
         turno = await obtener_turno_por_id_con_lock(db, turno_id)
+        print(f"turno.paciente_id: {turno.paciente_id} | tipo: {type(turno.paciente_id)}")
+        print(f"paciente_id recibido: {paciente_id} | tipo: {type(paciente_id)}")
 
         # Validacion por si existe, no deberia pasar!
         if not turno:
@@ -270,7 +272,7 @@ async def cancelar_turno(db: AsyncSession, turno_id: UUID, paciente_id: UUID):
             raise HTTPException(status_code=400, detail=f"No se puede cancelar un turno con estado: {turno.estado}")
 
         # VALIDACIÓN: solo el dueño puede cancelar
-        if turno.paciente_id != paciente_id: # type: ignore
+        if str(turno.paciente_id) != str(paciente_id): # type: ignore
             raise HTTPException(status_code=403, detail="No tenés permiso para cancelar este turno.")
 
         # Comprobar si el turno es antes de las 48 horas

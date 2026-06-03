@@ -70,7 +70,7 @@ function MisTurnosView({ user }) {
       setMessage('El turno fue cancelado y el espacio liberado correctamente.');
       setTimeout(() => setMessage(''), 5000);
     } catch (err) {
-      alert("No se pudo cancelar el turno. Verificá tu conexión.");
+      alert(err.message || "No se pudo cancelar el turno.")
     }
   }
 
