@@ -62,15 +62,31 @@ function MisTurnosView({ user }) {
     cargarMisTurnos()
   }, [cargarMisTurnos])
 
-  async function handleCancelar(turnoId) {
-    if (!window.confirm('¿Estás seguro de que querés cancelar este turno?')) return;
+  const [modalCancelar, setModalCancelar] = useState(null) // guarda el turno a cancelar
+  
+  // Abre el modal con el mensaje correcto según las 48hs
+  function abrirModalCancelar(turno) {
+    const fechaHoraTurno = new Date(`${turno.fecha}T${turno.hora_inicio}`)
+    const ahora = new Date()
+    const diffHoras = (fechaHoraTurno - ahora) / (1000 * 60 * 60)
+    
+    const mensaje = diffHoras >= 48
+      ? 'Al cancelar este turno, tendrás un turno a favor para reprogramar cuando quieras.'
+      : 'Cancelar con menos de 48 horas de anticipación implica el cobro de la totalidad del turno.'
+
+    setModalCancelar({ turno, mensaje })
+  }
+
+  async function confirmarCancelar() {
+    const turnoId = modalCancelar.turno.id
+    setModalCancelar(null)
     try {
-      await cancelarTurno(user, turnoId);
-      setTurnos(turnos.map(t => t.id === turnoId ? { ...t, estado: 'cancelado' } : t));
-      setMessage('El turno fue cancelado y el espacio liberado correctamente.');
-      setTimeout(() => setMessage(''), 5000);
+      await cancelarTurno(user, turnoId)
+      setTurnos(turnos.map(t => t.id === turnoId ? { ...t, estado: 'cancelado' } : t))
+      setMessage('El turno fue cancelado correctamente.')
+      setTimeout(() => setMessage(''), 5000)
     } catch (err) {
-      alert(err.message || "No se pudo cancelar el turno.")
+      alert(err.message || 'No se pudo cancelar el turno.')
     }
   }
 
@@ -136,7 +152,7 @@ function MisTurnosView({ user }) {
                   {/* BOTÓN CANCELAR */}
                   <button
                     type="button"
-                    onClick={() => handleCancelar(turno.id)}
+                    onClick={() => abrirModalCancelar(turno)}
                     style={{
                       backgroundColor: '#fee2e2',
                       color: '#b91c1c',
@@ -211,6 +227,48 @@ function MisTurnosView({ user }) {
                 cargarMisTurnos();      // 3. Volvemos a pedirle los datos al backend para refrescar la lista
               }}
             />
+          </div>
+        </div>
+      )}
+      {/* MODAL DE CANCELACIÓN */}
+      {modalCancelar && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9999,
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: 'white', borderRadius: '12px', padding: '32px',
+            maxWidth: '450px', width: '100%',
+            boxShadow: '0px 20px 25px -5px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ margin: '0 0 12px 0', color: '#111827', fontSize: '1.2rem' }}>
+              ¿Cancelar turno?
+            </h3>
+            <p style={{ color: '#4b5563', marginBottom: '24px' }}>
+              {modalCancelar.mensaje}
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setModalCancelar(null)}
+                style={{
+                  padding: '8px 20px', borderRadius: '6px', border: '1px solid #d1d5db',
+                  background: 'white', cursor: 'pointer', fontWeight: 'bold'
+                }}
+              >
+                Volver
+              </button>
+              <button
+                onClick={confirmarCancelar}
+                style={{
+                  padding: '8px 20px', borderRadius: '6px', border: 'none',
+                  background: '#b91c1c', color: 'white', cursor: 'pointer', fontWeight: 'bold'
+                }}
+              >
+                Confirmar cancelación
+              </button>
+            </div>
           </div>
         </div>
       )}
