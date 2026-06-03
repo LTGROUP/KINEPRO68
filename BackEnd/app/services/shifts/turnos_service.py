@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import Optional
@@ -33,6 +34,8 @@ from app.repositories.shifts.turnos import (
     obtener_cancelaciones_por_mes
 )
 
+ARGENTINA_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
+
 from app.repositories.shifts.turnos import obtener_agenda_diaria_pura
 from app.schemas.shifts.turno import AgendaDiariaResponse, AgendaTurnoResponse, PacienteAgendaInfo
 from app.services.patients.patient_service import get_patient_detail
@@ -44,7 +47,7 @@ async def consultar_turnos_disponibles(db: AsyncSession, fecha_buscada: date):
         raise ValueError("Fecha inválida")
 
     # Validar 48 horas de anticipación
-    fechayhora_ahora = datetime.utcnow()
+    fechayhora_ahora = datetime.now(ARGENTINA_TZ).replace(tzinfo=None)
     fechayhora_minima = fechayhora_ahora + timedelta(hours=48)
 
     # Esto va a depender de si deja seleccionar o no una fecha invalida
@@ -69,7 +72,7 @@ async def consultar_turnos_para_paciente(
     if not fecha_buscada:
         raise ValueError("Fecha inválida")
 
-    fechayhora_ahora = datetime.utcnow()
+    fechayhora_ahora = datetime.now(ARGENTINA_TZ).replace(tzinfo=None)
     fechayhora_minima = fechayhora_ahora + timedelta(hours=48)
 
     inicio_fecha_buscada = datetime.combine(
@@ -107,7 +110,7 @@ async def solicitar_turno(
                 raise ValueError("El turno no existe")
 
         # Escenario 3 --> validacion de 48hs
-        fechayhora_ahora = datetime.utcnow()
+        fechayhora_ahora = datetime.now(ARGENTINA_TZ).replace(tzinfo=None)
         fechayhora_turno = datetime.combine(turno.fecha, turno.hora_inicio)
         if fechayhora_turno - fechayhora_ahora < timedelta(hours=48):
             raise ValueError("No es posible solicitar un turno con menos de 48hs de anticipación")
@@ -277,7 +280,7 @@ async def cancelar_turno(db: AsyncSession, turno_id: UUID, paciente_id: UUID):
 
         # Comprobar si el turno es antes de las 48 horas
         fecha_hora_turno = datetime.combine(turno.fecha, turno.hora_inicio) # type: ignore
-        ahora = datetime.utcnow()
+        ahora = datetime.now(ARGENTINA_TZ).replace(tzinfo=None)
         mensaje_advertencia = None
 
         if (fecha_hora_turno - ahora) < timedelta(hours=48):
@@ -421,7 +424,7 @@ async def reprogramar_turno(
         if turno_viejo.paciente_id != paciente_id:
             raise ValueError("El turno a reasignar no te pertenece.")
 
-        ahora = datetime.utcnow()
+        ahora = datetime.now(ARGENTINA_TZ).replace(tzinfo=None)
 
         # REGLA 1 (Escenario 2): Más de 48hs para el turno original
         fecha_hora_viejo = datetime.combine(turno_viejo.fecha, turno_viejo.hora_inicio)

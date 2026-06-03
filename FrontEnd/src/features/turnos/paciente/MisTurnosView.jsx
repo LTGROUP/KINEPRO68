@@ -78,12 +78,18 @@ function MisTurnosView({ user }) {
   }
 
   async function confirmarCancelar() {
-    const turnoId = modalCancelar.turno.id
+    const turno = modalCancelar.turno
+    const turnoId = turno.id
+    const fechaHoraTurno = new Date(`${turno.fecha}T${turno.hora_inicio}`)
+    const diffHoras = (fechaHoraTurno - new Date()) / (1000 * 60 * 60)
     setModalCancelar(null)
     try {
       await cancelarTurno(user, turnoId)
       setTurnos(turnos.map(t => t.id === turnoId ? { ...t, estado: 'cancelado' } : t))
-      setMessage('El turno fue cancelado correctamente.')
+      const mensajeExito = diffHoras >= 48
+        ? 'Turno cancelado con éxito. Tenés un turno a favor para reprogramar cuando quieras.'
+        : 'Turno cancelado. Se cobrará la totalidad del turno por cancelación con menos de 48hs de anticipación.'
+      setMessage(mensajeExito)
       setTimeout(() => setMessage(''), 5000)
     } catch (err) {
       alert(err.message || 'No se pudo cancelar el turno.')
