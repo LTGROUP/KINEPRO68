@@ -99,6 +99,18 @@ def get_staff_by_email(email: str) -> dict | None:
     return response.data[0] if response.data else None
 
 
+def get_professional_by_matricula(matricula: str) -> dict | None:
+    response = (
+        get_supabase_admin_client()
+        .table("professional_profiles")
+        .select("profile_id,matricula")
+        .eq("matricula", matricula)
+        .limit(1)
+        .execute()
+    )
+    return response.data[0] if response.data else None
+
+
 def list_staff_profiles(include_inactive: bool = False, rol: str | None = None) -> list[dict]:
     query = (
         get_supabase_admin_client()
