@@ -208,7 +208,7 @@ export function AgendaProfesional({ user }) {
                   {turno.estado.charAt(0).toUpperCase() + turno.estado.slice(1)}
                 </span>
 
-                {turno.estado === 'reservado' ? (
+                {esHoy && turno.estado === 'reservado' ? (
                   <button
                     type="button"
                     className="turnos-agenda-action"
@@ -219,7 +219,7 @@ export function AgendaProfesional({ user }) {
                     Dar Presente
                   </button>
                 ) : (
-                  <div style={{ width: '110px' }}></div> 
+                  <div style={{ width: '110px' }}></div>
                 )}
                 
               </div>
