@@ -71,8 +71,8 @@ function MisTurnosView({ user }) {
     const diffHoras = (fechaHoraTurno - ahora) / (1000 * 60 * 60)
     
     const mensaje = diffHoras >= 48
-      ? 'Al cancelar este turno, tendrás un turno a favor para reprogramar cuando quieras.'
-      : 'Cancelar con menos de 48 horas de anticipación implica el cobro de la totalidad del turno.'
+      ? 'Al cancelar este turno, tendrás un turno a favor para reprogramar cuando quieras ¿Desea continuar?'
+      : 'Cancelar con menos de 48 horas de anticipación implica la perdida total de la clase ¿Desea continuar?'
 
     setModalCancelar({ turno, mensaje })
   }

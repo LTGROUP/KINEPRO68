@@ -79,7 +79,7 @@ function ListaEsperaView({ user }) {
     <div className="turnos-espera-layout" style={{ marginTop: '24px' }}>
       <form className="turnos-espera-search" onSubmit={handleBuscarFecha}>
         <label className="staff-form-field" htmlFor="espera-fecha">
-          Fecha del turno
+          Ingrese una fecha
           <input
             id="espera-fecha"
             type="date"
@@ -88,7 +88,7 @@ function ListaEsperaView({ user }) {
           />
         </label>
         <button type="submit" className="staff-register-button" disabled={!fecha || loadingTurnos}>
-          {loadingTurnos ? 'Buscando...' : 'Buscar turnos'}
+          {loadingTurnos ? 'Buscando...' : 'Consultar turnos'}
         </button>
       </form>
 
