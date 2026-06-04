@@ -85,7 +85,12 @@ async def obtener_turnos_del_paciente(
              select(Turno).where(
                   and_(
                        Turno.paciente_id == paciente_id,
-                       Turno.estado.in_([EstadoTurno.RESERVADO, EstadoTurno.CANCELADO])
+                       Turno.estado.in_([
+                            EstadoTurno.RESERVADO,
+                            EstadoTurno.CANCELADO,
+                            EstadoTurno.AUSENTE,
+                            EstadoTurno.PRESENTE,
+                       ])
                   )
              ).order_by(Turno.fecha, Turno.hora_inicio)
         )

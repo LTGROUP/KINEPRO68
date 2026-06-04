@@ -32,6 +32,8 @@ function formatTime(timeStr) {
 function getEstadoClass(estado) {
   if (estado === 'reservado') return 'turnos-badge reservado'
   if (estado === 'cancelado') return 'turnos-badge cancelado'
+  if (estado === 'presente') return 'turnos-badge presente'
+  if (estado === 'ausente') return 'turnos-badge ausente'
   return 'turnos-badge'
 }
 
@@ -142,9 +144,9 @@ function MisTurnosView({ user }) {
                     type="button"
                     onClick={() => setTurnoEditando(turno)}
                     style={{
-                      backgroundColor: '#eff6ff',
-                      color: '#1d4ed8',
-                      border: '1px solid #93c5fd',
+                      backgroundColor: '#FEF3C7',
+                      color: '#D97706',
+                      border: '1px solid #D97706',
                       padding: '6px 12px',
                       borderRadius: '6px',
                       cursor: 'pointer',

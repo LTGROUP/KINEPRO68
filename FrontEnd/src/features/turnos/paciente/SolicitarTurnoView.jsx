@@ -40,7 +40,7 @@ function getWeekDays(weekStart) {
 }
 
 function toDateStr(date) {
-  return date.toISOString().split('T')[0]
+  return date.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
 }
 
 function formatTime(timeStr) {
