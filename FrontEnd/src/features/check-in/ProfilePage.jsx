@@ -328,6 +328,10 @@ function ProfilePage({ user }) {
                 <p className="profile-card-text">
                   Actualizá tu contraseña desde tu perfil con una clave más segura.
                 </p>
+                <p className="profile-password-hint">
+                  Los requisitos de la contraseña son: mínimo 8 caracteres, al menos una letra
+                  mayúscula y al menos un número.
+                </p>
                 {showChangePassword && (
                   <form className="auth-form profile-form" onSubmit={handleChangePassword}>
                     <label className="auth-field">

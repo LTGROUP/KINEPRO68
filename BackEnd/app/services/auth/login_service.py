@@ -11,8 +11,7 @@ def login_user(data: LoginRequest) -> LoginResponse:
     user = login_with_dni(data.dni, data.password)
 
     if not user:
-        # No aclaramos si fallo el DNI o la contrasena por seguridad.
-        raise ValueError("El DNI o la contrasena son incorrectos")
+        raise ValueError("El DNI ingresado no corresponde a una cuenta existente")
 
     if not user["activo"]:
         raise ValueError("La cuenta se encuentra inactiva")

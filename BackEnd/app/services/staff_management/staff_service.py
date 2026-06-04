@@ -5,6 +5,7 @@ from app.repositories.staff_management.staff_repository import (
     get_staff_by_dni,
     get_staff_by_email,
     get_staff_by_id,
+    get_professional_by_matricula,
     list_staff_profiles,
     update_staff_profile,
 )
@@ -21,7 +22,7 @@ from app.services.audit import register_audit_log
 
 ALLOWED_TARGET_ROLES = {
     "administrativo": {"profesional", "secretaria", "administrativo"},
-    "secretaria": {"profesional", "secretaria"},
+    "secretaria": {"profesional"},
 }
 
 
@@ -35,6 +36,11 @@ def validate_target_role(actor_role: str, target_role: str, action: str) -> None
 
     if target_role not in ALLOWED_TARGET_ROLES[actor_role]:
         raise ValueError(f"No tenes permisos para {action} un usuario con rol {target_role}")
+
+
+def validate_deactivate_permission(actor_role: str) -> None:
+    if actor_role != "administrativo":
+        raise ValueError("No tenes permisos para dar de baja personal")
 
 
 def validate_unique_dni_email(
@@ -51,6 +57,19 @@ def validate_unique_dni_email(
         existing_email = get_staff_by_email(str(email))
         if existing_email and existing_email["id"] != current_staff_id:
             raise ValueError("El email ingresado ya pertenece a un usuario registrado")
+
+
+def validate_unique_matricula(data: StaffCreateRequest) -> None:
+    if data.rol != "profesional":
+        return
+
+    if not data.matricula:
+        return
+
+    existing_professional = get_professional_by_matricula(data.matricula)
+
+    if existing_professional:
+        raise ValueError("La matricula ingresada ya pertenece a un profesional registrado")
 
 
 def build_staff_response(staff: dict) -> StaffResponse:
@@ -156,6 +175,7 @@ def create_staff(
     actor_role = actor_role.strip().lower()
     validate_target_role(actor_role, data.rol, "crear")
     validate_unique_dni_email(data.dni, str(data.email))
+    validate_unique_matricula(data)
 
     staff_id = create_staff_profile(data, actor_id)
     staff = get_staff_by_id(staff_id)
@@ -276,6 +296,7 @@ def deactivate_staff(
     if not existing_staff:
         raise ValueError("El personal indicado no existe")
 
+    validate_deactivate_permission(actor_role)
     validate_target_role(actor_role, existing_staff["rol"], "dar de baja")
     deactivate_staff_profile(staff_id, actor_id)
     register_audit_log(

@@ -3,6 +3,21 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 
+MINIMUM_AGE = 5
+
+
+def validate_minimum_age(value: date) -> None:
+    today = date.today()
+    age = today.year - value.year
+    birthday_already_passed = (today.month, today.day) >= (value.month, value.day)
+
+    if not birthday_already_passed:
+        age -= 1
+
+    if age < MINIMUM_AGE:
+        raise ValueError("La persona debe tener al menos 5 anos")
+
+
 class PatientBase(BaseModel):
     nombre: str
     apellido: str
@@ -24,8 +39,8 @@ class PatientBase(BaseModel):
     @classmethod
     def validate_dni(cls, value: str) -> str:
         value = value.strip()
-        if len(value) < 7 or len(value) > 8:
-            raise ValueError("El DNI debe tener entre 7 y 8 numeros")
+        if len(value) < 7:
+            raise ValueError("El DNI debe tener al menos 7 numeros")
         if not value.isdigit():
             raise ValueError("El DNI debe contener solo numeros")
         return value
@@ -41,6 +56,7 @@ class PatientBase(BaseModel):
     def validate_fecha_nacimiento(cls, value: date) -> date:
         if value > date.today():
             raise ValueError("La fecha de nacimiento no puede ser futura")
+        validate_minimum_age(value)
         return value
 
 
@@ -81,6 +97,7 @@ class PatientUpdateRequest(BaseModel):
             return value
         if value > date.today():
             raise ValueError("La fecha de nacimiento no puede ser futura")
+        validate_minimum_age(value)
         return value
 
 

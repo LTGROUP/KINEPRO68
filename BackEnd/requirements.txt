@@ -8,6 +8,7 @@ redis
 httpx
 python-multipart
 email-validator
+certifi
 pytest
 pytest-asyncio
 sqlalchemy

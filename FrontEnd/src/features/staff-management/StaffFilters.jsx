@@ -9,9 +9,10 @@ const ROLE_OPTIONS = [
 
 function StaffFilters({ actorRole, selectedRole, onRoleChange, onRegister, onSearch, searchActive }) {
   const visibleOptions = []
+  const shouldShowRoleFilters = actorRole === 'administrativo'
 
   for (const option of ROLE_OPTIONS) {
-    if (actorRole === 'administrativo' || option.value !== 'administrativo') {
+    if (shouldShowRoleFilters) {
       visibleOptions.push(option)
     }
   }
@@ -63,7 +64,7 @@ function StaffFilters({ actorRole, selectedRole, onRoleChange, onRegister, onSea
           <Search size={18} strokeWidth={3} aria-hidden="true" />
         </button>
 
-        <div className="staff-filter-tabs">{renderOptions()}</div>
+        {shouldShowRoleFilters && <div className="staff-filter-tabs">{renderOptions()}</div>}
       </div>
 
       <button type="button" className="staff-register-button" onClick={onRegister}>

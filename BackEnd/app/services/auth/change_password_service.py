@@ -4,6 +4,7 @@ from app.integrations.supabase.client import (
     get_supabase_admin_client,
     get_supabase_auth_client,
 )
+from app.schemas.auth.change_password_schema import PASSWORD_REQUIREMENTS_MESSAGE
 
 
 def get_profile_by_id(user_id: str):
@@ -37,15 +38,11 @@ def current_password_is_valid(email: str, current_password: str):
 
 def change_password(user_id: str, current_password: str, new_password: str):
     # Validaciones de la nueva contraseña
-    if len(new_password) < 8:
-        return {"error": "La contraseña debe tener mínimo 8 caracteres"}
-    if not re.search(r"[A-Z]", new_password):
-        return {"error": "La contraseña debe tener al menos una letra mayúscula"}
-    if not re.search(r"[0-9]", new_password):
-        return {"error": "La contraseña debe tener al menos un número"}
+    if len(new_password) < 8 or not re.search(r"[A-Z]", new_password) or not re.search(r"[0-9]", new_password):
+        return {"error": PASSWORD_REQUIREMENTS_MESSAGE}
 
     if current_password == new_password:
-        return {"error": "La nueva contraseña no puede ser igual a la actual"}
+        return {"error": "La nueva contraseña debe ser distinta a la actual"}
 
     profile = get_profile_by_id(user_id)
     if not profile:

@@ -6,6 +6,7 @@ from html import escape
 from email.message import EmailMessage
 from pathlib import Path
 
+import certifi
 from dotenv import load_dotenv
 
 
@@ -103,7 +104,8 @@ def send_account_created_email(email: str, nombre: str, rol: str) -> bool:
     try:
         with smtplib.SMTP(str(config["host"]), int(config["port"]), timeout=15) as server:
             if config["use_tls"]:
-                server.starttls(context=ssl.create_default_context())
+                tls_context = ssl.create_default_context(cafile=certifi.where())
+                server.starttls(context=tls_context)
             server.login(str(config["username"]), str(config["password"]))
             server.send_message(message)
     except Exception:

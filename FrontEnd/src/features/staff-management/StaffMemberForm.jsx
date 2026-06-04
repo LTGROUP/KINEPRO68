@@ -19,6 +19,8 @@ const initialValues = {
   horario_salida: '17:00',
 }
 
+const MINIMUM_AGE = 5
+
 function buildTimeOptions() {
   const options = []
   const firstHour = 7
@@ -34,6 +36,89 @@ function buildTimeOptions() {
   return options
 }
 
+function getAgeFromDate(dateValue) {
+  const birthDate = new Date(`${dateValue}T00:00:00`)
+  const today = new Date()
+  let age = today.getFullYear() - birthDate.getFullYear()
+  const birthdayAlreadyPassed =
+    today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate())
+
+  if (!birthdayAlreadyPassed) {
+    age -= 1
+  }
+
+  return age
+}
+
+function validateFormValues(values, isEditMode, isProfessional) {
+  if (!isEditMode && !values.nombre.trim()) {
+    return 'El nombre es obligatorio'
+  }
+
+  if (!isEditMode && !values.apellido.trim()) {
+    return 'El apellido es obligatorio'
+  }
+
+  if (!isEditMode && !values.dni.trim()) {
+    return 'El DNI es obligatorio'
+  }
+
+  if (!isEditMode && values.dni.trim().length < 7) {
+    return 'El DNI debe tener al menos 7 numeros'
+  }
+
+  if (!isEditMode && !values.dni.trim().match(/^[0-9]+$/)) {
+    return 'El DNI debe contener solo numeros'
+  }
+
+  if (!values.telefono) {
+    return 'El telefono es obligatorio'
+  }
+
+  if (!values.email.trim()) {
+    return 'El email es obligatorio'
+  }
+
+  if (!isEditMode && !values.fecha_nacimiento) {
+    return 'La fecha de nacimiento es obligatoria'
+  }
+
+  if (!isEditMode && values.fecha_nacimiento > getTodayInputValue()) {
+    return 'La fecha de nacimiento no puede ser futura'
+  }
+
+  if (!isEditMode && getAgeFromDate(values.fecha_nacimiento) < MINIMUM_AGE) {
+    return 'La persona debe tener al menos 5 anos'
+  }
+
+  if (isProfessional && !isEditMode && !values.matricula.trim()) {
+    return 'La matricula es obligatoria'
+  }
+
+  if (isProfessional && !values.especialidad.trim()) {
+    return 'La especialidad es obligatoria'
+  }
+
+  if (isProfessional && !values.area_tratamiento) {
+    return 'El area de tratamiento es obligatoria'
+  }
+
+  if (isProfessional && !values.horario_entrada) {
+    return 'El horario de entrada es obligatorio'
+  }
+
+  if (isProfessional && !values.horario_salida) {
+    return 'El horario de salida es obligatorio'
+  }
+
+  if (isProfessional && values.horario_salida <= values.horario_entrada) {
+    return 'El horario de salida debe ser posterior al horario de entrada'
+  }
+
+  return ''
+}
+
 const TIME_OPTIONS = buildTimeOptions()
 
 const ROLE_OPTIONS_BY_ACTOR = {
@@ -44,7 +129,6 @@ const ROLE_OPTIONS_BY_ACTOR = {
   ],
   secretaria: [
     { label: 'Profesional', value: 'profesional' },
-    { label: 'Secretaria', value: 'secretaria' },
   ],
 }
 
@@ -205,6 +289,7 @@ function StaffMemberForm({
   onSubmit,
 }) {
   const [values, setValues] = useState(() => buildInitialValues(initialData))
+  const [formError, setFormError] = useState('')
   const todayInputValue = getTodayInputValue()
   let roleOptions = ROLE_OPTIONS_BY_ACTOR.secretaria
 
@@ -264,6 +349,7 @@ function StaffMemberForm({
 
       return nextValues
     })
+    setFormError('')
   }
 
   function handleTimeChange(name, value) {
@@ -288,6 +374,7 @@ function StaffMemberForm({
 
       return nextValues
     })
+    setFormError('')
   }
 
   function handleRoleChange(event) {
@@ -326,6 +413,7 @@ function StaffMemberForm({
 
       return nextValues
     })
+    setFormError('')
   }
 
   function handlePhoneChange(value) {
@@ -352,6 +440,7 @@ function StaffMemberForm({
         horario_salida: currentValues.horario_salida,
       }
     })
+    setFormError('')
   }
 
   function renderRoleOptions() {
@@ -372,6 +461,13 @@ function StaffMemberForm({
     event.preventDefault()
 
     if (loading) {
+      return
+    }
+
+    const validationError = validateFormValues(values, isEditMode, isProfessional)
+
+    if (validationError) {
+      setFormError(validationError)
       return
     }
 
@@ -604,6 +700,12 @@ function StaffMemberForm({
           </div>
         )}
       </fieldset>
+
+      {formError && (
+        <p className="auth-message error" role="alert">
+          {formError}
+        </p>
+      )}
 
       <button className="staff-form-submit" type="submit" disabled={loading}>
         {submitButtonText}
