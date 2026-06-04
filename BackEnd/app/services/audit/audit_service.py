@@ -5,6 +5,7 @@ from app.schemas.audit.audit_schema import AuditLogCreate, AuditLogListResponse,
 
 
 ALLOWED_AUDIT_ROLES = {"administrativo", "secretaria"}
+SECRETARY_VISIBLE_ENTITY_ROLES = {"profesional", "paciente"}
 
 
 def validate_audit_actor(actor_role: str) -> None:
@@ -75,7 +76,7 @@ def list_audit(actor_role: str, limit: int = 50) -> AuditLogListResponse:
         visible_logs = []
 
         for log in logs:
-            if log.get("entity_role") != "administrativo":
+            if log.get("entity_role") in SECRETARY_VISIBLE_ENTITY_ROLES:
                 visible_logs.append(log)
 
         logs = visible_logs

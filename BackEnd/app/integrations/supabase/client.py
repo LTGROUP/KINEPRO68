@@ -18,7 +18,12 @@ def get_required_env(name: str, fallback_name: str | None = None) -> str:
     if not value:
         raise RuntimeError(f"Falta configurar {name} en BackEnd/.env")
 
-    return value
+    clean_value = value.strip()
+
+    if not clean_value:
+        raise RuntimeError(f"Falta configurar {name} en BackEnd/.env")
+
+    return clean_value
 
 
 @lru_cache

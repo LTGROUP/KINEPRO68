@@ -36,7 +36,7 @@ function CheckInQrModal({ onClose }) {
 
           <p className="check-in-qr-code">{CHECK_IN_QR_VALUE}</p>
           <p className="check-in-qr-help">
-            Los pacientes deben iniciar sesión, entrar a su perfil y escanear este QR para
+            Los pacientes deben iniciar sesión, entrar a inicio y escanear este QR para
             registrar la asistencia.
           </p>
         </div>

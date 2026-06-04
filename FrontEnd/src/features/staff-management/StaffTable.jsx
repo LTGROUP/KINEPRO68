@@ -49,7 +49,15 @@ function getArrowClass(isOpen) {
   return 'staff-action-arrow'
 }
 
-function StaffTable({ items, loading, currentUserId, onEdit, onView, onDeactivate }) {
+function StaffTable({
+  items,
+  loading,
+  currentUserId,
+  currentUserRole,
+  onEdit,
+  onView,
+  onDeactivate,
+}) {
   const [openStaffId, setOpenStaffId] = useState(null)
 
   if (loading) {
@@ -78,6 +86,7 @@ function StaffTable({ items, loading, currentUserId, onEdit, onView, onDeactivat
       const rowClass = getStaffRowClass(staff, isOpen)
       const actionsTrackClass = getActionsTrackClass(isOpen)
       const arrowClass = getArrowClass(isOpen)
+      const canDeactivate = currentUserRole === 'administrativo'
       let deactivateTitle
 
       if (isCurrentUser) {
@@ -105,17 +114,20 @@ function StaffTable({ items, loading, currentUserId, onEdit, onView, onDeactivat
                   <button type="button" onClick={() => onEdit(staff)}>
                     Editar
                   </button>
-                  <button
-                    type="button"
-                    disabled={!staff.activo || isCurrentUser}
-                    onClick={() => onDeactivate(staff)}
-                    title={deactivateTitle}
-                  >
-                    Dar de baja
-                  </button>
                   <button type="button" onClick={() => onView(staff)}>
                     Ver datos
                   </button>
+                  {canDeactivate && (
+                    <button
+                      type="button"
+                      className="staff-action-danger"
+                      disabled={!staff.activo || isCurrentUser}
+                      onClick={() => onDeactivate(staff)}
+                      title={deactivateTitle}
+                    >
+                      Dar de baja
+                    </button>
+                  )}
                 </div>
               )}
 

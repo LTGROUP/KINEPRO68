@@ -35,23 +35,10 @@ class RegisterRequest(BaseModel):
     @classmethod
     def validate_dni(cls, value: str) -> str:
         value = value.strip()
-        if len(value) < 7 or len(value) > 8:
-            raise ValueError("El DNI debe tener entre 7 y 8 numeros")
+        if len(value) < 7:
+            raise ValueError("El DNI debe tener al menos 7 numeros")
         if not value.isdigit():
             raise ValueError("El DNI debe contener solo numeros")
-        return value
-
-    @field_validator("telefono")
-    @classmethod
-    def validate_telefono(cls, value: str) -> str:
-        value = value.strip()
-        # Aceptamos formato internacional: puede empezar con + y luego solo numeros.
-        number = value[1:] if value.startswith("+") else value
-
-        if len(value) < 8 or len(value) > 18:
-            raise ValueError("El telefono debe tener entre 8 y 18 caracteres")
-        if not number.isdigit():
-            raise ValueError("El telefono debe contener numeros y puede comenzar con +")
         return value
 
     @field_validator("obra_social")

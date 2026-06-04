@@ -1,10 +1,4 @@
-import { request } from './authService'
-
-function buildActorHeaders(actor) {
-  return {
-    Authorization: `Bearer ${actor.access_token}`,
-  }
-}
+import { buildActorHeaders, request } from './authService'
 
 export function getAuditLogs(actor, limit = 50) {
   const params = new URLSearchParams()

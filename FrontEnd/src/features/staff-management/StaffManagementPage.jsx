@@ -39,6 +39,20 @@ const AUDIT_DATE_FILTER_OPTIONS = [
   { label: 'Elegir fecha', value: 'custom' },
 ]
 
+function formatRole(role) {
+  const labels = {
+    administrativo: 'administrativo',
+    profesional: 'profesional',
+    secretaria: 'secretaria',
+  }
+
+  if (labels[role]) {
+    return labels[role]
+  }
+
+  return role
+}
+
 function getTodayInputValue() {
   const today = new Date()
   const year = today.getFullYear()
@@ -338,8 +352,14 @@ function StaffManagementPage({ user }) {
     setError('')
 
     try {
+      let roleFilter = selectedRole
+
+      if (user.rol === 'secretaria') {
+        roleFilter = ''
+      }
+
       const response = await getStaff(user, {
-        rol: selectedRole,
+        rol: roleFilter,
         includeInactive: false,
       })
       setItems(response.items)
@@ -354,6 +374,12 @@ function StaffManagementPage({ user }) {
     Promise.resolve().then(loadStaff)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRole])
+
+  useEffect(() => {
+    if (user.rol === 'secretaria' && selectedRole !== '' && selectedRole !== 'profesional') {
+      setSelectedRole('')
+    }
+  }, [selectedRole, user.rol])
 
   useEffect(() => {
     if (personalView !== 'audit') {
@@ -460,7 +486,9 @@ function StaffManagementPage({ user }) {
 
     try {
       const createdStaff = await createStaff(user, payload)
-      setMessage(`${createdStaff.nombre} ${createdStaff.apellido} fue registrado correctamente.`)
+      setMessage(
+        `Se registró al ${formatRole(createdStaff.rol)} ${createdStaff.nombre} ${createdStaff.apellido} correctamente, se envió un mail de confirmación al mail correspondiente.`,
+      )
       setShowRegisterModal(false)
       await loadStaff()
     } catch (requestError) {
@@ -762,6 +790,7 @@ function StaffManagementPage({ user }) {
                     items={filteredItems}
                     loading={loading}
                     currentUserId={user.user_id}
+                    currentUserRole={user.rol}
                     onEdit={handleEdit}
                     onView={handleView}
                     onDeactivate={handleDeactivate}
@@ -995,7 +1024,7 @@ function StaffManagementPage({ user }) {
               </button>
               <button
                 type="button"
-                className="staff-confirm-button primary"
+                className="staff-confirm-button danger"
                 onClick={confirmDeactivateStaff}
                 disabled={deactivating}
               >

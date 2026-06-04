@@ -1,4 +1,5 @@
 export { default as AuthLayout } from './AuthLayout'
+export { default as ForgotPasswordPage } from './ForgotPasswordPage'
 export { default as LoginForm } from './LoginForm'
 export { default as LoginPage } from './LoginPage'
 export { default as RegisterForm } from './RegisterForm'

@@ -13,6 +13,8 @@ const initialValues = {
   fecha_nacimiento: '',
 }
 
+const MINIMUM_AGE = 5
+
 function getTodayInputValue() {
   const today = new Date()
   const year = today.getFullYear()
@@ -21,9 +23,76 @@ function getTodayInputValue() {
   return `${year}-${month}-${day}`
 }
 
+function getAgeFromDate(dateValue) {
+  const birthDate = new Date(`${dateValue}T00:00:00`)
+  const today = new Date()
+  let age = today.getFullYear() - birthDate.getFullYear()
+  const birthdayAlreadyPassed =
+    today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate())
+
+  if (!birthdayAlreadyPassed) {
+    age -= 1
+  }
+
+  return age
+}
+
+function validateFormValues(values, isEditMode) {
+  if (!values.nombre.trim()) {
+    return 'El nombre es obligatorio'
+  }
+
+  if (!values.apellido.trim()) {
+    return 'El apellido es obligatorio'
+  }
+
+  if (!isEditMode && !values.dni.trim()) {
+    return 'El DNI es obligatorio'
+  }
+
+  if (!isEditMode && values.dni.trim().length < 7) {
+    return 'El DNI debe tener al menos 7 numeros'
+  }
+
+  if (!isEditMode && !values.dni.trim().match(/^[0-9]+$/)) {
+    return 'El DNI debe contener solo numeros'
+  }
+
+  if (!values.telefono) {
+    return 'El telefono es obligatorio'
+  }
+
+  if (!values.email.trim()) {
+    return 'El email es obligatorio'
+  }
+
+  if (!values.fecha_nacimiento) {
+    return 'La fecha de nacimiento es obligatoria'
+  }
+
+  if (values.fecha_nacimiento > getTodayInputValue()) {
+    return 'La fecha de nacimiento no puede ser futura'
+  }
+
+  if (getAgeFromDate(values.fecha_nacimiento) < MINIMUM_AGE) {
+    return 'La persona debe tener al menos 5 anos'
+  }
+
+  return ''
+}
+
 function buildInitialValues(initialData) {
   if (!initialData) {
-    return initialValues
+    return {
+      nombre: initialValues.nombre,
+      apellido: initialValues.apellido,
+      dni: initialValues.dni,
+      telefono: initialValues.telefono,
+      email: initialValues.email,
+      obra_social: initialValues.obra_social,
+      fecha_nacimiento: getTodayInputValue(),
+    }
   }
 
   return {
@@ -55,6 +124,7 @@ function getSubmitButtonText(loading, isEditMode) {
 
 function PatientForm({ initialData = null, loading = false, mode = 'create', onSubmit }) {
   const [values, setValues] = useState(() => buildInitialValues(initialData))
+  const [formError, setFormError] = useState('')
   const todayInputValue = getTodayInputValue()
   const isEditMode = mode === 'edit'
   const submitButtonText = getSubmitButtonText(loading, isEditMode)
@@ -77,6 +147,7 @@ function PatientForm({ initialData = null, loading = false, mode = 'create', onS
 
       return nextValues
     })
+    setFormError('')
   }
 
   function handlePhoneChange(value) {
@@ -97,12 +168,20 @@ function PatientForm({ initialData = null, loading = false, mode = 'create', onS
         fecha_nacimiento: currentValues.fecha_nacimiento,
       }
     })
+    setFormError('')
   }
 
   function handleSubmit(event) {
     event.preventDefault()
 
     if (loading) {
+      return
+    }
+
+    const validationError = validateFormValues(values, isEditMode)
+
+    if (validationError) {
+      setFormError(validationError)
       return
     }
 
@@ -226,6 +305,12 @@ function PatientForm({ initialData = null, loading = false, mode = 'create', onS
           />
         </label>
       </fieldset>
+
+      {formError && (
+        <p className="auth-message error" role="alert">
+          {formError}
+        </p>
+      )}
 
       <button className="staff-form-submit" type="submit" disabled={loading}>
         {submitButtonText}

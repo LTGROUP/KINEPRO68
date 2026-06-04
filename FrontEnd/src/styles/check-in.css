@@ -77,6 +77,155 @@
   min-height: 460px;
 }
 
+.profile-header-card {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  border-radius: 16px;
+  padding: 16px 18px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #176b5b 0%, #0d3f35 100%);
+  box-shadow: 0 16px 38px rgba(7, 37, 31, 0.16);
+}
+
+.profile-header-card h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 950;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+}
+
+.profile-sections-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.profile-sections-menu {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d7e3df;
+  border-radius: 16px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(7, 37, 31, 0.08);
+}
+
+.profile-sections-menu button {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 13px 14px;
+  color: #3f5852;
+  background: #edf5f2;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  text-align: left;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.profile-sections-menu button:hover {
+  border-color: #b9d2ca;
+  color: #176b5b;
+  transform: translateX(2px);
+}
+
+.profile-sections-menu button.active {
+  border-color: #176b5b;
+  color: #ffffff;
+  background: #176b5b;
+  box-shadow: 0 10px 24px rgba(23, 107, 91, 0.22);
+}
+
+.profile-card {
+  border: 1px solid #d7e3df;
+  border-radius: 16px;
+  padding: 20px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(7, 37, 31, 0.08);
+}
+
+.profile-card-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.profile-card-title h2 {
+  margin: 0;
+  color: #12241f;
+  font-size: 1.35rem;
+}
+
+.profile-card-text {
+  margin: 0;
+  color: #61746f;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.profile-data-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.profile-data-list div {
+  border-radius: 12px;
+  padding: 14px;
+  background: #edf5f2;
+}
+
+.profile-data-list dt {
+  margin-bottom: 6px;
+  color: #61746f;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.profile-data-list dd {
+  margin: 0;
+  color: #12241f;
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.profile-form {
+  margin-top: 0;
+}
+
+.profile-form input:disabled {
+  color: #60756f;
+  background: #edf1ef;
+  cursor: not-allowed;
+}
+
+.profile-edit-toggle {
+  width: 100%;
+  margin-top: 16px;
+}
+
 .profile-check-in-card {
   display: flex;
   align-items: center;
@@ -146,27 +295,64 @@
   margin: 0;
 }
 
-.check-in-result {
-  margin: 12px 0 0;
-  border-radius: 10px;
-  padding: 12px 14px;
+.check-in-feedback-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(7, 37, 31, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.check-in-feedback-card {
+  display: grid;
+  justify-items: center;
+  width: min(420px, 100%);
+  border: 1px solid #d7e3df;
+  border-radius: 18px;
+  padding: 24px;
+  color: #12241f;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(7, 37, 31, 0.22);
+  text-align: center;
+}
+
+.check-in-feedback-card svg {
+  margin-bottom: 10px;
+  color: #176b5b;
+}
+
+.check-in-feedback-card h3 {
+  margin: 0 0 8px;
+  color: #12241f;
+  font-size: 1.4rem;
+}
+
+.check-in-feedback-card p {
+  margin: 0;
+  color: #61746f;
   font-weight: 800;
   line-height: 1.45;
 }
 
-.check-in-result.success {
-  color: #14513b;
-  background: #dcf8eb;
+.check-in-feedback-help {
+  margin-top: 8px;
+  font-size: 0.92rem;
 }
 
-.check-in-result.error {
-  color: #872d2d;
-  background: #ffe8e8;
-}
-
-.check-in-retry-button {
+.check-in-feedback-card .staff-register-button,
+.check-in-feedback-card .staff-qr-button {
   width: 100%;
-  margin-top: 12px;
+  margin-top: 18px;
+}
+
+.check-in-feedback-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
 }
 
 @media print {
@@ -209,6 +395,90 @@
     gap: 16px;
   }
 
+  .profile-header-card,
+  .profile-card-title,
+  .profile-grid,
+  .profile-sections-layout {
+    display: grid;
+  }
+
+  .profile-header-card {
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .profile-header-card h1 {
+    font-size: 0.82rem;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-sections-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-sections-menu {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    border-radius: 14px;
+    padding: 10px;
+  }
+
+  .profile-sections-menu .staff-eyebrow {
+    grid-column: 1 / -1;
+  }
+
+  .profile-sections-menu button {
+    min-height: 44px;
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .profile-sections-menu button:hover {
+    transform: none;
+  }
+
+  .profile-card-title .staff-register-button {
+    width: 100%;
+  }
+
+  .profile-card {
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .profile-card-title {
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .profile-card-title h2 {
+    font-size: 1.15rem;
+  }
+
+  .profile-data-list {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .profile-data-list div {
+    padding: 11px 12px;
+  }
+
+  .profile-data-list dt {
+    margin-bottom: 4px;
+    font-size: 0.72rem;
+  }
+
+  .profile-form {
+    gap: 10px;
+  }
+
   .profile-check-in-card .staff-register-button {
     width: 100%;
   }
@@ -216,5 +486,14 @@
   .check-in-reader,
   .check-in-reader video {
     min-height: 280px;
+  }
+
+  .check-in-feedback-card {
+    border-radius: 16px;
+    padding: 20px;
+  }
+
+  .check-in-feedback-actions {
+    grid-template-columns: 1fr;
   }
 }

@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_val
 
 StaffRole = Literal["profesional", "secretaria", "administrativo"]
 TreatmentArea = Literal["tren superior", "tren medio", "tren inferior"]
+MINIMUM_AGE = 5
 
 
 def join_field_names(field_names: list[str]) -> str:
@@ -18,6 +19,18 @@ def join_field_names(field_names: list[str]) -> str:
         text = text + field_name
 
     return text
+
+
+def validate_minimum_age(value: date) -> None:
+    today = date.today()
+    age = today.year - value.year
+    birthday_already_passed = (today.month, today.day) >= (value.month, value.day)
+
+    if not birthday_already_passed:
+        age -= 1
+
+    if age < MINIMUM_AGE:
+        raise ValueError("La persona debe tener al menos 5 anos")
 
 
 class StaffBase(BaseModel):
@@ -41,25 +54,10 @@ class StaffBase(BaseModel):
     @classmethod
     def validate_dni(cls, value: str) -> str:
         value = value.strip()
-        if len(value) < 7 or len(value) > 8:
-            raise ValueError("El DNI debe tener entre 7 y 8 numeros")
+        if len(value) < 7:
+            raise ValueError("El DNI debe tener al menos 7 numeros")
         if not value.isdigit():
             raise ValueError("El DNI debe contener solo numeros")
-        return value
-
-    @field_validator("telefono")
-    @classmethod
-    def validate_telefono(cls, value: str) -> str:
-        value = value.strip()
-        number = value
-
-        if value.startswith("+"):
-            number = value[1:]
-
-        if len(value) < 8 or len(value) > 18:
-            raise ValueError("El telefono debe tener entre 8 y 18 caracteres")
-        if not number.isdigit():
-            raise ValueError("El telefono debe contener numeros y puede comenzar con +")
         return value
 
     @field_validator("obra_social")
@@ -74,6 +72,7 @@ class StaffBase(BaseModel):
         today = date.today()
         if value > today:
             raise ValueError("La fecha de nacimiento no puede ser futura")
+        validate_minimum_age(value)
         return value
 
 
@@ -142,23 +141,6 @@ class StaffUpdateRequest(BaseModel):
             raise ValueError("Debe tener al menos 3 caracteres")
         return value
 
-    @field_validator("telefono")
-    @classmethod
-    def validate_telefono(cls, value: str | None) -> str | None:
-        if value is None:
-            return value
-        value = value.strip()
-        number = value
-
-        if value.startswith("+"):
-            number = value[1:]
-
-        if len(value) < 8 or len(value) > 18:
-            raise ValueError("El telefono debe tener entre 8 y 18 caracteres")
-        if not number.isdigit():
-            raise ValueError("El telefono debe contener numeros y puede comenzar con +")
-        return value
-
     @field_validator("obra_social", "matricula", "especialidad")
     @classmethod
     def strip_optional_text(cls, value: str | None) -> str | None:
@@ -174,6 +156,7 @@ class StaffUpdateRequest(BaseModel):
             return value
         if value > date.today():
             raise ValueError("La fecha de nacimiento no puede ser futura")
+        validate_minimum_age(value)
         return value
 
 

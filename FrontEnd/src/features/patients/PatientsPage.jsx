@@ -166,7 +166,9 @@ function PatientsPage({ user }) {
 
     try {
       const createdPatient = await createPatient(user, payload)
-      setMessage(`${createdPatient.nombre} ${createdPatient.apellido} fue registrado correctamente.`)
+      setMessage(
+        `Se registró al paciente ${createdPatient.nombre} ${createdPatient.apellido} correctamente, se envió un mail de confirmación al mail correspondiente.`,
+      )
       setShowRegisterModal(false)
       await loadPatients()
     } catch (requestError) {

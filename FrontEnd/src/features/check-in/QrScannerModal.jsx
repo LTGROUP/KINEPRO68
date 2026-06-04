@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, X } from 'lucide-react'
+import { AlertTriangle, Camera, CheckCircle2, X } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
 
 import { registerCheckInWithQr } from '../../services/checkInService'
@@ -7,7 +7,7 @@ import '../../styles/check-in.css'
 
 const QR_READER_ID = 'kinepro-check-in-reader'
 
-function QrScannerModal({ onClose }) {
+function QrScannerModal({ user, onClose }) {
   const scannerRef = useRef(null)
   const scanFinishedRef = useRef(false)
   const [status, setStatus] = useState('Abriendo cámara...')
@@ -15,21 +15,25 @@ function QrScannerModal({ onClose }) {
   const [successMessage, setSuccessMessage] = useState('')
   const [scannerAttempt, setScannerAttempt] = useState(1)
 
-  async function stopScanner() {
-    if (!scannerRef.current) {
+  async function stopScanner(scannerToStop = scannerRef.current) {
+    if (!scannerToStop) {
       return
     }
 
     try {
-      await scannerRef.current.stop()
+      await scannerToStop.stop()
     } catch {
       // Si la cámara ya estaba cerrada, no hace falta mostrar error.
     }
 
     try {
-      scannerRef.current.clear()
+      scannerToStop.clear()
     } catch {
       // Clear puede fallar si el lector todavía no terminó de montar.
+    }
+
+    if (scannerRef.current === scannerToStop) {
+      scannerRef.current = null
     }
   }
 
@@ -46,7 +50,7 @@ function QrScannerModal({ onClose }) {
     await stopScanner()
 
     try {
-      const response = await registerCheckInWithQr(decodedText)
+      const response = await registerCheckInWithQr(user, decodedText)
       setSuccessMessage(response.message)
       setStatus('Asistencia procesada')
     } catch (requestError) {
@@ -63,12 +67,17 @@ function QrScannerModal({ onClose }) {
     setScannerAttempt((currentAttempt) => currentAttempt + 1)
   }
 
-  function shouldShowRetryButton() {
-    if (error) {
+  async function handleClose() {
+    await stopScanner()
+    onClose()
+  }
+
+  function canRetryAfterError() {
+    if (error === 'El QR escaneado no pertenece a KinePro') {
       return true
     }
 
-    if (successMessage) {
+    if (error === 'No se pudo abrir la cámara. Revisá los permisos del navegador.') {
       return true
     }
 
@@ -76,6 +85,7 @@ function QrScannerModal({ onClose }) {
   }
 
   useEffect(() => {
+    let shouldStopAfterStart = false
     const scanner = new Html5Qrcode(QR_READER_ID)
     scannerRef.current = scanner
 
@@ -93,8 +103,17 @@ function QrScannerModal({ onClose }) {
           handleQrDetected,
         )
 
+        if (shouldStopAfterStart) {
+          await stopScanner(scanner)
+          return
+        }
+
         setStatus('Apuntá la cámara al QR de recepción')
       } catch {
+        if (shouldStopAfterStart) {
+          return
+        }
+
         setError('No se pudo abrir la cámara. Revisá los permisos del navegador.')
         setStatus('Cámara no disponible')
       }
@@ -103,10 +122,26 @@ function QrScannerModal({ onClose }) {
     startScanner()
 
     return () => {
-      stopScanner()
+      shouldStopAfterStart = true
+      stopScanner(scanner)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scannerAttempt])
+
+  useEffect(() => {
+    if (!successMessage) {
+      return undefined
+    }
+
+    const closeTimer = window.setTimeout(() => {
+      handleClose()
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(closeTimer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [successMessage])
 
   return (
     <aside className="staff-detail" aria-label="Escanear QR de asistencia">
@@ -114,7 +149,7 @@ function QrScannerModal({ onClose }) {
         <button
           type="button"
           className="staff-detail-close"
-          onClick={onClose}
+          onClick={handleClose}
           aria-label="Cerrar escáner"
         >
           <X size={18} strokeWidth={3} aria-hidden="true" />
@@ -131,16 +166,48 @@ function QrScannerModal({ onClose }) {
           <Camera size={19} strokeWidth={2.6} aria-hidden="true" />
           <p>{status}</p>
         </div>
-
-        {successMessage && <p className="check-in-result success">{successMessage}</p>}
-        {error && <p className="check-in-result error">{error}</p>}
-
-        {shouldShowRetryButton() && (
-          <button type="button" className="staff-qr-button check-in-retry-button" onClick={handleRetry}>
-            Reintentar
-          </button>
-        )}
       </div>
+
+      {(successMessage || error) && (
+        <div className="check-in-feedback-modal" role="alert">
+          <div className="check-in-feedback-card">
+            {successMessage && (
+              <>
+                <CheckCircle2 size={42} strokeWidth={2.5} aria-hidden="true" />
+                <h3>Asistencia registrada</h3>
+                <p>{successMessage}</p>
+                <p className="check-in-feedback-help">El escáner se va a cerrar automáticamente.</p>
+                <button type="button" className="staff-register-button" onClick={handleClose}>
+                  Cerrar
+                </button>
+              </>
+            )}
+
+            {error && (
+              <>
+                <AlertTriangle size={42} strokeWidth={2.5} aria-hidden="true" />
+                <h3>No se pudo registrar</h3>
+                <p>{error}</p>
+
+                {canRetryAfterError() ? (
+                  <div className="check-in-feedback-actions">
+                    <button type="button" className="staff-register-button" onClick={handleRetry}>
+                      Reintentar
+                    </button>
+                    <button type="button" className="staff-qr-button" onClick={handleClose}>
+                      Cerrar
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" className="staff-qr-button" onClick={handleClose}>
+                    Cerrar
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </aside>
   )
 }
