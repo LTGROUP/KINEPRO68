@@ -451,25 +451,51 @@ async def reprogramar_turno(
             raise ValueError("No se puede reasignar a un horario con menos de 48 hs desde la fecha actual.")
 
         # REGLA 2 (Escenario 3): Disponibilidad del nuevo turno
-        if turno_nuevo.estado != EstadoTurno.DISPONIBLE:
+        if turno_nuevo.estado == EstadoTurno.DISPONIBLE:
+            # Turno directo: liberar el viejo y ocupar el nuevo
+            turno_viejo.estado = EstadoTurno.DISPONIBLE
+            turno_viejo.paciente_id = None
+            turno_viejo.area_tratamiento = None
+
+            turno_nuevo.estado = EstadoTurno.RESERVADO
+            turno_nuevo.paciente_id = paciente_id
+            turno_nuevo.area_tratamiento = AreaTratamiento(nueva_area)
+
+            db.add(turno_viejo)
+            db.add(turno_nuevo)
+            inscripto_en_espera = False
+
+        elif turno_nuevo.estado == EstadoTurno.RESERVADO:
+            # Sin cupo directo: inscribir en lista de espera del nuevo turno
+            ya_en_lista = await verificar_paciente_en_lista(db, turno_nuevo.id, paciente_id)
+            if ya_en_lista:
+                raise ValueError("Ya te encontrás en la lista de espera de ese turno")
+
+            from app.models.turno import ListaEspera as ListaEsperaModel
+            inscripcion = ListaEsperaModel(
+                turno_id=turno_nuevo.id,
+                paciente_id=paciente_id,
+                area_tratamiento=AreaTratamiento(nueva_area),
+            )
+            db.add(inscripcion)
+
+            # Marcar el turno original como reprogramado (conserva paciente_id para historial)
+            turno_viejo.estado = EstadoTurno.REPROGRAMADO
+            db.add(turno_viejo)
+            inscripto_en_espera = True
+
+        else:
             raise ValueError("No hay disponibilidad para el horario seleccionado")
 
-        # EJECUCIÓN: Liberamos el turno original
-        turno_viejo.estado = EstadoTurno.DISPONIBLE
-        turno_viejo.paciente_id = None
-        turno_viejo.area_tratamiento = None
-
-        # EJECUCIÓN: Ocupamos el turno nuevo
-        turno_nuevo.estado = EstadoTurno.RESERVADO
-        turno_nuevo.paciente_id = paciente_id
-        turno_nuevo.area_tratamiento = AreaTratamiento(nueva_area)
-
-        db.add(turno_viejo)
-        db.add(turno_nuevo)
-
-    # Armamos el string exacto que pide el Escenario 1
     fecha_str = turno_nuevo.fecha.strftime("%d/%m/%Y")
     hora_str = turno_nuevo.hora_inicio.strftime("%H:%M")
-    mensaje_exito = f"Turno reasignado con éxito para el {fecha_str} a las {hora_str} hs"
+
+    if inscripto_en_espera:
+        mensaje_exito = (
+            f"No había cupo disponible para el {fecha_str} a las {hora_str} hs. "
+            "Fuiste anotado en la lista de espera. Te notificaremos si se libera un cupo"
+        )
+    else:
+        mensaje_exito = f"Turno reasignado con éxito para el {fecha_str} a las {hora_str} hs"
 
     return {"mensaje": mensaje_exito, "turno": turno_nuevo}

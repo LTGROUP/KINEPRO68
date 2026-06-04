@@ -18,12 +18,13 @@ class AreaTratamiento(str, enum.Enum):
 
 
 class EstadoTurno(str, enum.Enum):
-    DISPONIBLE  = "disponible"   # Cupo libre, nadie lo reservó
-    RESERVADO   = "reservado"    # Paciente asignado
-    BLOQUEADO   = "bloqueado"    # Día cerrado / feriado
-    CANCELADO   = "cancelado"    # Fue cancelado
-    PRESENTE    = "presente"     # El paciente asistió (NUEVO)
-    AUSENTE     = "ausente"
+    DISPONIBLE   = "disponible"    # Cupo libre, nadie lo reservó
+    RESERVADO    = "reservado"     # Paciente asignado
+    BLOQUEADO    = "bloqueado"     # Día cerrado / feriado
+    CANCELADO    = "cancelado"     # Fue cancelado
+    PRESENTE     = "presente"      # El paciente asistió
+    AUSENTE      = "ausente"
+    REPROGRAMADO = "reprogramado"  # Inscripto en lista de espera tras reprogramar
 
 
 class ConfiguracionGrilla(Base):
