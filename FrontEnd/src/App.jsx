@@ -33,11 +33,7 @@ function canUserManage(currentUser) {
   return false
 }
 
-function getInitialSectionForUser(currentUser) {
-  if (canUserManage(currentUser)) {
-    return 'personal'
-  }
-
+function getInitialSectionForUser() {
   return 'inicio'
 }
 
@@ -53,12 +49,6 @@ function App() {
   const isRecoveryFlow = getIsRecoveryFlow()
   const [user, setUser] = useState(readStoredSession)
   const [activeSection, setActiveSection] = useState(() => {
-    const storedUser = readStoredSession()
-
-    if (canUserManage(storedUser)) {
-      return 'personal'
-    }
-
     return 'inicio'
   })
   const canManageStaff = canUserManage(user)
@@ -87,7 +77,7 @@ function App() {
   function handleLoginSuccess(session, keepSession) {
     const savedSession = saveStoredSession(session, keepSession)
     setUser(savedSession)
-    setActiveSection(getInitialSectionForUser(savedSession))
+    setActiveSection(getInitialSectionForUser())
   }
 
   function handleLogout() {
