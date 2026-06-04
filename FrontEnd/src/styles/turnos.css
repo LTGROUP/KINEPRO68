@@ -1,0 +1,583 @@
+/* ── Solicitar turno ─────────────────────────────────────────────── */
+
+.turnos-solicitar {
+  display: grid;
+  gap: 20px;
+}
+
+/* ── Week strip ──────────────────────────────────────────────────── */
+
+.turnos-week-strip {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #d7e3df;
+  border-radius: 16px;
+  padding: 16px;
+  background: #f4f9f7;
+}
+
+.turnos-week-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.turnos-month-label {
+  color: #12241f;
+  font-size: 0.92rem;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.turnos-week-nav {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #c8d9d4;
+  border-radius: 8px;
+  color: #176b5b;
+  background: #ffffff;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.turnos-week-nav:hover:not(:disabled) {
+  border-color: #176b5b;
+  background: #edf5f2;
+}
+
+.turnos-week-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.turnos-week-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.turnos-day-btn {
+  display: grid;
+  place-items: center;
+  gap: 5px;
+  min-height: 64px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 8px 4px;
+  color: #31453f;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.turnos-day-btn:hover:not(:disabled):not(.selected) {
+  border-color: #c8d9d4;
+  background: #ffffff;
+}
+
+.turnos-day-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.turnos-day-btn.selected {
+  border-color: #176b5b;
+  color: #ffffff;
+  background: #176b5b;
+}
+
+.turnos-day-name {
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.turnos-day-btn.selected .turnos-day-name {
+  opacity: 0.82;
+}
+
+.turnos-day-number {
+  font-size: 1.1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.turnos-day-btn.today:not(.selected) .turnos-day-number {
+  position: relative;
+}
+
+.turnos-day-btn.today:not(.selected) .turnos-day-number::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #176b5b;
+}
+
+/* ── Agenda list ─────────────────────────────────────────────────── */
+
+.turnos-agenda {
+  display: grid;
+  gap: 10px;
+}
+
+.turnos-agenda-heading {
+  margin: 0;
+  color: #61746f;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.turnos-agenda-list {
+  display: grid;
+  gap: 8px;
+}
+
+.turnos-agenda-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #d7e3df;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #ffffff;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.turnos-agenda-item.selected {
+  border-color: #176b5b;
+  box-shadow: 0 0 0 3px rgba(23, 107, 91, 0.1);
+}
+
+.turnos-agenda-time {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 130px;
+  color: #12241f;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.turnos-agenda-sep {
+  color: #9ab8b0;
+}
+
+.turnos-agenda-duration {
+  flex: 1;
+  color: #8aa59e;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.turnos-agenda-action {
+  flex: 0 0 auto;
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 18px;
+  color: #ffffff;
+  background: #176b5b;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  white-space: nowrap;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.turnos-agenda-action:hover {
+  background: #125648;
+  transform: translateY(-1px);
+}
+
+.turnos-no-date {
+  margin: 0;
+  padding: 28px 24px;
+  color: #8aa59e;
+  text-align: center;
+  font-weight: 700;
+  border: 1px dashed #c8d9d4;
+  border-radius: 12px;
+}
+
+/* ── Legacy (usados por ListaEsperaView) ─────────────────────────── */
+
+.turnos-slots-heading {
+  margin: 0;
+  color: #61746f;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.turnos-slots-heading strong {
+  color: #12241f;
+}
+
+.turnos-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 10px;
+}
+
+.turnos-slot-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  border: 1px solid #c8d9d4;
+  border-radius: 12px;
+  padding: 0 14px;
+  color: #176b5b;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.turnos-slot-card:hover,
+.turnos-slot-card.active {
+  border-color: #176b5b;
+  background: #edf5f2;
+  transform: translateY(-1px);
+}
+
+.turnos-slot-time {
+  font-size: 0.95rem;
+}
+
+/* ── Confirmación área de tratamiento ──────────────────────────── */
+
+.turnos-confirm-area {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.turnos-area-option {
+  min-height: 44px;
+  border: 1px solid #d7e3df;
+  border-radius: 10px;
+  padding: 0 14px;
+  color: #31453f;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.turnos-area-option.active {
+  border-color: #176b5b;
+  color: #ffffff;
+  background: #176b5b;
+}
+
+/* ── Mis turnos ──────────────────────────────────────────────────── */
+
+.turnos-list {
+  display: grid;
+  gap: 10px;
+}
+
+.turnos-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #d7e3df;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #ffffff;
+}
+
+.turnos-list-date {
+  display: grid;
+  gap: 2px;
+  min-width: 100px;
+}
+
+.turnos-list-date strong {
+  color: #12241f;
+  font-size: 1rem;
+}
+
+.turnos-list-date span {
+  color: #61746f;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.turnos-list-info {
+  flex: 1;
+  display: grid;
+  gap: 3px;
+}
+
+.turnos-list-area {
+  color: #176b5b;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.turnos-list-id {
+  color: #12241f;
+  font-size: 0.9rem;
+}
+
+.turnos-list-info span {
+  color: #61746f;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.turnos-badge {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 4px 12px;
+  color: #176b5b;
+  background: #dcf0ea;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.turnos-badge.reservado {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.turnos-badge.cancelado {
+  color: #872d2d;
+  background: #ffe8e8;
+}
+
+.turnos-badge.presente {
+  color: #145b40;
+  background: #c2f0d8;
+}
+
+.turnos-badge.ausente {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.turnos-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  min-height: 280px;
+  border: 1px dashed #c8d9d4;
+  border-radius: 16px;
+  padding: 28px;
+  color: #61746f;
+  text-align: center;
+}
+
+.turnos-empty-state p {
+  margin: 0;
+  font-weight: 700;
+}
+
+/* ── Configurar grilla ──────────────────────────────────────────── */
+
+.turnos-dias-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.turnos-dia-option {
+  min-height: 38px;
+  border: 1px solid #d7e3df;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: #45615a;
+  background: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.turnos-dia-option.active {
+  border-color: #176b5b;
+  color: #ffffff;
+  background: #176b5b;
+}
+
+.turnos-franja-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid #d7e3df;
+  border-radius: 12px;
+  background: #f4f9f7;
+}
+
+.turnos-franja-remove {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid #c8d9d4;
+  border-radius: 8px;
+  color: #872d2d;
+  background: #fff5f5;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.turnos-franja-remove:hover {
+  border-color: #e05555;
+  background: #ffe8e8;
+}
+
+.turnos-add-franja {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  min-height: 38px;
+  border: 1px dashed #9dd0be;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: #176b5b;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.turnos-add-franja:hover {
+  border-color: #176b5b;
+  background: #edf5f2;
+}
+
+/* ── Lista de espera ────────────────────────────────────────────── */
+
+.turnos-espera-layout {
+  display: grid;
+  gap: 20px;
+}
+
+.turnos-espera-search {
+  display: grid;
+  grid-template-columns: 240px auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.turnos-espera-slots {
+  display: grid;
+  gap: 12px;
+}
+
+.turnos-espera-result {
+  display: grid;
+  gap: 12px;
+}
+
+.turnos-espera-posicion {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #176b5b;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .turnos-week-strip {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .turnos-week-days {
+    gap: 4px;
+  }
+
+  .turnos-day-btn {
+    min-height: 54px;
+    padding: 6px 2px;
+    border-radius: 10px;
+    gap: 4px;
+  }
+
+  .turnos-day-name {
+    font-size: 0.62rem;
+  }
+
+  .turnos-day-number {
+    font-size: 0.95rem;
+  }
+
+  .turnos-agenda-item {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .turnos-agenda-time {
+    min-width: 0;
+  }
+
+  .turnos-agenda-action {
+    width: 100%;
+    min-height: 40px;
+    text-align: center;
+  }
+
+  .turnos-slots-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+
+  .turnos-list-item {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .turnos-franja-row {
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .turnos-espera-search {
+    grid-template-columns: 1fr;
+  }
+}

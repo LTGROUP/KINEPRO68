@@ -2,9 +2,6 @@
 
 Sistema de gestion para centros de kinesiologia.
 
-## Objetivo del repositorio
-
-Este repositorio contiene el esqueleto inicial del proyecto para que el equipo pueda trabajar con GitFlow. Los archivos de codigo quedan vacios a proposito hasta que cada integrante implemente su parte en ramas de feature.
 
 ## Estructura
 
