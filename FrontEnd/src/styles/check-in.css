@@ -182,6 +182,19 @@
   line-height: 1.45;
 }
 
+.profile-password-hint {
+  display: inline-block;
+  margin: 12px 0 0;
+  border: 1px solid #cfe3dd;
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #36524b;
+  background: #edf5f2;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .profile-data-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
