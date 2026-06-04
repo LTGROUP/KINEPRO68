@@ -200,6 +200,7 @@ class TurnosFechaResponse(BaseModel):
 class CancelarTurnoResponse(BaseModel):
     mensaje: Optional[str] = None
     turno: TurnoResponse
+    mensaje_lista_espera: str
 
     model_config = {"from_attributes": True}
 

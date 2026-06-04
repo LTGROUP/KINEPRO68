@@ -1,15 +1,8 @@
 import { useEffect, useState } from 'react'
-// IMPORTANTE: Agregamos el ícono "Filter" acá
 import { ChevronLeft, ChevronRight, Clock, UserCheck, Filter } from 'lucide-react'
 
 import { getAgendaDia, actualizarEstadoTurno } from '../../../services/turnosService'
-
-function getEstadoClass(estado) {
-  if (estado === 'reservado') return 'turnos-badge reservado'
-  if (estado === 'cancelado') return 'turnos-badge cancelado'
-  if (estado === 'presente') return 'turnos-badge' 
-  return 'turnos-badge'
-}
+import { getEstadoClass } from '../../../utils/estadoColors'
 
 function formatTime(timeStr) {
   if (!timeStr) return ''

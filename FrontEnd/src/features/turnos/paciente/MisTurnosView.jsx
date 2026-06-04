@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { CalendarDays, X } from 'lucide-react'
-// Asegurate de ajustar estas rutas a las de tu proyecto:
 import { getMisTurnos, cancelarTurno } from '../../../services/turnosService'
 import SolicitarTurnoView from './SolicitarTurnoView'
+import { getEstadoClass } from '../../../utils/estadoColors'
 
 // Constantes y funciones de formato
 const AREA_LABELS = {
@@ -29,13 +29,6 @@ function formatTime(timeStr) {
   return timeStr.slice(0, 5)
 }
 
-function getEstadoClass(estado) {
-  if (estado === 'reservado') return 'turnos-badge reservado'
-  if (estado === 'cancelado') return 'turnos-badge cancelado'
-  if (estado === 'presente') return 'turnos-badge presente'
-  if (estado === 'ausente') return 'turnos-badge ausente'
-  return 'turnos-badge'
-}
 
 function MisTurnosView({ user }) {
   const [turnos, setTurnos] = useState([])

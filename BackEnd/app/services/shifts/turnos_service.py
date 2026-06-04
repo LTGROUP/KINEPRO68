@@ -22,8 +22,8 @@ from app.repositories.shifts.turnos import (
     obtener_turnos_disponibles_por_fecha,
     obtener_turno_existente_del_paciente,
     actualizar_estado_turno,
-    obtener_turno_por_id_con_lock,  
-    obtener_turnos_del_paciente,    
+    obtener_turno_por_id_con_lock,
+    obtener_turnos_del_paciente,
     obtener_lista_espera_por_turno,
     crear_inscripcion_lista_espera,
     obtener_inscripcion_lista_espera,
@@ -31,7 +31,8 @@ from app.repositories.shifts.turnos import (
     obtener_todos_turnos_por_fecha,
     verificar_paciente_en_lista,
     obtener_metricas_cancelaciones,
-    obtener_cancelaciones_por_mes
+    obtener_cancelaciones_por_mes,
+    obtener_primer_paciente_en_espera,
 )
 
 ARGENTINA_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
@@ -286,15 +287,28 @@ async def cancelar_turno(db: AsyncSession, turno_id: UUID, paciente_id: UUID):
         if (fecha_hora_turno - ahora) < timedelta(hours=48):
             mensaje_advertencia = "Al cancelar con menos de 48 horas de anticipación, no podrá reasignar este turno."
 
-        # SOLUCIÓN: Cambiamos el estado directamente acá para no chocar transacciones
-        turno.estado = EstadoTurno.CANCELADO
+        # Lógica de lista de espera — se reutiliza el MISMO turno (mismo id)
+        primer_espera = await obtener_primer_paciente_en_espera(db, turno.id)
+
+        if primer_espera:
+            turno.estado = EstadoTurno.RESERVADO
+            turno.paciente_id = primer_espera.paciente_id
+            turno.area_tratamiento = primer_espera.area_tratamiento
+            primer_espera.activo = False
+            db.add(primer_espera)
+            mensaje_lista_espera = "El turno fue asignado automáticamente al siguiente paciente en lista de espera"
+        else:
+            turno.estado = EstadoTurno.DISPONIBLE
+            turno.paciente_id = None
+            turno.area_tratamiento = None
+            mensaje_lista_espera = "El cupo fue liberado y está disponible para nuevos turnos"
+
         db.add(turno)
-        turno_actualizado = turno
-    
-    # Devolvemos el turno modificado junto con el mensaje (si corresponde)
+
     return {
-        "turno": turno_actualizado,
-        "mensaje": mensaje_advertencia
+        "turno": turno,
+        "mensaje": mensaje_advertencia,
+        "mensaje_lista_espera": mensaje_lista_espera,
     }
 
 async def consultar_agenda_diaria(db: AsyncSession, fecha_buscada: date, actor_role: str, area: Optional[str] = None):
