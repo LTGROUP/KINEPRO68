@@ -38,7 +38,7 @@ export function AgendaProfesional({ user }) {
       setTurnos([])
 
       try {
-        const fechaStr = fecha.toISOString().split('T')[0]
+        const fechaStr = fecha.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
         const data = await getAgendaDia(user, fechaStr, areaFiltro)
         
         if (!cancelled) {

@@ -26,6 +26,12 @@ DIAS_SEMANA_MAP = {
     "jueves": 3, "viernes": 4, "sabado": 5, "domingo": 6
 }
 
+MESES_ES = {
+    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+}
+
 
 def _generar_slots(franjas: List[FranjaHoraria]) -> List[Tuple[time, time]]:
     slots = []
@@ -119,7 +125,7 @@ async def generar_grilla(
     if dias_omitidos:
         mensaje = "Agenda generada, omitiendo fechas cerradas"
     else:
-        mes_nombre = primer_dia_mes.strftime("%B %Y").capitalize()
+        mes_nombre = f"{MESES_ES[request.mes]} {request.anio}"
         mensaje = f"Agenda generada con éxito para {mes_nombre}"
 
     return GrillaGeneradaResponse(
