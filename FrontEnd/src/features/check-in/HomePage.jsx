@@ -55,7 +55,7 @@ function HomePage({ user }) {
         </section>
       </section>
 
-      {showScanner && <QrScannerModal onClose={handleCloseScanner} />}
+      {showScanner && <QrScannerModal user={user} onClose={handleCloseScanner} />}
     </main>
   )
 }
