@@ -90,6 +90,7 @@ async def obtener_turnos_del_paciente(
                             EstadoTurno.CANCELADO,
                             EstadoTurno.AUSENTE,
                             EstadoTurno.PRESENTE,
+                            EstadoTurno.REPROGRAMADO,
                        ])
                   )
              ).order_by(Turno.fecha, Turno.hora_inicio)
