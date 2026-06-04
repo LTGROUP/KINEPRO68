@@ -205,6 +205,18 @@ async def obtener_metricas_cancelaciones(db: AsyncSession):
     )
     return result.all()
 
+async def obtener_primer_paciente_en_espera(db: AsyncSession, turno_id: UUID) -> ListaEspera | None:
+    result = await db.execute(
+        select(ListaEspera).where(
+            and_(
+                ListaEspera.turno_id == turno_id,
+                ListaEspera.activo == True,
+            )
+        ).order_by(ListaEspera.fecha_inscripcion).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def obtener_cancelaciones_por_mes(db: AsyncSession):
     result = await db.execute(
         select(
