@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Search, SlidersHorizontal, ScrollText, UserCog, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  Search,
+  SlidersHorizontal,
+  ScrollText,
+  UserCog,
+  X,
+} from 'lucide-react'
 
+import {
+  MobileSectionHeader,
+  MobileSectionMenu,
+} from '../../components/common'
 import {
   createStaff,
   deactivateStaff,
@@ -20,6 +31,11 @@ const AUDIT_ACTION_LABELS = {
   DELETE_STAFF: 'Dio de baja personal',
   CREATE_PATIENT: 'Registró paciente',
   UPDATE_PATIENT: 'Editó paciente',
+  CREATE_ROUTINE: 'Asignó rutina',
+  UPDATE_ROUTINE: 'Editó rutina',
+  DELETE_ROUTINE: 'Eliminó rutina',
+  CREATE_MEDICAL_RECORD: 'Creó ficha médica',
+  UPDATE_MEDICAL_RECORD: 'Editó ficha médica',
 }
 
 const AUDIT_ACTION_FILTER_OPTIONS = [
@@ -29,6 +45,11 @@ const AUDIT_ACTION_FILTER_OPTIONS = [
   { label: 'Baja personal', value: 'DELETE_STAFF' },
   { label: 'Registrar paciente', value: 'CREATE_PATIENT' },
   { label: 'Editar paciente', value: 'UPDATE_PATIENT' },
+  { label: 'Asignar rutina', value: 'CREATE_ROUTINE' },
+  { label: 'Editar rutina', value: 'UPDATE_ROUTINE' },
+  { label: 'Eliminar rutina', value: 'DELETE_ROUTINE' },
+  { label: 'Crear ficha médica', value: 'CREATE_MEDICAL_RECORD' },
+  { label: 'Editar ficha médica', value: 'UPDATE_MEDICAL_RECORD' },
 ]
 
 const AUDIT_DATE_FILTER_OPTIONS = [
@@ -376,12 +397,6 @@ function StaffManagementPage({ user }) {
   }, [selectedRole])
 
   useEffect(() => {
-    if (user.rol === 'secretaria' && selectedRole !== '' && selectedRole !== 'profesional') {
-      setSelectedRole('')
-    }
-  }, [selectedRole, user.rol])
-
-  useEffect(() => {
     if (personalView !== 'audit') {
       return
     }
@@ -647,25 +662,24 @@ function StaffManagementPage({ user }) {
       <section className="staff-shell" aria-labelledby="staff-title">
         <section className="staff-panel" aria-label="Personal">
           {personalView === 'menu' ? (
-            <div className="personal-mobile-menu">
-              <div className="staff-panel-header">
-                <div>
-                  <h1 id="staff-title">Personal</h1>
-                  <p>Elegí qué querés administrar.</p>
-                </div>
-              </div>
-
-              <div className="personal-mobile-options">
-                <button type="button" onClick={() => setPersonalView('staff')}>
-                  <UserCog size={34} strokeWidth={2.4} aria-hidden="true" />
-                  <span>Gestión del personal</span>
-                </button>
-                <button type="button" onClick={() => setPersonalView('audit')}>
-                  <ScrollText size={34} strokeWidth={2.4} aria-hidden="true" />
-                  <span>Auditoría</span>
-                </button>
-              </div>
-            </div>
+            <MobileSectionMenu
+              title="Personal"
+              description="Elegí qué querés administrar."
+              titleId="staff-title"
+              options={[
+                {
+                  id: 'staff',
+                  label: 'Gestión del personal',
+                  Icon: UserCog,
+                },
+                {
+                  id: 'audit',
+                  label: 'Auditoría',
+                  Icon: ScrollText,
+                },
+              ]}
+              onSelect={setPersonalView}
+            />
           ) : (
             <>
               <div className="personal-desktop-tabs" aria-label="Secciones de personal">
@@ -685,20 +699,12 @@ function StaffManagementPage({ user }) {
                 </button>
               </div>
 
-              <div className="personal-mobile-section-header">
-                <button
-                  type="button"
-                  className="personal-mobile-back"
-                  onClick={() => setPersonalView('menu')}
-                  aria-label="Volver al menu de personal"
-                >
-                  <ArrowLeft size={20} strokeWidth={3} aria-hidden="true" />
-                </button>
-                <div className="personal-mobile-heading">
-                  <h1>{mobileSectionTitle}</h1>
-                  <p>{mobileSectionCount}</p>
-                </div>
-              </div>
+              <MobileSectionHeader
+                title={mobileSectionTitle}
+                subtitle={mobileSectionCount}
+                backLabel="Volver al menú de personal"
+                onBack={() => setPersonalView('menu')}
+              />
 
               {personalView === 'audit' ? (
                 <div className="audit-placeholder">

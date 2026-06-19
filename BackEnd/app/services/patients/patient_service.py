@@ -17,6 +17,12 @@ from app.services.audit import register_audit_log
 
 
 ALLOWED_PATIENT_MANAGERS = {"administrativo", "secretaria"}
+ALLOWED_PATIENT_READERS = {"administrativo", "secretaria", "profesional"}
+
+
+def validate_patient_reader_role(actor_role: str) -> None:
+    if actor_role not in ALLOWED_PATIENT_READERS:
+        raise ValueError("No tenes permisos para consultar pacientes")
 
 
 def validate_actor_role(actor_role: str) -> None:
@@ -96,7 +102,7 @@ def list_patients(
     include_inactive: bool = False,
 ) -> PatientListResponse:
     actor_role = actor_role.strip().lower()
-    validate_actor_role(actor_role)
+    validate_patient_reader_role(actor_role)
 
     items = []
     patient_profiles = list_patient_profiles(include_inactive=include_inactive)
@@ -109,7 +115,8 @@ def list_patients(
 
 def get_patient_detail(patient_id: str, actor_role: str) -> PatientResponse:
     actor_role = actor_role.strip().lower()
-    validate_actor_role(actor_role)
+    validate_patient_reader_role(actor_role)
+
     patient = get_patient_by_id(patient_id)
 
     if not patient:

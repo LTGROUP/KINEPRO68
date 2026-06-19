@@ -1,8 +1,27 @@
 import { useEffect, useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Headphones, Lock, UserRound } from 'lucide-react'
 
+import {
+  MobileSectionHeader,
+  MobileSectionMenu,
+} from '../../components/common'
 import { changePassword, getMyProfile, updateMyProfile } from '../../services/authService'
 import '../../styles/check-in.css'
+
+function shouldStartWithProfileMenu() {
+  return window.matchMedia('(max-width: 760px)').matches
+}
+
+function getProfileSectionTitle(activeProfileSection) {
+  if (activeProfileSection === 'datos')
+    return 'Datos Personales'
+  if (activeProfileSection === 'seguridad') {
+    return 'Seguridad'
+  }
+  if (activeProfileSection === 'soporte') {
+    return 'Soporte'
+  }
+}
 
 function ProfilePage({ user }) {
   const [profile, setProfile] = useState(user)
@@ -11,7 +30,18 @@ function ProfilePage({ user }) {
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
   const [profileLoading, setProfileLoading] = useState(false)
-  const [activeProfileSection, setActiveProfileSection] = useState('datos')
+
+  const [activeProfileSection, setActiveProfileSection] = useState(() => {
+    if (shouldStartWithProfileMenu()) {
+      return 'menu'
+    }
+    return 'datos'
+  })
+
+  const [isMobile, setIsMobile] = useState(shouldStartWithProfileMenu)
+  const [supportCategory, setSupportCategory] = useState('')
+  const [supportDetail, setSupportDetail] = useState('')
+  const supportPhone = '5492215383928'
   const [showEditProfile, setShowEditProfile] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
@@ -66,6 +96,20 @@ function ProfilePage({ user }) {
     }
   }, [user])
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 760px)')
+
+    function handleScreenChange(event) {
+      setIsMobile(event.matches)
+    }
+
+    mediaQuery.addEventListener('change', handleScreenChange)
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleScreenChange)
+    }
+  }, [])
+
   function toggleEditProfile() {
     setShowEditProfile((current) => !current)
   }
@@ -79,7 +123,43 @@ function ProfilePage({ user }) {
     setError('')
     setPasswordMessage('')
     setProfileMessage('')
+    if (sectionName !== 'soporte') {
+
+      setSupportCategory('')
+      setSupportDetail('')
+    }
   }
+
+  function handleOpenWhatsAppSupport(event) {
+    event.preventDefault()
+
+    setError('')
+
+    if (!supportCategory) {
+      setError('Debe seleccionar el motivo de la consulta')
+      return
+    }
+
+    const message = `
+      Hola, necesito soporte con KinePro.
+
+      Categoría: ${supportCategory}
+      Usuario: ${profile.nombre || ''} ${profile.apellido || ''}
+      DNI: ${profile.dni || 'Sin cargar'}
+      ${supportDetail ? ` Detalle: ${supportDetail}` : ''}`
+    const whatsappUrl = `https://wa.me/${supportPhone}?text=${encodeURIComponent(message)}`
+    const supportWindow = window.open(whatsappUrl, '_blank')
+
+    if (!supportWindow) {
+      setError('El navegador bloqueó la ventana de WhatsApp')
+      return
+    }
+
+    supportWindow.opener = null
+    setSupportCategory('')
+    setSupportDetail('')
+  }
+
 
   function handleProfileInputChange(event) {
     const { name, value } = event.target
@@ -182,29 +262,57 @@ function ProfilePage({ user }) {
     <main className="staff-page">
       <section className="staff-shell" aria-labelledby="profile-title">
         <section className="staff-panel profile-panel" aria-label="Perfil">
-          <div className="profile-header-card">
-            <h1 id="profile-title">Mi cuenta</h1>
-          </div>
 
-          <div className="profile-sections-layout">
-            <aside className="profile-sections-menu" aria-label="Secciones del perfil">
-              <p className="staff-eyebrow">Secciones</p>
-              <button
-                type="button"
-                className={activeProfileSection === 'datos' ? 'active' : ''}
-                onClick={() => changeProfileSection('datos')}
-              >
-                Datos personales
-              </button>
-              <button
-                type="button"
-                className={activeProfileSection === 'seguridad' ? 'active' : ''}
-                onClick={() => changeProfileSection('seguridad')}
-              >
-                Seguridad
-              </button>
-            </aside>
+          {activeProfileSection === 'menu' ? (
+            <MobileSectionMenu
+              title="Mi cuenta"
+              description="Elegí qué querés consultar."
+              titleId="profile-title"
+              options={[
+                { id: 'datos', label: 'Datos personales', Icon: UserRound },
+                { id: 'seguridad', label: 'Seguridad', Icon: Lock },
+                { id: 'soporte', label: 'Soporte', Icon: Headphones },
+              ]}
+              onSelect={changeProfileSection}
+            />
+          ) : (
+            <>
+              <MobileSectionHeader
+                title={getProfileSectionTitle(activeProfileSection)}
+                subtitle="Mi cuenta"
+                backLabel="Volver al menú de perfil"
+                onBack={() => changeProfileSection('menu')}
+              />
 
+              <div className="profile-sections-layout">
+                {!isMobile && (
+                <aside className="profile-sections-menu" aria-label="Secciones del perfil">
+                  <p className="staff-eyebrow">Secciones</p>
+                  <button
+                    type="button"
+                    className={activeProfileSection === 'datos' ? 'active' : ''}
+                    onClick={() => changeProfileSection('datos')}
+                  >
+                    Datos personales
+                  </button>
+
+                  <button
+                    type="button"
+                    className={activeProfileSection === 'seguridad' ? 'active' : ''}
+                    onClick={() => changeProfileSection('seguridad')}
+                  >
+                    Seguridad
+                  </button>
+
+                  <button
+                    type="button"
+                    className={activeProfileSection === 'soporte' ? 'active' : ''}
+                    onClick={() => changeProfileSection('soporte')}
+                  >
+                    Soporte
+                  </button>
+                </aside>
+                )}
             {activeProfileSection === 'datos' && (
               <section className="profile-card" aria-label="Datos personales">
                 <div className="profile-card-title">
@@ -413,7 +521,58 @@ function ProfilePage({ user }) {
                 )}
               </section>
             )}
-          </div>
+
+            {activeProfileSection === 'soporte' && (
+              <section className="profile-card" aria-label="Soporte">
+                <div className="profile-card-title">
+                  <div>
+                    <p className="staff-eyebrow">Soporte</p>
+                    <h2>Contactar soporte</h2>
+                  </div>
+                </div>
+
+                <p className="profile-card-text">
+                  Contactate con soporte mediante WhatsApp. El sistema incluirá tus datos básicos para agilizar la atención.
+                </p>
+
+                <form className="auth-form profile-form" onSubmit={handleOpenWhatsAppSupport}>
+                  <label className="auth-field">
+                    <span>Categoría del inconveniente</span>
+                    <select
+                      value={supportCategory}
+                      onChange={(event) => setSupportCategory(event.target.value)}
+                      required
+                    >
+                      <option value="" disabled hidden>Elegí el motivo de la consulta</option>
+                      <option value="Problema con contraseña">Problema con contraseña</option>
+                      <option value="Problema con datos personales">Problema con datos personales</option>
+                      <option value="Problema con turnos">Problema con turnos</option>
+                      <option value="Problema con QR">Problema con QR</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </label>
+
+                  <label className="auth-field">
+                    <span>Detalle opcional</span>
+                    <textarea
+                      value={supportDetail}
+                      onChange={(event) => setSupportDetail(event.target.value)}
+                      placeholder="Describí brevemente el inconveniente..."
+                      rows="5"
+                    />
+                  </label>
+
+                  <button className="auth-submit" type="submit">
+                    Contactar por WhatsApp
+                  </button>
+
+                  <p className="mt-4 text-center text-sm text-slate-500">
+                    O contactate al : <span className="font-semibold">{supportPhone}</span>
+                  </p>
+
+                </form>
+              </section>
+            )}
 
           {error && (
             <p className="auth-message error" role="alert">
@@ -430,6 +589,9 @@ function ProfilePage({ user }) {
               {profileMessage}
             </p>
           )}
+        </div>
+        </>
+        )}
         </section>
       </section>
     </main>

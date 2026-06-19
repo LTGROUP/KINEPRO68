@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, X } from 'lucide-react'
+import { AlertTriangle, Camera, CheckCircle2, X } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
 
 import { registerCheckInWithQr } from '../../services/checkInService'
@@ -7,7 +7,7 @@ import '../../styles/check-in.css'
 
 const QR_READER_ID = 'kinepro-check-in-reader'
 
-function QrScannerModal({ onClose }) {
+function QrScannerModal({ user, onClose }) {
   const scannerRef = useRef(null)
   const scanFinishedRef = useRef(false)
   const [status, setStatus] = useState('Abriendo cámara...')
@@ -50,7 +50,7 @@ function QrScannerModal({ onClose }) {
     await stopScanner()
 
     try {
-      const response = await registerCheckInWithQr(decodedText)
+      const response = await registerCheckInWithQr(user, decodedText)
       setSuccessMessage(response.message)
       setStatus('Asistencia procesada')
     } catch (requestError) {
@@ -72,12 +72,12 @@ function QrScannerModal({ onClose }) {
     onClose()
   }
 
-  function shouldShowRetryButton() {
-    if (error) {
+  function canRetryAfterError() {
+    if (error === 'El QR escaneado no pertenece a KinePro') {
       return true
     }
 
-    if (successMessage) {
+    if (error === 'No se pudo abrir la cámara. Revisá los permisos del navegador.') {
       return true
     }
 
@@ -128,6 +128,21 @@ function QrScannerModal({ onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scannerAttempt])
 
+  useEffect(() => {
+    if (!successMessage) {
+      return undefined
+    }
+
+    const closeTimer = window.setTimeout(() => {
+      handleClose()
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(closeTimer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [successMessage])
+
   return (
     <aside className="staff-detail" aria-label="Escanear QR de asistencia">
       <div className="staff-detail-card check-in-scanner-card">
@@ -151,16 +166,48 @@ function QrScannerModal({ onClose }) {
           <Camera size={19} strokeWidth={2.6} aria-hidden="true" />
           <p>{status}</p>
         </div>
-
-        {successMessage && <p className="check-in-result success">{successMessage}</p>}
-        {error && <p className="check-in-result error">{error}</p>}
-
-        {shouldShowRetryButton() && (
-          <button type="button" className="staff-qr-button check-in-retry-button" onClick={handleRetry}>
-            Reintentar
-          </button>
-        )}
       </div>
+
+      {(successMessage || error) && (
+        <div className="check-in-feedback-modal" role="alert">
+          <div className="check-in-feedback-card">
+            {successMessage && (
+              <>
+                <CheckCircle2 size={42} strokeWidth={2.5} aria-hidden="true" />
+                <h3>Asistencia registrada</h3>
+                <p>{successMessage}</p>
+                <p className="check-in-feedback-help">El escáner se va a cerrar automáticamente.</p>
+                <button type="button" className="staff-register-button" onClick={handleClose}>
+                  Cerrar
+                </button>
+              </>
+            )}
+
+            {error && (
+              <>
+                <AlertTriangle size={42} strokeWidth={2.5} aria-hidden="true" />
+                <h3>No se pudo registrar</h3>
+                <p>{error}</p>
+
+                {canRetryAfterError() ? (
+                  <div className="check-in-feedback-actions">
+                    <button type="button" className="staff-register-button" onClick={handleRetry}>
+                      Reintentar
+                    </button>
+                    <button type="button" className="staff-qr-button" onClick={handleClose}>
+                      Cerrar
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" className="staff-qr-button" onClick={handleClose}>
+                    Cerrar
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </aside>
   )
 }

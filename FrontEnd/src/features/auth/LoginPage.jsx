@@ -3,6 +3,17 @@ import { useEffect, useState } from 'react'
 import { loginUser } from '../../services/authService'
 import LoginForm from './LoginForm'
 
+const contactPhone = '5492215383928'
+
+const supportUrl =
+
+  `https://wa.me/${contactPhone}?text=${encodeURIComponent(
+
+    'Hola, tengo problemas para ingresar a KinePro. ¿Podrían ayudarme?'
+
+  )}`
+
+
 function LoginPage({ onLoginSuccess, onSwitchToRegister, onForgotPassword }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -62,6 +73,15 @@ function LoginPage({ onLoginSuccess, onSwitchToRegister, onForgotPassword }) {
           Registrate
         </button>
       </p>
+
+      <a
+        href={supportUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-4 block text-center text-sm font-bold text-[#176b5b] hover:underline"
+      >
+        ¿Tenés problemas para ingresar? Contactar soporte
+      </a>
     </section>
   )
 }

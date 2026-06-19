@@ -5,7 +5,12 @@ import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import { HomePage, ProfilePage } from './features/check-in'
 import { PatientsPage } from './features/patients'
 import { StaffManagementPage } from './features/staff-management'
+import TreatmentPage from './features/treatment/TreatmentPage'
+import { TurnosPage } from './features/turnos'
 import { AppLayout } from './layouts'
+import { AgendaProfesional } from './features/turnos/secretaria/AgendaProfesional'
+import { MetricasPage } from './features/metricas'
+
 import { clearPasswordRecoveryFlow, hasPasswordRecoveryFlow, supabase } from './lib/supabase/client'
 import {
   SESSION_EXPIRED_EVENT,
@@ -14,6 +19,7 @@ import {
   readStoredSession,
   saveStoredSession,
 } from './services/authService'
+
 import './styles/auth.css'
 import './styles/app-layout.css'
 
@@ -33,36 +39,56 @@ function canUserManage(currentUser) {
   return false
 }
 
-function getInitialSectionForUser(currentUser) {
-  if (canUserManage(currentUser)) {
-    return 'personal'
+function canUserAccessPatients(currentUser) {
+  if (!currentUser) {
+    return false
   }
 
-  return 'inicio'
-}
+  if (currentUser.rol === 'administrativo') {
+    return true
+  }
 
-function getIsRecoveryFlow() {
-  if (hasPasswordRecoveryFlow()) {
+  if (currentUser.rol === 'secretaria') {
+    return true
+  }
+
+  if (currentUser.rol === 'profesional') {
     return true
   }
 
   return false
 }
 
+// Logica unificada: inicializamos segun el rol del usuario
+function getInitialSectionForUser(currentUser) {
+  if (!currentUser) return 'inicio'
+  
+  if (currentUser.rol === 'secretaria' || currentUser.rol === 'profesional') {
+    return 'inicio'
+  }
+
+  // Pacientes van a turnos por defecto
+  return 'turnos'
+}
+
+function getIsRecoveryFlow() {
+  if (hasPasswordRecoveryFlow()) {
+    return true
+  }
+  return false
+}
+
 function App() {
   const isRecoveryFlow = getIsRecoveryFlow()
   const [user, setUser] = useState(readStoredSession)
+  
+  // Usamos el hook de inicio basado en el usuario actual
   const [activeSection, setActiveSection] = useState(() => {
-    const storedUser = readStoredSession()
-
-    if (canUserManage(storedUser)) {
-      return 'personal'
-    }
-
-    return 'inicio'
+    return getInitialSectionForUser(readStoredSession())
   })
+  
   const canManageStaff = canUserManage(user)
-  const canManagePatients = canUserManage(user)
+  const canManagePatients = canUserAccessPatients(user)
 
   useEffect(() => {
     function handleExpiredSession() {
@@ -87,6 +113,7 @@ function App() {
   function handleLoginSuccess(session, keepSession) {
     const savedSession = saveStoredSession(session, keepSession)
     setUser(savedSession)
+    // Redirigimos correctamente según el rol recién ingresado
     setActiveSection(getInitialSectionForUser(savedSession))
   }
 
@@ -102,6 +129,7 @@ function App() {
       turnos: 'Turnos',
       pacientes: 'Pacientes',
       personal: 'Gestión del personal',
+      tratamiento: 'Mi tratamiento',
       metricas: 'Métricas',
       perfil: 'Perfil',
     }
@@ -114,6 +142,12 @@ function App() {
   }
 
   function renderActiveSection() {
+    // Si es del staff va a la agenda
+    if (activeSection === 'inicio' && (user.rol === 'secretaria' || user.rol === 'profesional')) {
+      return <AgendaProfesional user={user} />
+    }
+
+    // Si es un paciente y por algún motivo llegó a inicio, le mostramos el home base
     if (activeSection === 'inicio') {
       return <HomePage user={user} />
     }
@@ -122,12 +156,24 @@ function App() {
       return <StaffManagementPage user={user} />
     }
 
+    if (activeSection === 'turnos') {
+      return <TurnosPage user={user} />
+    }
+
+    if (activeSection === 'tratamiento' && user.rol === 'paciente') {
+      return <TreatmentPage user={user} />
+    }
+
     if (activeSection === 'pacientes' && canManagePatients) {
       return <PatientsPage user={user} />
     }
 
     if (activeSection === 'perfil') {
       return <ProfilePage user={user} />
+    }
+
+    if (activeSection === 'metricas' && canUserManage(user)) {
+      return <MetricasPage user={user} />
     }
 
     return (
