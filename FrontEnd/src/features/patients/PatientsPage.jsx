@@ -1,17 +1,34 @@
 import { useEffect, useMemo, useState } from 'react'
 import { QrCode, Search, X } from 'lucide-react'
 
+import RoutineForm from '../professionals/RoutineForm'
 import {
   createPatient,
   getPatientDetail,
   getPatients,
   updatePatient,
 } from '../../services/patientService'
+import {
+  createRoutine,
+  deleteRoutine,
+  getPatientRoutine,
+  updateRoutine,
+} from '../../services/routineService'
 import { CheckInQrModal } from '../check-in'
 import PatientForm from './PatientForm'
 import PatientTable from './PatientTable'
 import '../../styles/staff-management.css'
-import SolicitarTurnoView from '../turnos/paciente/SolicitarTurnoView' // Ajustá la ruta según tus carpetas
+import SolicitarTurnoView from '../turnos/paciente/SolicitarTurnoView'
+import MedicalRecordForm from '../professionals/MedicalRecordForm'
+import {
+  createMedicalRecord,
+  getMedicalRecord,
+  updateMedicalRecord,
+  downloadMedicalRecordPdf,
+} from '../../services/medicalRecordService'
+
+import MedicalRecordDetail from '../professionals/MedicalRecordDetail'
+import RoutineDetailModal from '../professionals/RoutineDetailModal'
 
 function getSearchButtonClass(searchTerm) {
   if (searchTerm) {
@@ -66,7 +83,21 @@ function PatientsPage({ user }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [patientForTurno, setPatientForTurno] = useState(null)
-
+  const [selectedRoutine, setSelectedRoutine] = useState(null)
+  const [patientForRoutine, setPatientForRoutine] = useState(null)
+  const [savingRoutine, setSavingRoutine] = useState(false)
+  const [editingRoutine, setEditingRoutine] = useState(null)
+  const [deletingRoutine, setDeletingRoutine] = useState(false)
+  const [patientForMedicalRecord, setPatientForMedicalRecord] = useState(null)
+  const [selectedMedicalRecord, setSelectedMedicalRecord] = useState(null)
+  const [editingMedicalRecord, setEditingMedicalRecord] = useState(null)
+  const [savingMedicalRecord, setSavingMedicalRecord] = useState(false)
+  const [patientWithoutRoutine, setPatientWithoutRoutine] = useState(null)
+  const [patientWithoutMedicalRecord, setPatientWithoutMedicalRecord] = useState(null)
+  const canManagePatients = user.rol === 'administrativo' || user.rol === 'secretaria'
+  const ownsSelectedRoutine = Boolean(
+    selectedRoutine && selectedRoutine.profesional_id === user.user_id,
+  )
   const filteredItems = useMemo(() => {
     const search = searchTerm.trim().toLowerCase()
 
@@ -159,6 +190,83 @@ function PatientsPage({ user }) {
     setPatientForTurno(patient)
   }
 
+  async function handleRoutine(patient) {
+    setError('')
+    setMessage('')
+
+    try {
+      const routine = await getPatientRoutine(user, patient.id)
+      setSelectedRoutine(routine)
+    } catch (requestError) {
+      if (requestError.status === 404) {
+        setPatientWithoutRoutine(patient)
+      } else {
+        setError(requestError.message)
+      }
+    }
+  }
+
+  async function handleMedicalRecordAction(patient) {
+    setError('')
+    setMessage('')
+
+    try {
+      const record = await getMedicalRecord(user, patient.id)
+      setSelectedMedicalRecord(record)
+    } catch (requestError) {
+      if (requestError.status === 404) {
+        setPatientWithoutMedicalRecord(patient)
+      } else {
+        setError(requestError.message)
+      }
+    }
+  }
+
+  async function handleCreateMedicalRecord(payload) {
+    setSavingMedicalRecord(true)
+
+    try {
+      await createMedicalRecord(user, {
+        ...payload,
+        paciente_id: patientForMedicalRecord.id,
+      })
+
+      setMessage('Ficha médica creada correctamente')
+      setPatientForMedicalRecord(null)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSavingMedicalRecord(false)
+    }
+  }
+
+  async function handleUpdateMedicalRecord(payload) {
+    setSavingMedicalRecord(true)
+
+    try {
+      await updateMedicalRecord(
+        user,
+        editingMedicalRecord.id,
+        payload,
+      )
+
+      setMessage('Ficha médica actualizada correctamente')
+      setEditingMedicalRecord(null)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSavingMedicalRecord(false)
+    }
+  }
+
+  async function handleDownloadMedicalRecordPdf(record) {
+    try {
+      await downloadMedicalRecordPdf(user, record.id)
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }
+
   async function handleCreatePatient(payload) {
     setSaving(true)
     setError('')
@@ -218,6 +326,62 @@ function PatientsPage({ user }) {
     setShowQrModal(false)
   }
 
+  async function handleSubmitRoutine(payload) {
+    setSavingRoutine(true)
+    setError('')
+    setMessage('')
+    try {
+      await createRoutine(user, payload)
+      setMessage(`Rutina asignada a ${patientForRoutine.nombre} ${patientForRoutine.apellido}`)
+      setPatientForRoutine(null)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSavingRoutine(false)
+    }
+  }
+
+  function handleOpenEditRoutine() {
+    setEditingRoutine(selectedRoutine)
+    setSelectedRoutine(null)
+  }
+
+  async function handleUpdateRoutine(payload) {
+    setSavingRoutine(true)
+    setError('')
+    setMessage('')
+
+    try {
+      await updateRoutine(user, editingRoutine.id, payload)
+
+      setMessage('Rutina actualizada correctamente')
+      setEditingRoutine(null)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSavingRoutine(false)
+    }
+  }
+
+  async function handleDeleteRoutine() {
+    if (!selectedRoutine || deletingRoutine) return
+
+    setDeletingRoutine(true)
+    setError('')
+    setMessage('')
+
+    try {
+      await deleteRoutine(user, selectedRoutine.id)
+
+      setMessage('Rutina eliminada correctamente')
+      setSelectedRoutine(null)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setDeletingRoutine(false)
+    }
+  }
+
   return (
     <main className="staff-page">
       <section className="staff-shell" aria-labelledby="patients-title">
@@ -242,22 +406,26 @@ function PatientsPage({ user }) {
                 </button>
               </div>
 
-              <button
-                type="button"
-                className="staff-qr-button"
-                onClick={handleOpenQrModal}
-              >
-                <QrCode size={18} strokeWidth={3} aria-hidden="true" />
-                Mostrar QR
-              </button>
+              {canManagePatients && (
+                <>
+                  <button
+                    type="button"
+                    className="staff-qr-button"
+                    onClick={handleOpenQrModal}
+                  >
+                    <QrCode size={18} strokeWidth={3} aria-hidden="true" />
+                    Mostrar QR
+                  </button>
 
-              <button
-                type="button"
-                className="staff-register-button"
-                onClick={handleOpenRegisterModal}
-              >
-                Registrar paciente
-              </button>
+                  <button
+                    type="button"
+                    className="staff-register-button"
+                    onClick={handleOpenRegisterModal}
+                  >
+                    Registrar paciente
+                  </button>
+                </>
+              )}
             </div>
 
             {showSearch && (
@@ -286,9 +454,12 @@ function PatientsPage({ user }) {
           <PatientTable
             items={filteredItems}
             loading={loading}
+            currentUserRole={user.rol}
             onEdit={handleEdit}
             onView={handleView}
             onAssignTurno={handleAssignTurno}
+            onRoutine={handleRoutine}
+            onMedicalRecord={handleMedicalRecordAction}
           />
         </section>
       </section>
@@ -377,6 +548,217 @@ function PatientsPage({ user }) {
               mode="edit"
               onSubmit={handleUpdatePatient}
             />
+          </div>
+        </aside>
+      )}
+
+      {patientForRoutine && (
+        <aside className="staff-detail" aria-label="Asignar rutina">
+          <div className="staff-detail-card staff-form-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => setPatientForRoutine(null)}
+              aria-label="Cerrar asignacion de rutina"
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+
+            <p className="staff-eyebrow">Nueva rutina</p>
+            <h2>
+              Rutina para {patientForRoutine.nombre} {patientForRoutine.apellido}
+            </h2>
+
+            <RoutineForm
+              actor={user}
+              patient={patientForRoutine}
+              loading={savingRoutine}
+              onSubmit={handleSubmitRoutine}
+            />
+          </div>
+        </aside>
+      )}
+
+      {selectedRoutine && (
+        <RoutineDetailModal
+          routine={selectedRoutine}
+          canManage={ownsSelectedRoutine}
+          deleting={deletingRoutine}
+          onClose={() => setSelectedRoutine(null)}
+          onEdit={handleOpenEditRoutine}
+          onDelete={handleDeleteRoutine}
+        />
+      )}
+
+      {editingRoutine && (
+        <aside className="staff-detail" aria-label="Editar rutina">
+          <div className="staff-detail-card staff-form-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => setEditingRoutine(null)}
+              aria-label="Cerrar edicion de rutina"
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+
+            <p className="staff-eyebrow">Editar rutina</p>
+            <h2>{editingRoutine.titulo}</h2>
+
+            <RoutineForm
+              actor={user}
+              patient={{ id: editingRoutine.paciente_id }}
+              initialData={editingRoutine}
+              loading={savingRoutine}
+              mode="edit"
+              onSubmit={handleUpdateRoutine}
+            />
+          </div>
+        </aside>
+      )}
+
+      {patientWithoutRoutine && (
+        <aside className="staff-detail" aria-label="Rutina">
+          <div className="staff-detail-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => setPatientWithoutRoutine(null)}
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+
+            <p className="staff-eyebrow">Rutina</p>
+            <h2>No hay rutina activa</h2>
+            <p className="staff-confirm-copy">
+              Este paciente todavía no tiene una rutina de ejercicios asignada.
+            </p>
+
+            <div className="staff-confirm-actions">
+              <button
+                type="button"
+                className="staff-confirm-button primary"
+                onClick={() => {
+                  setPatientForRoutine(patientWithoutRoutine)
+                  setPatientWithoutRoutine(null)
+                }}
+              >
+                Asignar rutina
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
+
+
+      {patientForMedicalRecord && (
+        <aside className="staff-detail" aria-label="Ficha médica">
+          <div className="staff-detail-card staff-form-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => setPatientForMedicalRecord(null)}
+              aria-label="Cerrar ficha médica"
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+
+            <p className="staff-eyebrow">Ficha médica</p>
+
+            <h2>
+              {patientForMedicalRecord.nombre} {patientForMedicalRecord.apellido}
+            </h2>
+
+            <MedicalRecordForm
+              loading={savingMedicalRecord}
+              onSubmit={handleCreateMedicalRecord}
+            />
+          </div>
+        </aside>
+      )}
+
+      {selectedMedicalRecord && (
+        <aside className="staff-detail" aria-label="Ficha médica">
+          <div className="staff-detail-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => setSelectedMedicalRecord(null)}
+              aria-label="Cerrar ficha médica"
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+
+            <p className="staff-eyebrow">Ficha médica</p>
+
+            <h2>Historia clínica</h2>
+
+            <MedicalRecordDetail
+              record={selectedMedicalRecord}
+              onEdit={(record) => {
+                setEditingMedicalRecord(record)
+                setSelectedMedicalRecord(null)
+              }}
+              onExportPdf={handleDownloadMedicalRecordPdf}
+            />
+          </div>
+        </aside>
+      )}
+
+      {editingMedicalRecord && (
+        <aside className="staff-detail" aria-label="Editar ficha médica">
+          <div className="staff-detail-card staff-form-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => setEditingMedicalRecord(null)}
+              aria-label="Cerrar edición de ficha médica"
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+
+            <p className="staff-eyebrow">Editar ficha médica</p>
+            <h2>Historia clínica</h2>
+
+            <MedicalRecordForm
+              initialData={editingMedicalRecord}
+              loading={savingMedicalRecord}
+              mode="edit"
+              onSubmit={handleUpdateMedicalRecord}
+            />
+          </div>
+        </aside>
+      )}
+
+      {patientWithoutMedicalRecord && (
+        <aside className="staff-detail" aria-label="Ficha médica">
+          <div className="staff-detail-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => setPatientWithoutMedicalRecord(null)}
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+
+            <p className="staff-eyebrow">Ficha médica</p>
+            <h2>No hay ficha médica cargada</h2>
+            <p className="staff-confirm-copy">
+              Este paciente todavía no tiene una ficha médica registrada.
+            </p>
+
+            <div className="staff-confirm-actions">
+              <button
+                type="button"
+                className="staff-confirm-button primary"
+                onClick={() => {
+                  setPatientForMedicalRecord(patientWithoutMedicalRecord)
+                  setPatientWithoutMedicalRecord(null)
+                }}
+              >
+                Cargar ficha médica
+              </button>
+            </div>
           </div>
         </aside>
       )}

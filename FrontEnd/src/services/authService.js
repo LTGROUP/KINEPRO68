@@ -191,10 +191,12 @@ export async function request(path, options) {
 
   const fetchOptions = {
     method: requestOptions.method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: {},
     body: normalizedBody,
+  }
+
+  if (normalizedBody && !(normalizedBody instanceof FormData)) {
+    fetchOptions.headers['Content-Type'] = 'application/json'
   }
 
   for (const headerName in customHeaders) {
@@ -233,6 +235,13 @@ export async function request(path, options) {
     }
   }
 
+  if (requestOptions.responseType === 'blob' && response.ok) {
+    return {
+      blob: await response.blob(),
+      headers: response.headers,
+    }
+  }
+
   const rawResponse = await response.text()
   let data
 
@@ -257,7 +266,9 @@ export async function request(path, options) {
       notifySessionExpired()
     }
 
-    throw new Error(getErrorMessage(detail))
+    const requestError = new Error(getErrorMessage(detail))
+    requestError.status = response.status
+    throw requestError
   }
 
   return data

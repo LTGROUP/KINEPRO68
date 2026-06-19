@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.dependencies.auth import get_current_staff_manager_profile
+from app.api.dependencies.auth import (
+    get_current_patient_reader_profile,
+    get_current_staff_manager_profile,
+)
 from app.schemas.patients.patient_schema import (
     PatientCreateRequest,
     PatientListResponse,
@@ -20,7 +23,7 @@ router = APIRouter(prefix="/patients", tags=["patients"])
 
 @router.get("", response_model=PatientListResponse)
 def get_patient_list(
-    current_profile: dict = Depends(get_current_staff_manager_profile),
+    current_profile: dict = Depends(get_current_patient_reader_profile),
     include_inactive: bool = Query(default=False),
 ) -> PatientListResponse:
     try:
@@ -43,7 +46,7 @@ def get_patient_list(
 @router.get("/{patient_id}", response_model=PatientResponse)
 def get_patient_detail_route(
     patient_id: str,
-    current_profile: dict = Depends(get_current_staff_manager_profile),
+    current_profile: dict = Depends(get_current_patient_reader_profile),
 ) -> PatientResponse:
     try:
         return get_patient_detail(patient_id=patient_id, actor_role=current_profile["rol"])

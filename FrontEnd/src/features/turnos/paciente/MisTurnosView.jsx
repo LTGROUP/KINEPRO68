@@ -54,7 +54,7 @@ function MisTurnosView({ user }) {
   }, [user])
 
   useEffect(() => {
-    cargarMisTurnos()
+    Promise.resolve().then(cargarMisTurnos)
   }, [cargarMisTurnos])
 
   const [modalCancelar, setModalCancelar] = useState(null) // guarda el turno a cancelar

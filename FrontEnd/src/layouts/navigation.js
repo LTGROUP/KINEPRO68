@@ -2,6 +2,7 @@ import {
   BarChart3,
   CalendarDays,
   CircleUser,
+  HeartPulse,
   Home,
   UserCog,
   Users,
@@ -25,11 +26,18 @@ export const NAV_ITEMS = [
     roles: ['paciente', 'profesional', 'secretaria', 'administrativo'],
   },
   {
+    id: 'tratamiento',
+    label: 'Mi tratamiento',
+    shortLabel: 'Tratam.',
+    Icon: HeartPulse,
+    roles: ['paciente'],
+  },
+  {
     id: 'pacientes',
     label: 'Pacientes',
     shortLabel: 'Pac.',
     Icon: Users,
-    roles: ['secretaria', 'administrativo'],
+    roles: ['secretaria', 'administrativo', 'profesional'],
   },
   {
     id: 'personal',

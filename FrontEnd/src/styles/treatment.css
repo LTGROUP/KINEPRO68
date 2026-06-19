@@ -1,0 +1,257 @@
+.treatment-page {
+  min-height: 0;
+}
+
+.treatment-panel {
+  overflow: hidden;
+}
+
+.treatment-header {
+  padding: 0 0 10px;
+}
+
+.treatment-header > span {
+  color: #176b5b;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.treatment-header h1 {
+  margin: 5px 0 4px;
+  color: #142d28;
+  font-size: 2rem;
+}
+
+.treatment-header p {
+  margin: 0;
+  color: #647a74;
+}
+
+.treatment-desktop-layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  min-height: 560px;
+  overflow: hidden;
+  border: 1px solid #d7e3df;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.treatment-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-right: 1px solid #dbe7e4;
+  background: #eef5f3;
+}
+
+.treatment-sidebar button {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #33564e;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.treatment-sidebar button {
+  min-height: 76px;
+  padding: 13px;
+}
+
+.treatment-sidebar button.active {
+  border-color: #b9d4cd;
+  color: #ffffff;
+  background: #176b5b;
+  box-shadow: 0 9px 22px rgba(23, 107, 91, 0.2);
+}
+
+.treatment-sidebar button > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.treatment-sidebar strong {
+  font-size: 0.96rem;
+}
+
+.treatment-sidebar small {
+  margin-top: 3px;
+  color: #70857f;
+  line-height: 1.35;
+}
+
+.treatment-sidebar button.active small {
+  color: #d8eee7;
+}
+
+.treatment-content {
+  padding: 24px;
+}
+
+.treatment-content > header {
+  margin-bottom: 18px;
+}
+
+.treatment-content > header h2 {
+  margin: 0;
+  color: #17312b;
+}
+
+.treatment-routine-card {
+  overflow: hidden;
+  max-width: 760px;
+  border: 1px solid #d3e1de;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(17, 66, 57, 0.09);
+}
+
+.treatment-routine-heading {
+  padding: 22px;
+}
+
+.treatment-routine-heading > span {
+  color: #176b5b;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.treatment-routine-heading h2 {
+  margin: 5px 0;
+  color: #17312b;
+}
+
+.treatment-routine-heading p {
+  margin: 0;
+  color: #667c76;
+}
+
+.treatment-routine-summary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 22px;
+  border-top: 1px solid #e1eae8;
+  border-bottom: 1px solid #e1eae8;
+  color: #5c746e;
+  background: #f4f8f7;
+  font-size: 0.88rem;
+}
+
+.treatment-routine-summary div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.treatment-routine-summary strong {
+  color: #176b5b;
+}
+
+.treatment-routine-card > button,
+.treatment-empty button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 18px;
+  color: #ffffff;
+  background: #176b5b;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.treatment-routine-card > button {
+  margin: 18px 22px 22px;
+}
+
+.treatment-empty {
+  display: flex;
+  min-height: 300px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border: 1px dashed #bfd3ce;
+  border-radius: 8px;
+  padding: 28px;
+  color: #176b5b;
+  background: #f4f8f7;
+  text-align: center;
+}
+
+.treatment-empty h2 {
+  margin: 12px 0 5px;
+  color: #17312b;
+  font-size: 1.2rem;
+}
+
+.treatment-empty p {
+  max-width: 460px;
+  margin: 0;
+  color: #687d77;
+}
+
+.treatment-empty button {
+  margin-top: 18px;
+}
+
+.treatment-status {
+  margin: 0;
+  color: #60756f;
+}
+
+.treatment-mobile-layout {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .treatment-page {
+    min-height: 0;
+  }
+
+  .treatment-header {
+    display: none;
+  }
+
+  .treatment-desktop-layout {
+    display: none;
+  }
+
+  .treatment-mobile-layout {
+    display: block;
+    padding: 0;
+  }
+
+  .treatment-mobile-content > .mobile-section-header {
+    margin-bottom: 14px;
+  }
+
+  .treatment-routine-heading {
+    padding: 18px;
+  }
+
+  .treatment-routine-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+    padding: 13px 18px;
+  }
+
+  .treatment-routine-card > button {
+    width: calc(100% - 36px);
+    margin: 16px 18px 18px;
+  }
+
+  .treatment-empty {
+    min-height: 320px;
+    padding: 22px 16px;
+  }
+}

@@ -202,6 +202,16 @@ function getTodayInputValue() {
   return `${year}-${month}-${day}`
 }
 
+function getValidBirthDateValue(value) {
+  const todayInputValue = getTodayInputValue()
+
+  if (value.length === 10 && value > todayInputValue) {
+    return todayInputValue
+  }
+
+  return value
+}
+
 function buildInitialValues(initialData) {
   if (!initialData) {
     return {
@@ -348,6 +358,29 @@ function StaffMemberForm({
       nextValues[name] = value
 
       return nextValues
+    })
+    setFormError('')
+  }
+
+  function handleBirthDateBlur(event) {
+    const { value } = event.target
+
+    setValues((currentValues) => {
+      return {
+        nombre: currentValues.nombre,
+        apellido: currentValues.apellido,
+        dni: currentValues.dni,
+        telefono: currentValues.telefono,
+        email: currentValues.email,
+        obra_social: currentValues.obra_social,
+        fecha_nacimiento: getValidBirthDateValue(value),
+        rol: currentValues.rol,
+        matricula: currentValues.matricula,
+        especialidad: currentValues.especialidad,
+        area_tratamiento: currentValues.area_tratamiento,
+        horario_entrada: currentValues.horario_entrada,
+        horario_salida: currentValues.horario_salida,
+      }
     })
     setFormError('')
   }
@@ -626,6 +659,7 @@ function StaffMemberForm({
             type="date"
             value={values.fecha_nacimiento}
             onChange={handleChange}
+            onBlur={handleBirthDateBlur}
             max={todayInputValue}
             autoComplete="bday"
             disabled={!canEditField('fecha_nacimiento')}

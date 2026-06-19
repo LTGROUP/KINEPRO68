@@ -23,6 +23,16 @@ function getTodayInputValue() {
   return `${year}-${month}-${day}`
 }
 
+function getValidBirthDateValue(value) {
+  const todayInputValue = getTodayInputValue()
+
+  if (value.length === 10 && value > todayInputValue) {
+    return todayInputValue
+  }
+
+  return value
+}
+
 function getAgeFromDate(dateValue) {
   const birthDate = new Date(`${dateValue}T00:00:00`)
   const today = new Date()
@@ -146,6 +156,23 @@ function PatientForm({ initialData = null, loading = false, mode = 'create', onS
       nextValues[name] = value
 
       return nextValues
+    })
+    setFormError('')
+  }
+
+  function handleBirthDateBlur(event) {
+    const { value } = event.target
+
+    setValues((currentValues) => {
+      return {
+        nombre: currentValues.nombre,
+        apellido: currentValues.apellido,
+        dni: currentValues.dni,
+        telefono: currentValues.telefono,
+        email: currentValues.email,
+        obra_social: currentValues.obra_social,
+        fecha_nacimiento: getValidBirthDateValue(value),
+      }
     })
     setFormError('')
   }
@@ -299,6 +326,7 @@ function PatientForm({ initialData = null, loading = false, mode = 'create', onS
             type="date"
             value={values.fecha_nacimiento}
             onChange={handleChange}
+            onBlur={handleBirthDateBlur}
             max={todayInputValue}
             autoComplete="bday"
             required

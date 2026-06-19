@@ -110,7 +110,6 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
 
   useEffect(() => {
     if (!selectedDate) {
-      setTurnos([])
       return
     }
     let cancelled = false

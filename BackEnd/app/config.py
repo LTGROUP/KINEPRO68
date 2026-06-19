@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
     supabase_url: str
     supabase_service_role_key: str
@@ -7,6 +8,7 @@ class Settings(BaseSettings):
 
     supabase_jwt_secret: str
     database_url: str
+    database_echo: bool = False
 
     app_login_url: str = "http://localhost:5173/"
     cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"

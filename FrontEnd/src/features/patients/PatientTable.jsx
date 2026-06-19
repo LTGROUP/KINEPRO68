@@ -18,7 +18,16 @@ function getArrowClass(isOpen) {
 }
 
 // CAMBIO 1: Agregamos onAssignTurno a las propiedades que recibe la tabla
-function PatientTable({ items, loading, onEdit, onView, onAssignTurno }) {
+function PatientTable({
+  items,
+  loading,
+  currentUserRole,
+  onEdit,
+  onView,
+  onAssignTurno,
+  onRoutine,
+  onMedicalRecord,
+}) {
   const [openPatientId, setOpenPatientId] = useState(null)
 
   if (loading) {
@@ -36,6 +45,40 @@ function PatientTable({ items, loading, onEdit, onView, onAssignTurno }) {
     }
 
     setOpenPatientId(patientId)
+  }
+
+  function renderPatientActions(patient) {
+    if (currentUserRole === 'profesional') {
+      return (
+        <>
+          <button type="button" onClick={() => onRoutine(patient)}>
+            Rutina
+          </button>
+
+          <button type="button" onClick={() => onMedicalRecord(patient)}>
+            Ficha médica
+          </button>
+
+          <button type="button" onClick={() => onView(patient)}>
+            Ver datos
+          </button>
+        </>
+      )
+    }
+
+    return (
+      <>
+        <button type="button" onClick={() => onAssignTurno(patient)}>
+          Asignar turno
+        </button>
+        <button type="button" onClick={() => onEdit(patient)}>
+          Editar
+        </button>
+        <button type="button" onClick={() => onView(patient)}>
+          Ver datos
+        </button>
+      </>
+    )
   }
 
   function renderRows() {
@@ -69,16 +112,7 @@ function PatientTable({ items, loading, onEdit, onView, onAssignTurno }) {
             <div className={actionsTrackClass}>
               {isOpen && (
                 <div className="staff-actions-overlay">
-                  {/* CAMBIO 2: Sumamos el botón llamando a la función onAssignTurno */}
-                  <button type="button" onClick={() => onAssignTurno(patient)}>
-                    Asignar turno
-                  </button>
-                  <button type="button" onClick={() => onEdit(patient)}>
-                    Editar
-                  </button>
-                  <button type="button" onClick={() => onView(patient)}>
-                    Ver datos
-                  </button>
+                  {renderPatientActions(patient)}
                 </div>
               )}
 

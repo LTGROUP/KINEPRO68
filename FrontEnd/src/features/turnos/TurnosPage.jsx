@@ -8,18 +8,18 @@ import '../../styles/turnos.css'
 
 function TurnosPage({ user }) {
   const rol = user?.rol
-  const [activeTab, setActiveTab] = useState(null)
-  const [successMessage, setSuccessMessage] = useState('')
-
-  useEffect(() => {
+  const [activeTab, setActiveTab] = useState(() => {
     if (rol === 'paciente') {
-      setActiveTab('mis-turnos')
-    } else if (rol === 'secretaria' || rol === 'administrativo') {
-      setActiveTab('grilla')
-    } else {
-      setActiveTab('solicitar')
+      return 'mis-turnos'
     }
-  }, [rol])
+
+    if (rol === 'secretaria' || rol === 'administrativo') {
+      return 'grilla'
+    }
+
+    return 'solicitar'
+  })
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     if (!successMessage) return undefined
@@ -34,8 +34,6 @@ function TurnosPage({ user }) {
       setActiveTab('mis-turnos')
     }
   }
-
-  if (!activeTab) return null
 
   const esPaciente = rol === 'paciente'
   const esSecretaria = rol === 'secretaria' || rol === 'administrativo'

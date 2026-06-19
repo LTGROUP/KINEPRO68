@@ -34,36 +34,15 @@ export function getListaEspera(actor, turnoId) {
   })
 }
 
-export const inscribirseListaEspera = async (user, turno_id, area_tratamiento) => {
-  const token = user?.access_token || user?.token;
-
-  console.log('🔍 Debug Token:', {
-    access_token: !!user?.access_token,
-    token: !!user?.token,
-    tokenUsado: token ? 'SÍ' : 'NO'
-  });
-
-  const response = await fetch(`/api/v1/turnos/${turno_id}/lista-espera`, {
+export async function inscribirseListaEspera(user, turnoId, areaTratamiento) {
+  return request(`/api/v1/turnos/${turnoId}/lista-espera`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
+    headers: buildActorHeaders(user),
+    body: {
+      area_tratamiento: areaTratamiento,
     },
-    body: JSON.stringify({
-      area_tratamiento: area_tratamiento
-    }),
-  });
-
-  const errorData = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    console.error('❌ Error backend:', errorData);
-    throw new Error(errorData.detail || 'Error al inscribirse en lista de espera');
-  }
-
-  console.log('✅ Éxito en lista de espera:', errorData);
-  return errorData;
-};
+  })
+}
 
 export function generarGrilla(actor, payload) {
   return request('/api/v1/grilla/generar', {
@@ -106,33 +85,21 @@ export function getTurnosParaPaciente(fecha) {
   })
 }
 
-export const getAuthHeader = (user) => {
-  const token = user?.access_token || user?.token;
+export function getAuthHeader(user) {
+  const token = user?.access_token || user?.token
+
   return {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
-  };
-};
+  }
+}
 
 // ---> FUNCIONES AGREGADAS PARA REPROGRAMAR Y CANCELAR <---
-export async function cancelarTurno(actor, turnoId) {
-  const token = actor?.access_token || actor?.token
-  
-  const response = await fetch(`/api/v1/turnos/${turnoId}/cancelar`, {
+export function cancelarTurno(actor, turnoId) {
+  return request(`/api/v1/turnos/${turnoId}/cancelar`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: buildActorHeaders(actor),
   })
-
-  const data = await response.json().catch(() => ({}))
-
-  if (!response.ok) {
-    throw new Error(data.detail || 'Error al cancelar el turno')
-  }
-
-  return data
 }
 
 export function reprogramarTurno(actor, turnoId, payload) {

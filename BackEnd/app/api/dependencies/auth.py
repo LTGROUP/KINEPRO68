@@ -99,3 +99,11 @@ def get_current_professional_profile(
     current_profile: dict = Depends(get_current_profile),
 ) -> dict:
     return require_role(current_profile, [PROFESSIONAL_ROLE])
+
+def get_current_patient_reader_profile(
+    current_profile: dict = Depends(get_current_profile),
+) -> dict:
+    return require_role(
+        current_profile,
+        [ADMIN_ROLE, SECRETARY_ROLE, PROFESSIONAL_ROLE],
+    )

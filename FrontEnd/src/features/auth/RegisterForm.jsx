@@ -23,6 +23,16 @@ function getTodayInputValue() {
   return `${year}-${month}-${day}`
 }
 
+function getValidBirthDateValue(value) {
+  const todayInputValue = getTodayInputValue()
+
+  if (value.length === 10 && value > todayInputValue) {
+    return todayInputValue
+  }
+
+  return value
+}
+
 function RegisterForm({ onSubmit, loading = false }) {
   const [values, setValues] = useState(() => {
     return {
@@ -54,6 +64,22 @@ function RegisterForm({ onSubmit, loading = false }) {
       nextValues[name] = value
 
       return nextValues
+    })
+  }
+
+  function handleBirthDateBlur(event) {
+    const { value } = event.target
+
+    setValues((currentValues) => {
+      return {
+        nombre: currentValues.nombre,
+        apellido: currentValues.apellido,
+        dni: currentValues.dni,
+        telefono: currentValues.telefono,
+        email: currentValues.email,
+        obra_social: currentValues.obra_social,
+        fecha_nacimiento: getValidBirthDateValue(value),
+      }
     })
   }
 
@@ -193,6 +219,7 @@ function RegisterForm({ onSubmit, loading = false }) {
             type="date"
             value={values.fecha_nacimiento}
             onChange={handleChange}
+            onBlur={handleBirthDateBlur}
             max={todayInputValue}
             autoComplete="bday"
             required

@@ -1,15 +1,15 @@
 
-# app/db/session.py
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.config import settings
 
 engine = create_async_engine(
     settings.database_url,
-    echo=True,  # Cambiá a False en producción
+    echo=settings.database_echo,
     connect_args={
-        "prepared_statement_cache_size": 0,  # caché de SQLAlchemy
-        "statement_cache_size": 0,            # caché nativo de asyncpg
+        "prepared_statement_cache_size": 0,
+        "statement_cache_size": 0,
     },
 )
 

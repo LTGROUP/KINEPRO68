@@ -1,8 +1,15 @@
-from pydantic import BaseModel, field_validator, model_validator
-from datetime import date, time, datetime
-from typing import Optional, List
+from datetime import date, datetime, time
+from typing import List, Optional
 from uuid import UUID
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+
 from app.models.turno import EstadoTurno, AreaTratamiento
+
+
+def get_start_time(time_slot: "FranjaHoraria") -> time:
+    return time_slot.hora_inicio
+
 
 # ── Request: Generar grilla (Escenario 1, 2 y 3) ─────────────────
 class FranjaHoraria(BaseModel):
@@ -15,13 +22,14 @@ class FranjaHoraria(BaseModel):
             raise ValueError("La hora de fin debe ser posterior a la hora de inicio")
         return self
 
+
 class GenerarGrillaRequest(BaseModel):
     mes: int
     anio: int
     franjas: List[FranjaHoraria]        # soporta horario corrido y cortado
     turnos_por_slot: int
     dias_habiles: List[str]
-    dias_cerrados: Optional[List[date]] = []
+    dias_cerrados: Optional[List[date]] = Field(default_factory=list)
 
     @field_validator("mes")
     @classmethod
@@ -43,7 +51,7 @@ class GenerarGrillaRequest(BaseModel):
         if not v:
             raise ValueError("Debe haber al menos una franja horaria")
         # verificar que no se superpongan
-        franjas_ordenadas = sorted(v, key=lambda f: f.hora_inicio)
+        franjas_ordenadas = sorted(v, key=get_start_time)
         for i in range(len(franjas_ordenadas) - 1):
             if franjas_ordenadas[i].hora_fin > franjas_ordenadas[i+1].hora_inicio:
                 raise ValueError("Las franjas horarias no pueden superponerse")

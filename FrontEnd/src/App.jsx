@@ -5,6 +5,7 @@ import ResetPasswordPage from './features/auth/ResetPasswordPage'
 import { HomePage, ProfilePage } from './features/check-in'
 import { PatientsPage } from './features/patients'
 import { StaffManagementPage } from './features/staff-management'
+import TreatmentPage from './features/treatment/TreatmentPage'
 import { TurnosPage } from './features/turnos'
 import { AppLayout } from './layouts'
 import { AgendaProfesional } from './features/turnos/secretaria/AgendaProfesional'
@@ -32,6 +33,26 @@ function canUserManage(currentUser) {
   }
 
   if (currentUser.rol === 'secretaria') {
+    return true
+  }
+
+  return false
+}
+
+function canUserAccessPatients(currentUser) {
+  if (!currentUser) {
+    return false
+  }
+
+  if (currentUser.rol === 'administrativo') {
+    return true
+  }
+
+  if (currentUser.rol === 'secretaria') {
+    return true
+  }
+
+  if (currentUser.rol === 'profesional') {
     return true
   }
 
@@ -67,7 +88,7 @@ function App() {
   })
   
   const canManageStaff = canUserManage(user)
-  const canManagePatients = canUserManage(user)
+  const canManagePatients = canUserAccessPatients(user)
 
   useEffect(() => {
     function handleExpiredSession() {
@@ -108,6 +129,7 @@ function App() {
       turnos: 'Turnos',
       pacientes: 'Pacientes',
       personal: 'Gestión del personal',
+      tratamiento: 'Mi tratamiento',
       metricas: 'Métricas',
       perfil: 'Perfil',
     }
@@ -136,6 +158,10 @@ function App() {
 
     if (activeSection === 'turnos') {
       return <TurnosPage user={user} />
+    }
+
+    if (activeSection === 'tratamiento' && user.rol === 'paciente') {
+      return <TreatmentPage user={user} />
     }
 
     if (activeSection === 'pacientes' && canManagePatients) {
