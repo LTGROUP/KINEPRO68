@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { AuthLayout } from './features/auth'
 import ResetPasswordPage from './features/auth/ResetPasswordPage'
+import AceptarTurnoPage from './features/turnos/public/AceptarTurnoPage'
 import { HomePage, ProfilePage } from './features/check-in'
 import { PatientsPage } from './features/patients'
 import { StaffManagementPage } from './features/staff-management'
@@ -57,8 +58,14 @@ function getIsRecoveryFlow() {
   return false
 }
 
+function getIsAceptarTurnoFlow() {
+  const params = new URLSearchParams(window.location.search)
+  return window.location.pathname === '/aceptar-turno' && params.has('token')
+}
+
 function App() {
   const isRecoveryFlow = getIsRecoveryFlow()
+  const isAceptarTurnoFlow = getIsAceptarTurnoFlow()
   const [user, setUser] = useState(readStoredSession)
   
   // Usamos el hook de inicio basado en el usuario actual
@@ -172,6 +179,10 @@ function App() {
 
   if (isRecoveryFlow) {
     return <ResetPasswordPage onFinish={handleRecoveryFinish} />
+  }
+
+  if (isAceptarTurnoFlow) {
+    return <AceptarTurnoPage />
   }
 
   if (user) {

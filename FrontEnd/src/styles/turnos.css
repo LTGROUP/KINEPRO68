@@ -360,8 +360,9 @@
 }
 
 .turnos-badge.reservado {
-  color: #1d4ed8;
-  background: #eff6ff;
+  color: #0EA5E9;
+  border: 1px solid #0EA5E9;
+  background: #E0F2FE;
 }
 
 .turnos-badge.cancelado {
@@ -377,6 +378,12 @@
 .turnos-badge.ausente {
   color: #9a3412;
   background: #ffedd5;
+}
+
+.turnos-badge.reprogramado {
+  color: #0EA5E9;
+  border: 1px solid #0EA5E9;
+  background: #E0F2FE;
 }
 
 .turnos-empty-state {

@@ -241,3 +241,41 @@ class ActualizarEstadoRequest(BaseModel):
 class ReprogramarTurnoRequest(BaseModel):
     nuevo_turno_id: UUID
     area_tratamiento: str
+
+
+# ── HU-14: Cancelar turno (secretaria) ───────────────────────────
+class CancelarTurnoSecretariaResponse(BaseModel):
+    mensaje: str
+    turno_id: UUID
+    fecha: date
+    hora_inicio: time
+    notificacion_enviada: bool
+
+
+# ── HU-12: Inscribir paciente en lista de espera (secretaria) ────
+class InscribirPacienteListaEsperaRequest(BaseModel):
+    paciente_id: UUID
+    area_tratamiento: AreaTratamiento
+
+
+# ── HU-5: Reporte de ausentismo ───────────────────────────────────
+class AusentismoResponse(BaseModel):
+    paciente_id: UUID
+    total_ausencias: int
+    fechas: List[date]
+
+
+class ReporteAusentismoResponse(BaseModel):
+    fecha_desde: date
+    fecha_hasta: date
+    total_pacientes_ausentes: int
+    ausencias: List[AusentismoResponse]
+
+
+# ── HU-15: Info de turno por token ───────────────────────────────
+class TurnoInfoTokenResponse(BaseModel):
+    turno_id: UUID
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    area_tratamiento: Optional[AreaTratamiento]
