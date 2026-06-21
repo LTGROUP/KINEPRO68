@@ -28,83 +28,6 @@
   color: #647a74;
 }
 
-.treatment-desktop-layout {
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  min-height: 560px;
-  overflow: hidden;
-  border: 1px solid #d7e3df;
-  border-radius: 16px;
-  background: #ffffff;
-}
-
-.treatment-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 20px;
-  border-right: 1px solid #dbe7e4;
-  background: #eef5f3;
-}
-
-.treatment-sidebar button {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  width: 100%;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: #33564e;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-}
-
-.treatment-sidebar button {
-  min-height: 76px;
-  padding: 13px;
-}
-
-.treatment-sidebar button.active {
-  border-color: #b9d4cd;
-  color: #ffffff;
-  background: #176b5b;
-  box-shadow: 0 9px 22px rgba(23, 107, 91, 0.2);
-}
-
-.treatment-sidebar button > span {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.treatment-sidebar strong {
-  font-size: 0.96rem;
-}
-
-.treatment-sidebar small {
-  margin-top: 3px;
-  color: #70857f;
-  line-height: 1.35;
-}
-
-.treatment-sidebar button.active small {
-  color: #d8eee7;
-}
-
-.treatment-content {
-  padding: 24px;
-}
-
-.treatment-content > header {
-  margin-bottom: 18px;
-}
-
-.treatment-content > header h2 {
-  margin: 0;
-  color: #17312b;
-}
-
 .treatment-routine-card {
   overflow: hidden;
   max-width: 760px;
@@ -221,7 +144,7 @@
     display: none;
   }
 
-  .treatment-desktop-layout {
+  .treatment-panel > .desktop-section-layout {
     display: none;
   }
 

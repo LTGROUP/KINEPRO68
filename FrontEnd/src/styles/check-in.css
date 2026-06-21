@@ -103,56 +103,6 @@
   gap: 18px;
 }
 
-.profile-sections-layout {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
-}
-
-.profile-sections-menu {
-  position: sticky;
-  top: 18px;
-  display: grid;
-  gap: 10px;
-  border: 1px solid #d7e3df;
-  border-radius: 16px;
-  padding: 16px;
-  background: #ffffff;
-  box-shadow: 0 14px 34px rgba(7, 37, 31, 0.08);
-}
-
-.profile-sections-menu button {
-  width: 100%;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  padding: 13px 14px;
-  color: #3f5852;
-  background: #edf5f2;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 900;
-  text-align: left;
-  transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
-}
-
-.profile-sections-menu button:hover {
-  border-color: #b9d2ca;
-  color: #176b5b;
-  transform: translateX(2px);
-}
-
-.profile-sections-menu button.active {
-  border-color: #176b5b;
-  color: #ffffff;
-  background: #176b5b;
-  box-shadow: 0 10px 24px rgba(23, 107, 91, 0.22);
-}
-
 .profile-card {
   border: 1px solid #d7e3df;
   border-radius: 16px;
@@ -410,8 +360,7 @@
 
   .profile-header-card,
   .profile-card-title,
-  .profile-grid,
-  .profile-sections-layout {
+  .profile-grid {
     display: grid;
   }
 
@@ -426,34 +375,6 @@
 
   .profile-grid {
     grid-template-columns: 1fr;
-  }
-
-  .profile-sections-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-sections-menu {
-    position: static;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    border-radius: 14px;
-    padding: 10px;
-  }
-
-  .profile-sections-menu .staff-eyebrow {
-    grid-column: 1 / -1;
-  }
-
-  .profile-sections-menu button {
-    min-height: 44px;
-    padding: 10px;
-    border-radius: 10px;
-    font-size: 0.9rem;
-    text-align: center;
-  }
-
-  .profile-sections-menu button:hover {
-    transform: none;
   }
 
   .profile-card-title .staff-register-button {

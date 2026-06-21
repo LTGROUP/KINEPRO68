@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 
 import {
+  DesktopSectionLayout,
   MobileSectionHeader,
   MobileSectionMenu,
 } from '../../components/common'
@@ -196,37 +197,13 @@ function TreatmentPage({ user }) {
     return renderPendingModule(moduleId)
   }
 
-  function renderModuleButtons(className) {
-    const buttons = []
-
-    for (const module of MODULES) {
-      const Icon = module.Icon
-      let buttonClassName = ''
-
-      if (activeModule === module.id) {
-        buttonClassName = 'active'
-      }
-
-      buttons.push(
-        <button
-          key={module.id}
-          type="button"
-          className={buttonClassName}
-          onClick={() => handleSelectModule(module.id)}
-        >
-          <Icon size={22} aria-hidden="true" />
-          <span>
-            <strong>{module.title}</strong>
-            <small>{module.description}</small>
-          </span>
-        </button>,
-      )
-    }
-
-    return <nav className={className}>{buttons}</nav>
-  }
-
   const selectedMobileModule = getModuleById(mobileModule)
+  const desktopOptions = MODULES.map((module) => ({
+    id: module.id,
+    label: module.title,
+    description: module.description,
+    Icon: module.Icon,
+  }))
 
   return (
     <main className="staff-page treatment-page">
@@ -238,16 +215,14 @@ function TreatmentPage({ user }) {
             <p>Tu información de seguimiento reunida en un solo lugar.</p>
           </header>
 
-          <div className="treatment-desktop-layout">
-            {renderModuleButtons('treatment-sidebar')}
-
-            <section className="treatment-content">
-              <header>
-                <h2>{getModuleById(activeModule).title}</h2>
-              </header>
-              {renderModuleContent(activeModule)}
-            </section>
-          </div>
+          <DesktopSectionLayout
+            options={desktopOptions}
+            activeSection={activeModule}
+            onSelect={setActiveModule}
+            contentTitle={getModuleById(activeModule).title}
+          >
+            {renderModuleContent(activeModule)}
+          </DesktopSectionLayout>
 
           <div className="treatment-mobile-layout">
             {mobileModule === null ? (

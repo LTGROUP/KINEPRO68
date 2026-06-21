@@ -1,0 +1,103 @@
+.desktop-section-layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  min-height: 560px;
+  overflow: hidden;
+  border: 1px solid #d7e3df;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.desktop-section-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-right: 1px solid #dbe7e4;
+  background: #eef5f3;
+}
+
+.desktop-section-sidebar button {
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 13px;
+  color: #33564e;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.desktop-section-sidebar button:hover {
+  border-color: #c6dbd6;
+  background: #e5f0ed;
+}
+
+.desktop-section-sidebar button.active {
+  border-color: #b9d4cd;
+  color: #ffffff;
+  background: #176b5b;
+  box-shadow: 0 9px 22px rgba(23, 107, 91, 0.2);
+}
+
+.desktop-section-sidebar button > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.desktop-section-sidebar strong {
+  font-size: 0.96rem;
+}
+
+.desktop-section-sidebar small {
+  margin-top: 3px;
+  color: #70857f;
+  line-height: 1.35;
+}
+
+.desktop-section-sidebar button.active small {
+  color: #d8eee7;
+}
+
+.desktop-section-content {
+  min-width: 0;
+  padding: 24px;
+}
+
+.desktop-section-content > header {
+  margin-bottom: 18px;
+}
+
+.desktop-section-content > header h2 {
+  margin: 0;
+  color: #17312b;
+}
+
+@media (max-width: 760px) {
+  .desktop-section-layout {
+    display: block;
+    min-height: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .desktop-section-sidebar {
+    display: none;
+  }
+
+  .desktop-section-content {
+    padding: 0;
+  }
+
+  .desktop-section-content > header {
+    display: none;
+  }
+}
