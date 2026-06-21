@@ -2,11 +2,33 @@ import { useEffect, useState } from 'react'
 import { Eye, EyeOff, Headphones, Lock, UserRound } from 'lucide-react'
 
 import {
+  DesktopSectionLayout,
   MobileSectionHeader,
   MobileSectionMenu,
 } from '../../components/common'
 import { changePassword, getMyProfile, updateMyProfile } from '../../services/authService'
 import '../../styles/check-in.css'
+
+const PROFILE_SECTIONS = [
+  {
+    id: 'datos',
+    label: 'Datos personales',
+    description: 'Consultá y actualizá la información de tu cuenta.',
+    Icon: UserRound,
+  },
+  {
+    id: 'seguridad',
+    label: 'Seguridad',
+    description: 'Cambiá la contraseña de acceso al sistema.',
+    Icon: Lock,
+  },
+  {
+    id: 'soporte',
+    label: 'Soporte',
+    description: 'Contactate si necesitás ayuda con la aplicación.',
+    Icon: Headphones,
+  },
+]
 
 function shouldStartWithProfileMenu() {
   return window.matchMedia('(max-width: 760px)').matches
@@ -38,7 +60,6 @@ function ProfilePage({ user }) {
     return 'datos'
   })
 
-  const [isMobile, setIsMobile] = useState(shouldStartWithProfileMenu)
   const [supportCategory, setSupportCategory] = useState('')
   const [supportDetail, setSupportDetail] = useState('')
   const supportPhone = '5492215383928'
@@ -95,20 +116,6 @@ function ProfilePage({ user }) {
       isMounted = false
     }
   }, [user])
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 760px)')
-
-    function handleScreenChange(event) {
-      setIsMobile(event.matches)
-    }
-
-    mediaQuery.addEventListener('change', handleScreenChange)
-
-    return () => {
-      mediaQuery.removeEventListener('change', handleScreenChange)
-    }
-  }, [])
 
   function toggleEditProfile() {
     setShowEditProfile((current) => !current)
@@ -284,35 +291,13 @@ function ProfilePage({ user }) {
                 onBack={() => changeProfileSection('menu')}
               />
 
-              <div className="profile-sections-layout">
-                {!isMobile && (
-                <aside className="profile-sections-menu" aria-label="Secciones del perfil">
-                  <p className="staff-eyebrow">Secciones</p>
-                  <button
-                    type="button"
-                    className={activeProfileSection === 'datos' ? 'active' : ''}
-                    onClick={() => changeProfileSection('datos')}
-                  >
-                    Datos personales
-                  </button>
-
-                  <button
-                    type="button"
-                    className={activeProfileSection === 'seguridad' ? 'active' : ''}
-                    onClick={() => changeProfileSection('seguridad')}
-                  >
-                    Seguridad
-                  </button>
-
-                  <button
-                    type="button"
-                    className={activeProfileSection === 'soporte' ? 'active' : ''}
-                    onClick={() => changeProfileSection('soporte')}
-                  >
-                    Soporte
-                  </button>
-                </aside>
-                )}
+              <DesktopSectionLayout
+                options={PROFILE_SECTIONS}
+                activeSection={activeProfileSection}
+                onSelect={changeProfileSection}
+                contentTitle={getProfileSectionTitle(activeProfileSection)}
+                showContentTitle={false}
+              >
             {activeProfileSection === 'datos' && (
               <section className="profile-card" aria-label="Datos personales">
                 <div className="profile-card-title">
@@ -589,7 +574,7 @@ function ProfilePage({ user }) {
               {profileMessage}
             </p>
           )}
-        </div>
+              </DesktopSectionLayout>
         </>
         )}
         </section>
