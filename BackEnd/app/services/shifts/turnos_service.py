@@ -2,11 +2,13 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List
 from collections import defaultdict
 
 from fastapi import HTTPException, status
-from app.models.turno import EstadoTurno, AreaTratamiento
+from jose import jwt, JWTError
+from app.config import settings
+from app.models.turno import EstadoTurno, AreaTratamiento, ListaEspera as ListaEsperaModel
 
 from app.schemas.shifts.turno import (
     SolicitarTurnoRequest,
@@ -15,7 +17,11 @@ from app.schemas.shifts.turno import (
     MiTurnoResponse,
     ListaEsperaResponse,
     PacienteEnEsperaResponse,
-    InscripcionListaEsperaResponse
+    InscripcionListaEsperaResponse,
+    CancelarTurnoSecretariaResponse,
+    AusentismoResponse,
+    ReporteAusentismoResponse,
+    TurnoInfoTokenResponse,
 )
 
 from app.repositories.shifts.turnos import (
@@ -23,16 +29,19 @@ from app.repositories.shifts.turnos import (
     obtener_turno_existente_del_paciente,
     actualizar_estado_turno,
     obtener_turno_por_id_con_lock,
+    obtener_turno_por_id_simple,
     obtener_turnos_del_paciente,
     obtener_lista_espera_por_turno,
     crear_inscripcion_lista_espera,
     obtener_inscripcion_lista_espera,
+    obtener_inscripcion_por_id,
     obtener_turnos_para_paciente_por_fecha,
     obtener_todos_turnos_por_fecha,
     verificar_paciente_en_lista,
     obtener_metricas_cancelaciones,
     obtener_cancelaciones_por_mes,
     obtener_primer_paciente_en_espera,
+    obtener_ausencias_por_rango,
 )
 
 ARGENTINA_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
@@ -287,23 +296,22 @@ async def cancelar_turno(db: AsyncSession, turno_id: UUID, paciente_id: UUID):
         if (fecha_hora_turno - ahora) < timedelta(hours=48):
             mensaje_advertencia = "Al cancelar con menos de 48 horas de anticipación, no podrá reasignar este turno."
 
-        # Lógica de lista de espera — se reutiliza el MISMO turno (mismo id)
+        # Verificar lista de espera antes de liberar (para decidir si despachar tarea)
         primer_espera = await obtener_primer_paciente_en_espera(db, turno.id)
 
-        if primer_espera:
-            turno.estado = EstadoTurno.RESERVADO
-            turno.paciente_id = primer_espera.paciente_id
-            turno.area_tratamiento = primer_espera.area_tratamiento
-            primer_espera.activo = False
-            db.add(primer_espera)
-            mensaje_lista_espera = "El turno fue asignado automáticamente al siguiente paciente en lista de espera"
-        else:
-            turno.estado = EstadoTurno.DISPONIBLE
-            turno.paciente_id = None
-            turno.area_tratamiento = None
-            mensaje_lista_espera = "El cupo fue liberado y está disponible para nuevos turnos"
-
+        # Siempre liberar el turno — la oferta al primero en lista se gestiona por Celery
+        turno.estado = EstadoTurno.DISPONIBLE
+        turno.paciente_id = None
+        turno.area_tratamiento = None
         db.add(turno)
+
+    # Disparar oferta asíncrona si hay alguien en lista de espera
+    if primer_espera:
+        from app.tasks.lista_espera import ofertar_turno_lista_espera
+        ofertar_turno_lista_espera.delay(str(turno.id))
+        mensaje_lista_espera = "El cupo fue liberado. Se notificará al primero en lista de espera."
+    else:
+        mensaje_lista_espera = "El cupo fue liberado y está disponible para nuevos turnos"
 
     return {
         "turno": turno,
@@ -365,8 +373,12 @@ async def marcar_asistencia_turno(db: AsyncSession, turno_id: UUID, nuevo_estado
             
         if turno.estado != EstadoTurno.RESERVADO:
             raise ValueError(f"No se puede dar presente a un turno con estado {turno.estado}")
-            
-        # SOLUCIÓN: Cambiamos el estado directamente y dejamos que db.begin() haga el commit solo
+
+        # HU-6: solo se puede registrar asistencia en turnos del día actual o pasados
+        hoy = datetime.now(ARGENTINA_TZ).date()
+        if turno.fecha > hoy:
+            raise ValueError("No se puede registrar asistencia de un turno futuro")
+
         turno.estado = nuevo_estado
         db.add(turno)
         
@@ -499,3 +511,264 @@ async def reprogramar_turno(
         mensaje_exito = f"Turno reasignado con éxito para el {fecha_str} a las {hora_str} hs"
 
     return {"mensaje": mensaje_exito, "turno": turno_nuevo}
+
+
+# HU-14: La secretaria cancela el turno de cualquier paciente
+async def cancelar_turno_secretaria(
+    db: AsyncSession,
+    turno_id: UUID,
+    secretaria_id: UUID,
+) -> CancelarTurnoSecretariaResponse:
+    async with db.begin():
+        turno = await obtener_turno_por_id_con_lock(db, turno_id)
+
+        if not turno:
+            raise HTTPException(status_code=404, detail="El turno no existe.")
+
+        if turno.estado != EstadoTurno.RESERVADO:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No se puede cancelar un turno con estado: {turno.estado}",
+            )
+
+        fecha_hora_turno = datetime.combine(turno.fecha, turno.hora_inicio)
+        ahora = datetime.now(ARGENTINA_TZ).replace(tzinfo=None)
+        con_menos_48hs = (fecha_hora_turno - ahora) < timedelta(hours=48)
+
+        primer_espera = await obtener_primer_paciente_en_espera(db, turno.id)
+
+        turno.estado = EstadoTurno.DISPONIBLE
+        turno.paciente_id = None
+        turno.area_tratamiento = None
+        db.add(turno)
+
+    notificacion_enviada = False
+    if primer_espera:
+        from app.tasks.lista_espera import ofertar_turno_lista_espera
+        ofertar_turno_lista_espera.delay(str(turno.id))
+        notificacion_enviada = True
+
+    mensaje = (
+        "Turno cancelado. Se notificó al primero en lista de espera."
+        if notificacion_enviada
+        else "Turno cancelado exitosamente."
+    )
+    if con_menos_48hs:
+        mensaje += " Turno cancelado con menos de 48 horas de anticipación."
+
+    return CancelarTurnoSecretariaResponse(
+        mensaje=mensaje,
+        turno_id=turno.id,
+        fecha=turno.fecha,
+        hora_inicio=turno.hora_inicio,
+        notificacion_enviada=notificacion_enviada,
+    )
+
+
+# HU-12: La secretaria inscribe a un paciente en lista de espera
+async def inscribir_paciente_lista_espera_secretaria(
+    db: AsyncSession,
+    turno_id: UUID,
+    paciente_id: UUID,
+    area_tratamiento: AreaTratamiento,
+    secretaria_id: UUID,
+) -> InscripcionListaEsperaResponse:
+    async with db.begin():
+        turno = await obtener_turno_por_id_con_lock(db, turno_id)
+
+        if not turno:
+            raise ValueError("El turno indicado no existe")
+
+        if turno.estado == EstadoTurno.DISPONIBLE:
+            raise ValueError("El turno tiene disponibilidad; no es necesario anotarse en lista de espera")
+
+        if turno.estado != EstadoTurno.RESERVADO:
+            raise ValueError("No es posible anotarse en lista de espera para este turno")
+
+        existente = await verificar_paciente_en_lista(db, turno_id, paciente_id)
+        if existente:
+            raise ValueError("El paciente ya se encuentra en la lista de espera de este turno")
+
+        inscripcion = ListaEsperaModel(
+            turno_id=turno_id,
+            paciente_id=paciente_id,
+            area_tratamiento=area_tratamiento,
+        )
+        db.add(inscripcion)
+
+    return InscripcionListaEsperaResponse(
+        mensaje="Paciente inscripto en lista de espera exitosamente",
+        turno_id=turno_id,
+    )
+
+
+# HU-13: La secretaria cancela la inscripción en lista de espera de cualquier paciente
+async def cancelar_inscripcion_lista_espera_secretaria(
+    db: AsyncSession,
+    inscripcion_id: UUID,
+    secretaria_id: UUID,
+) -> dict:
+    async with db.begin():
+        inscripcion = await obtener_inscripcion_por_id(db, inscripcion_id)
+
+        if not inscripcion:
+            raise ValueError("La inscripción no existe")
+
+        if not inscripcion.activo:
+            raise ValueError("La inscripción ya fue cancelada")
+
+        inscripcion.activo = False
+        db.add(inscripcion)
+
+    return {"mensaje": "Inscripción cancelada exitosamente", "inscripcion_id": str(inscripcion_id)}
+
+
+# HU-5: Reporte de ausentismo por rango de fechas
+async def consultar_reporte_ausentismo(
+    db: AsyncSession,
+    fecha_desde: date,
+    fecha_hasta: date,
+) -> ReporteAusentismoResponse:
+    ausencias = await obtener_ausencias_por_rango(db, fecha_desde, fecha_hasta)
+
+    agrupado: dict[str, dict] = {}
+    for turno in ausencias:
+        pid = str(turno.paciente_id)
+        if pid not in agrupado:
+            agrupado[pid] = {"paciente_id": turno.paciente_id, "fechas": []}
+        agrupado[pid]["fechas"].append(turno.fecha)
+
+    resultado = [
+        AusentismoResponse(
+            paciente_id=datos["paciente_id"],
+            total_ausencias=len(datos["fechas"]),
+            fechas=datos["fechas"],
+        )
+        for datos in agrupado.values()
+    ]
+
+    return ReporteAusentismoResponse(
+        fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta,
+        total_pacientes_ausentes=len(resultado),
+        ausencias=resultado,
+    )
+
+
+# HU-15: Obtener info de turno validando JWT (endpoint público)
+async def obtener_info_turno_por_token(db: AsyncSession, token: str) -> TurnoInfoTokenResponse:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.supabase_jwt_secret,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+    except JWTError:
+        raise ValueError("Token inválido o expirado")
+
+    turno_id_str = payload.get("turno_id")
+    inscripcion_id_str = payload.get("inscripcion_id")
+    if not turno_id_str or not inscripcion_id_str:
+        raise ValueError("Token inválido")
+
+    inscripcion = await obtener_inscripcion_por_id(db, UUID(inscripcion_id_str))
+    if not inscripcion or not inscripcion.activo:
+        raise ValueError("Este link ya no es válido")
+
+    turno = await obtener_turno_por_id_simple(db, UUID(turno_id_str))
+    if not turno:
+        raise ValueError("El turno no existe")
+
+    return TurnoInfoTokenResponse(
+        turno_id=turno.id,
+        fecha=turno.fecha,
+        hora_inicio=turno.hora_inicio,
+        hora_fin=turno.hora_fin,
+        area_tratamiento=turno.area_tratamiento,
+    )
+
+
+# HU-15: Aceptar turno desde link de lista de espera
+async def aceptar_turno_por_token(db: AsyncSession, token: str) -> dict:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.supabase_jwt_secret,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+    except JWTError:
+        raise ValueError("Token inválido o expirado")
+
+    turno_id = UUID(payload.get("turno_id"))
+    inscripcion_id = UUID(payload.get("inscripcion_id"))
+    paciente_id = UUID(payload.get("paciente_id"))
+
+    async with db.begin():
+        # SELECT FOR UPDATE para evitar race condition
+        from sqlalchemy import select as sa_select
+        result_i = await db.execute(
+            sa_select(ListaEsperaModel)
+            .where(ListaEsperaModel.id == inscripcion_id)
+            .with_for_update()
+        )
+        inscripcion = result_i.scalar_one_or_none()
+
+        if not inscripcion or not inscripcion.activo:
+            raise ValueError("Este link ya no es válido o ya fue utilizado")
+
+        turno = await obtener_turno_por_id_con_lock(db, turno_id)
+        if not turno:
+            raise ValueError("El turno no existe")
+
+        if turno.estado != EstadoTurno.DISPONIBLE:
+            raise ValueError("El turno ya no está disponible")
+
+        turno.estado = EstadoTurno.RESERVADO
+        turno.paciente_id = paciente_id
+        turno.area_tratamiento = inscripcion.area_tratamiento
+        inscripcion.activo = False
+
+        db.add(turno)
+        db.add(inscripcion)
+
+    fecha_str = turno.fecha.strftime("%d/%m/%Y")
+    hora_str = turno.hora_inicio.strftime("%H:%M")
+    return {"mensaje": f"Turno reservado con éxito para el {fecha_str} a las {hora_str} hs"}
+
+
+# HU-15: Rechazar turno desde link de lista de espera
+async def rechazar_turno_por_token(db: AsyncSession, token: str) -> dict:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.supabase_jwt_secret,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+    except JWTError:
+        raise ValueError("Token inválido o expirado")
+
+    turno_id_str = payload.get("turno_id")
+    inscripcion_id = UUID(payload.get("inscripcion_id"))
+
+    async with db.begin():
+        from sqlalchemy import select as sa_select
+        result_i = await db.execute(
+            sa_select(ListaEsperaModel)
+            .where(ListaEsperaModel.id == inscripcion_id)
+            .with_for_update()
+        )
+        inscripcion = result_i.scalar_one_or_none()
+
+        if not inscripcion or not inscripcion.activo:
+            raise ValueError("Este link ya no es válido o ya fue utilizado")
+
+        inscripcion.activo = False
+        db.add(inscripcion)
+
+    from app.tasks.lista_espera import ofertar_turno_lista_espera
+    ofertar_turno_lista_espera.delay(turno_id_str)
+
+    return {"mensaje": "Rechazaste el turno. Seguís en lista para otras oportunidades."}

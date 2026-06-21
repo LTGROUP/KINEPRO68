@@ -235,3 +235,32 @@ async def obtener_cancelaciones_por_mes(db: AsyncSession):
         .order_by("anio", "mes")
     )
     return result.all()
+
+
+async def obtener_turno_por_id_simple(db: AsyncSession, turno_id: UUID) -> Turno | None:
+    result = await db.execute(select(Turno).where(Turno.id == turno_id))
+    return result.scalar_one_or_none()
+
+
+async def obtener_inscripcion_por_id(db: AsyncSession, inscripcion_id: UUID) -> ListaEspera | None:
+    result = await db.execute(
+        select(ListaEspera).where(ListaEspera.id == inscripcion_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def obtener_ausencias_por_rango(
+    db: AsyncSession,
+    fecha_desde: date,
+    fecha_hasta: date,
+) -> list[Turno]:
+    result = await db.execute(
+        select(Turno).where(
+            and_(
+                Turno.estado == EstadoTurno.AUSENTE,
+                Turno.fecha >= fecha_desde,
+                Turno.fecha <= fecha_hasta,
+            )
+        ).order_by(Turno.paciente_id, Turno.fecha)
+    )
+    return result.scalars().all()

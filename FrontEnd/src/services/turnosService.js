@@ -149,3 +149,71 @@ export function getTodosLosTurnos(actor, fecha) {
     headers: buildActorHeaders(actor),
   })
 }
+
+// HU-15: Pantalla pública de aceptar/rechazar turno
+export function getTurnoInfoPorToken(token) {
+  return fetch(`/api/v1/turnos/lista-espera/info?token=${encodeURIComponent(token)}`)
+    .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) throw new Error(data.detail || 'Error al obtener info del turno')
+      return data
+    })
+}
+
+export function aceptarTurnoPorToken(token) {
+  return fetch(`/api/v1/turnos/lista-espera/aceptar?token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+  })
+    .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) throw new Error(data.detail || 'Error al aceptar el turno')
+      return data
+    })
+}
+
+export function rechazarTurnoPorToken(token) {
+  return fetch(`/api/v1/turnos/lista-espera/rechazar?token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+  })
+    .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) throw new Error(data.detail || 'Error al rechazar el turno')
+      return data
+    })
+}
+
+// HU-14: Secretaria cancela turno de un paciente
+export function cancelarTurnoSecretaria(actor, turnoId) {
+  return request(`/api/v1/turnos/${turnoId}/cancelar-secretaria`, {
+    method: 'PATCH',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+// HU-12: Secretaria inscribe paciente en lista de espera
+export function inscribirPacienteListaEsperaSecretaria(actor, turnoId, payload) {
+  return request(`/api/v1/turnos/${turnoId}/lista-espera/secretaria`, {
+    method: 'POST',
+    headers: buildActorHeaders(actor),
+    body: payload,
+  })
+}
+
+// HU-13: Secretaria cancela inscripción en lista de espera
+export function cancelarInscripcionListaEsperaSecretaria(actor, inscripcionId) {
+  return request(`/api/v1/turnos/lista-espera/${inscripcionId}/cancelar-secretaria`, {
+    method: 'PATCH',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+// HU-5: Reporte de ausentismo
+export function getReporteAusentismo(actor, fechaDesde, fechaHasta) {
+  return request(
+    `/api/v1/turnos/reportes/ausentismo?fecha_desde=${fechaDesde}&fecha_hasta=${fechaHasta}`,
+    {
+      method: 'GET',
+      headers: buildActorHeaders(actor),
+    }
+  )
+}

@@ -23,6 +23,10 @@ from app.schemas.shifts.turno import (
     InscripcionListaEsperaResponse,
     InscripcionListaEsperaRequest,
     ReprogramarTurnoRequest,
+    CancelarTurnoSecretariaResponse,
+    InscribirPacienteListaEsperaRequest,
+    ReporteAusentismoResponse,
+    TurnoInfoTokenResponse,
 )
 from app.services.shifts.turnos_service import (
     consultar_turnos_disponibles,
@@ -30,13 +34,20 @@ from app.services.shifts.turnos_service import (
     ver_mis_turnos,
     consultar_lista_espera,
     cancelar_turno,
+    cancelar_turno_secretaria,
     consultar_agenda_diaria,
     marcar_asistencia_turno,
     inscribirse_lista_espera,
+    inscribir_paciente_lista_espera_secretaria,
+    cancelar_inscripcion_lista_espera_secretaria,
     consultar_turnos_para_paciente,
     reprogramar_turno,
     consultar_todos_turnos_fecha,
-    consultar_metricas_cancelaciones
+    consultar_metricas_cancelaciones,
+    consultar_reporte_ausentismo,
+    obtener_info_turno_por_token,
+    aceptar_turno_por_token,
+    rechazar_turno_por_token,
 )
 
 router = APIRouter(prefix="/turnos", tags=["Turnos"])
@@ -351,3 +362,156 @@ async def obtener_metricas_endpoint(
         return await consultar_metricas_cancelaciones(db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── HU-14: Cancelar turno (secretaria) ───────────────────────────────────────
+
+@router.patch(
+    "/{turno_id}/cancelar-secretaria",
+    response_model=CancelarTurnoSecretariaResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Cancelar turno de cualquier paciente (secretaria)",
+    description="La secretaria cancela el turno de un paciente. Si hay lista de espera, se notifica al primero.",
+)
+async def cancelar_turno_secretaria_endpoint(
+    turno_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    try:
+        return await cancelar_turno_secretaria(
+            db=db,
+            turno_id=turno_id,
+            secretaria_id=UUID(str(secretaria["id"])),
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+# ── HU-12: Inscribir paciente en lista de espera (secretaria) ────────────────
+
+@router.post(
+    "/{turno_id}/lista-espera/secretaria",
+    response_model=InscripcionListaEsperaResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Inscribir paciente en lista de espera (secretaria)",
+    description="La secretaria inscribe a un paciente en la lista de espera de un turno lleno.",
+)
+async def inscribir_lista_espera_secretaria_endpoint(
+    turno_id: UUID,
+    request: InscribirPacienteListaEsperaRequest,
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    try:
+        return await inscribir_paciente_lista_espera_secretaria(
+            db=db,
+            turno_id=turno_id,
+            paciente_id=request.paciente_id,
+            area_tratamiento=request.area_tratamiento,
+            secretaria_id=UUID(str(secretaria["id"])),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+# ── HU-13: Cancelar inscripción en lista de espera (secretaria) ──────────────
+
+@router.patch(
+    "/lista-espera/{inscripcion_id}/cancelar-secretaria",
+    status_code=status.HTTP_200_OK,
+    summary="Cancelar inscripción en lista de espera (secretaria)",
+    description="La secretaria cancela la inscripción de cualquier paciente en la lista de espera.",
+)
+async def cancelar_inscripcion_lista_espera_secretaria_endpoint(
+    inscripcion_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    try:
+        return await cancelar_inscripcion_lista_espera_secretaria(
+            db=db,
+            inscripcion_id=inscripcion_id,
+            secretaria_id=UUID(str(secretaria["id"])),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+# ── HU-15: Endpoints públicos de aceptar/rechazar turno por token ─────────────
+
+@router.get(
+    "/lista-espera/info",
+    response_model=TurnoInfoTokenResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Obtener info del turno ofertado (sin auth, por token)",
+    description="Valida el token JWT y devuelve los datos del turno para mostrar en la pantalla pública.",
+)
+async def obtener_info_turno_token_endpoint(
+    token: str = Query(..., description="Token JWT recibido por email"),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await obtener_info_turno_por_token(db=db, token=token)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/lista-espera/aceptar",
+    status_code=status.HTTP_200_OK,
+    summary="Aceptar turno desde link de lista de espera (sin auth)",
+    description="El paciente acepta el turno ofertado. El turno pasa a RESERVADO a su nombre.",
+)
+async def aceptar_turno_token_endpoint(
+    token: str = Query(..., description="Token JWT recibido por email"),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await aceptar_turno_por_token(db=db, token=token)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/lista-espera/rechazar",
+    status_code=status.HTTP_200_OK,
+    summary="Rechazar turno desde link de lista de espera (sin auth)",
+    description="El paciente rechaza el turno. Se oferta al siguiente en lista de espera.",
+)
+async def rechazar_turno_token_endpoint(
+    token: str = Query(..., description="Token JWT recibido por email"),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        return await rechazar_turno_por_token(db=db, token=token)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+# ── HU-5: Reporte de ausentismo ──────────────────────────────────────────────
+
+@router.get(
+    "/reportes/ausentismo",
+    response_model=ReporteAusentismoResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Reporte de ausentismo por rango de fechas",
+    description="Agrupa turnos AUSENTES por paciente en el rango indicado.",
+)
+async def obtener_reporte_ausentismo_endpoint(
+    fecha_desde: date = Query(..., description="Fecha de inicio YYYY-MM-DD"),
+    fecha_hasta: date = Query(..., description="Fecha de fin YYYY-MM-DD"),
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    if fecha_hasta < fecha_desde:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="fecha_hasta debe ser posterior a fecha_desde",
+        )
+    try:
+        return await consultar_reporte_ausentismo(db=db, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
