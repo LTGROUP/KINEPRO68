@@ -1,6 +1,8 @@
 from datetime import date, datetime, timedelta
+from dateutil.relativedelta import relativedelta # restar meses exactos
 from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, extract
 from uuid import UUID
 from typing import Optional, List
 from collections import defaultdict
@@ -42,6 +44,9 @@ from app.repositories.shifts.turnos import (
     obtener_cancelaciones_por_mes,
     obtener_primer_paciente_en_espera,
     obtener_ausencias_por_rango,
+    obtener_rango_anios,
+    obtener_inscripciones_lista_espera_por_paciente,
+    ListaEspera
 )
 
 ARGENTINA_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
@@ -385,8 +390,9 @@ async def marcar_asistencia_turno(db: AsyncSession, turno_id: UUID, nuevo_estado
     return turno
 
 MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+# Grafico de metricas
 
-async def consultar_metricas_cancelaciones(db: AsyncSession):
+async def consultar_metricas_cancelaciones(db: AsyncSession, mes: Optional[int] = None, anio: Optional[int] = None, rango: Optional[str] = None):
     
     filas = await obtener_metricas_cancelaciones(db)
     datos = {estado.value if hasattr(estado, 'value') else str(estado): total for estado, total in filas}
@@ -396,12 +402,41 @@ async def consultar_metricas_cancelaciones(db: AsyncSession):
     reservados = datos.get("reservado", 0)
     presentes = datos.get("presente", 0)
 
+    #Calcular la fecha
+    hoy = date.today()
+
+    rango_anios = await obtener_rango_anios(db)
+    anio_min = int(rango_anios.anio_min) if rango_anios.anio_min else 2025
+    anio_max = int(rango_anios.anio_max) if rango_anios.anio_max else 2025
+    
+    if mes and anio:
+        # Filtrar por mes y año específico
+        fecha_desde = date(anio, mes, 1)
+        if mes == 12:
+            fecha_hasta = date(anio + 1, 1, 1)
+        else:
+            fecha_hasta = date(anio, mes + 1, 1)
+    elif rango == "ultimos_6_meses" or (not mes and not anio):
+        # Default: últimos 6 meses
+        mes_inicio = hoy.month - 5
+        anio_inicio = hoy.year
+        if mes_inicio <= 0:
+            mes_inicio += 12
+            anio_inicio -= 1
+        fecha_desde = date(anio_inicio, mes_inicio, 1)
+        fecha_hasta = date(hoy.year, hoy.month + 1, 1) if hoy.month < 12 else date(hoy.year + 1, 1, 1)
+    else:
+        fecha_desde = None
+        fecha_hasta = None
+
+    filas_mes = await obtener_cancelaciones_por_mes(db, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
+
     # Gráfico por mes
     filas_mes = await obtener_cancelaciones_por_mes(db)
     agrupado = defaultdict(lambda: {"cancelados": 0, "reservados": 0, "presentes": 0})
     
-    for mes, anio, estado, total in filas_mes:
-        clave = (int(anio), int(mes))
+    for mes_n, anio_n, estado, total in filas_mes:
+        clave = (int(anio_n), int(mes_n))
         estado_str = estado.value if hasattr(estado, 'value') else str(estado)
         if estado_str == "cancelado":
             agrupado[clave]["cancelados"] = total
@@ -412,12 +447,12 @@ async def consultar_metricas_cancelaciones(db: AsyncSession):
 
     grafico = [
         {
-            "mes": f"{MESES[mes - 1]} {anio}",
+            "mes": f"{MESES[m - 1]} {a}",
             "cancelados": vals["cancelados"],
             "reservados": vals["reservados"],
             "presentes": vals["presentes"],
         }
-        for (anio, mes), vals in sorted(agrupado.items())
+        for (a, m), vals in sorted(agrupado.items())
     ]
 
     if total_turnos == 0:
@@ -429,6 +464,7 @@ async def consultar_metricas_cancelaciones(db: AsyncSession):
         "reservados": reservados,
         "presentes": presentes,
         "tasa_cancelacion": round((cancelados / total_turnos) * 100, 1),
+        "anios_disponibles": list(range(anio_min, anio_max + 1)),
         "grafico_por_mes": grafico,
     }
 
@@ -483,7 +519,6 @@ async def reprogramar_turno(
             if ya_en_lista:
                 raise ValueError("Ya te encontrás en la lista de espera de ese turno")
 
-            from app.models.turno import ListaEspera as ListaEsperaModel
             inscripcion = ListaEsperaModel(
                 turno_id=turno_nuevo.id,
                 paciente_id=paciente_id,
@@ -772,3 +807,56 @@ async def rechazar_turno_por_token(db: AsyncSession, token: str) -> dict:
     ofertar_turno_lista_espera.delay(turno_id_str)
 
     return {"mensaje": "Rechazaste el turno. Seguís en lista para otras oportunidades."}
+
+# ver lista de espera (paciente)
+async def ver_mis_inscripciones_lista_espera(db: AsyncSession, paciente_id: int):
+    # ¡Obligatorio el await acá porque la función de arriba ahora es asíncrona!
+    resultados = await obtener_inscripciones_lista_espera_por_paciente(db, paciente_id)
+    inscripciones_formateadas = []
+    
+    for lista_obj, turno_obj in resultados:
+        # Consulta asíncrona correcta para contar registros (Count)
+        query_posicion = (
+            select(func.count())
+            .select_from(ListaEsperaModel)
+            .where(
+                ListaEsperaModel.turno_id == lista_obj.turno_id,
+                ListaEsperaModel.activo == True,
+                ListaEsperaModel.fecha_inscripcion <= lista_obj.fecha_inscripcion.replace(tzinfo=None) 
+            )
+        )
+        # db.scalar() ejecuta la consulta y te devuelve directamente el número (el entero del count)
+        posicion = await db.scalar(query_posicion)
+            
+        inscripciones_formateadas.append({
+            "inscripcion_id": lista_obj.id,
+            "turno_id": turno_obj.id,
+            "fecha": turno_obj.fecha,
+            "hora_inicio": turno_obj.hora_inicio,
+            "hora_fin": turno_obj.hora_fin,
+            "area_tratamiento": turno_obj.area_tratamiento,
+            "fecha_inscripcion": lista_obj.fecha_inscripcion,
+            "posicion": posicion
+        })
+        
+    return {
+        "inscripciones": inscripciones_formateadas,
+        "total": len(inscripciones_formateadas)
+    }
+#Cancelar lista de espera (paciente)
+async def cancelar_inscripcion_lista_espera(db: AsyncSession, inscripcion_id: int, paciente_id: int):
+    # Reemplazamos db.query por select()
+    query = select(ListaEsperaModel).where(
+        ListaEsperaModel.id == inscripcion_id, 
+        ListaEsperaModel.paciente_id == paciente_id
+    )
+    result = await db.execute(query)
+    
+    # .scalar_one_or_none() equivale al antiguo .first() pero más seguro para traer un solo objeto
+    inscripcion = result.scalar_one_or_none()
+    
+    if inscripcion:
+        inscripcion.activo = False  # Baja lógica
+        await db.commit()           # ¡Obligatorio el await en el commit!
+        return True
+    return False

@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, extract
 from datetime import date
 from uuid import UUID
 from typing import Optional
 
+from app.models.turno import EstadoTurno, AreaTratamiento, ListaEspera as ListaEsperaModel
+
 from app.api.dependencies.auth import (
     get_current_profile as get_current_user,
     get_current_staff_manager_profile as get_current_secretaria,
+
 )
 from app.db.session import get_db
 from app.schemas.shifts.turno import (
@@ -27,6 +31,7 @@ from app.schemas.shifts.turno import (
     InscribirPacienteListaEsperaRequest,
     ReporteAusentismoResponse,
     TurnoInfoTokenResponse,
+    MisInscripcionesListaEsperaResponse,
 )
 from app.services.shifts.turnos_service import (
     consultar_turnos_disponibles,
@@ -48,10 +53,32 @@ from app.services.shifts.turnos_service import (
     obtener_info_turno_por_token,
     aceptar_turno_por_token,
     rechazar_turno_por_token,
+    ver_mis_inscripciones_lista_espera, 
+    cancelar_inscripcion_lista_espera
 )
 
 router = APIRouter(prefix="/turnos", tags=["Turnos"])
 
+#lista de espera (paciente)
+# RUTA OBTENER INSCRIPCIONES
+@router.get("/lista-espera/mis-inscripciones", response_model=MisInscripcionesListaEsperaResponse)
+async def get_mis_inscripciones_lista_espera(
+    db: AsyncSession = Depends(get_db),
+    paciente = Depends(get_current_user)
+):
+    return await ver_mis_inscripciones_lista_espera(db, paciente["id"])
+
+# RUTA CANCELAR INSCRIPCIÓN
+@router.delete("/lista-espera/mis-inscripciones/{inscripcion_id}")
+async def delete_mi_inscripcion_lista_espera(
+    inscripcion_id: int,
+    db: AsyncSession = Depends(get_db), # Cambiado Session por AsyncSession
+    paciente = Depends(get_current_user)
+):
+    exito = await cancelar_inscripcion_lista_espera(db, inscripcion_id, paciente["id"])
+    if not exito:
+        raise HTTPException(status_code=404, detail="Inscripción en lista de espera no encontrada.")
+    return {"mensaje": "Se ha cancelado tu lugar en la lista de espera correctamente."}
 
 @router.get(
     "/disponibles",
@@ -353,13 +380,16 @@ async def reprogramar_turno_endpoint(
     summary="Métricas de cancelaciones",
 )
 async def obtener_metricas_endpoint(
+    mes: Optional[int] = Query(None, description="Mes a filtrar (1-12)"),
+    anio: Optional[int] = Query(None, description="Año a filtrar"),
+    rango: Optional[str] = Query(None, description="Rango de tiempo (ej: ultimos_6_meses)"),
     db: AsyncSession = Depends(get_db),
     usuario=Depends(get_current_user)
 ):
     if usuario["rol"] not in ["secretaria", "administrativo"]:
         raise HTTPException(status_code=403, detail="No tenés permiso para ver las métricas.")
     try:
-        return await consultar_metricas_cancelaciones(db)
+        return await consultar_metricas_cancelaciones(db, mes=mes, anio=anio, rango=rango)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

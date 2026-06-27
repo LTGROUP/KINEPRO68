@@ -279,3 +279,22 @@ class TurnoInfoTokenResponse(BaseModel):
     hora_inicio: time
     hora_fin: time
     area_tratamiento: Optional[AreaTratamiento]
+
+# Ver turnos en lista de espera (paciente)
+
+class MiInscripcionListaEsperaResponse(BaseModel):
+    inscripcion_id: UUID
+    turno_id: UUID
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    area_tratamiento: str
+    fecha_inscripcion: datetime
+    posicion: int
+
+    class Config:
+        from_attributes = True  # Para Pydantic v2 (usa orm_mode = True si estás en v1)
+
+class MisInscripcionesListaEsperaResponse(BaseModel):
+    inscripciones: List[MiInscripcionListaEsperaResponse]
+    total: int

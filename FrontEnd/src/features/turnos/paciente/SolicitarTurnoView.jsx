@@ -320,7 +320,10 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
 
           {!loadingTurnos && turnos.length > 0 && (
             <div className="turnos-agenda-list">
-              {groupTurnosByTime(turnos).map((turno) => (
+              {(turnoAReprogramar
+                ? groupTurnosByTime(turnos).filter(t => t.estado === 'disponible')
+                : groupTurnosByTime(turnos)
+              ).map((turno) => (
                 <div key={`${turno.hora_inicio}-${turno.hora_fin}`} className={`turnos-agenda-item${selectedTurno?.id === turno.id ? ' selected' : ''}`}>
                   <div className="turnos-agenda-time">
                     <Clock size={14} aria-hidden="true" />
@@ -345,6 +348,9 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
                     }
 
                     if (turno.estado === 'reservado') {
+                      if (turnoAReprogramar) {
+                        return null
+                      }
                       return (
                         <button
                           type="button"
