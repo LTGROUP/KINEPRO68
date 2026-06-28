@@ -196,6 +196,7 @@ class TurnosFechaResponse(BaseModel):
     fecha: date
     turnos: List[TurnoFechaResponse]
     total: int
+    turnos_por_slot: int
 
 class CancelarTurnoResponse(BaseModel):
     mensaje: Optional[str] = None

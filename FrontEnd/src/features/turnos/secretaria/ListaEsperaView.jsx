@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Users } from 'lucide-react'
 
 import { getTodosLosTurnos, getListaEspera } from '../../../services/turnosService'
@@ -26,21 +26,25 @@ function formatDatetime(isoStr) {
   })
 }
 
-function ListaEsperaView({ user }) {
-  const [fecha, setFecha] = useState('')
+function ListaEsperaView({ user, fechaInicial, turnoIdInicial }) {
+  const [fecha, setFecha] = useState(fechaInicial || '')
   const [turnos, setTurnos] = useState([])
   const [loadingTurnos, setLoadingTurnos] = useState(false)
   const [errorTurnos, setErrorTurnos] = useState('')
-  const [selectedTurnoId, setSelectedTurnoId] = useState('')
+  const [selectedTurnoId, setSelectedTurnoId] = useState(turnoIdInicial || '')
   const [listaEspera, setListaEspera] = useState(null)
   const [loadingLista, setLoadingLista] = useState(false)
   const [errorLista, setErrorLista] = useState('')
 
-  async function handleBuscarFecha(event) {
-    event.preventDefault()
+  useEffect(() => {
+    if (fechaInicial && turnoIdInicial) {
+      buscarTurnosPorFecha(fechaInicial)
+      handleVerLista(turnoIdInicial)
+    }
+  }, [fechaInicial, turnoIdInicial])
 
-    if (!fecha) return
-
+  async function buscarTurnosPorFecha(fechaBuscar) {
+    console.log('fechaBuscar:', fechaBuscar)
     setLoadingTurnos(true)
     setErrorTurnos('')
     setTurnos([])
@@ -48,10 +52,26 @@ function ListaEsperaView({ user }) {
     setListaEspera(null)
 
     try {
-      const data = await getTodosLosTurnos(user, fecha)
-      // Solo mostramos los turnos RESERVADOS (los que pueden tener lista de espera)
-      const reservados = (data.turnos || []).filter(t => t.estado === 'reservado')
-      setTurnos(reservados)
+      const data = await getTodosLosTurnos(user, fechaBuscar)
+
+      const conteo = {}
+        ; (data.turnos || []).forEach(t => {
+          const key = t.hora_inicio
+          conteo[key] = (conteo[key] || 0) + 1
+        })
+
+      const llenos = (data.turnos || []).filter(t =>
+        conteo[t.hora_inicio] >= data.turnos_por_slot
+      )
+
+      const vistos = new Set()
+      const turnosLlenos = llenos.filter(t => {
+        if (vistos.has(t.hora_inicio)) return false
+        vistos.add(t.hora_inicio)
+        return true
+      })
+
+      setTurnos(turnosLlenos)
     } catch (err) {
       setErrorTurnos(err.message)
     } finally {
@@ -59,6 +79,11 @@ function ListaEsperaView({ user }) {
     }
   }
 
+  async function handleBuscarFecha(event) {
+    event.preventDefault()
+    if (!fecha) return
+    await buscarTurnosPorFecha(fecha)
+  }
   async function handleVerLista(turnoId) {
     setSelectedTurnoId(turnoId)
     setLoadingLista(true)

@@ -11,6 +11,7 @@ function TurnosPage({ user }) {
   const rol = user?.rol
   const [activeTab, setActiveTab] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const [preseleccion, setPreseleccion] = useState(null)
 
   useEffect(() => {
     if (rol === 'paciente') {
@@ -34,6 +35,11 @@ function TurnosPage({ user }) {
     if (rol === 'paciente') {
       setActiveTab('mis-turnos')
     }
+  }
+
+  function handleTurnoLleno(fecha, turnoId) {
+    setPreseleccion({ fecha, turnoId })
+    setActiveTab('lista-espera')
   }
 
   if (!activeTab) return null
@@ -67,7 +73,7 @@ function TurnosPage({ user }) {
               >
                 Mis turnos
               </button>
-              
+
               <button
                 type="button"
                 role="tab"
@@ -119,7 +125,7 @@ function TurnosPage({ user }) {
           {activeTab === 'mis-turnos' && (
             <MisTurnosView user={user} />
           )}
-          
+
           {activeTab === 'lista-espera-paciente' && (
             <VerListaDeEspera user={user} />
           )}

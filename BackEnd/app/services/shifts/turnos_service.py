@@ -49,6 +49,9 @@ from app.repositories.shifts.turnos import (
     ListaEspera
 )
 
+from app.repositories.shifts.grilla import obtener_configuracion_por_mes
+
+
 ARGENTINA_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
 
 from app.repositories.shifts.turnos import obtener_agenda_diaria_pura
@@ -271,7 +274,9 @@ async def inscribirse_lista_espera(
 
 async def consultar_todos_turnos_fecha(db: AsyncSession, fecha_buscada: date):
     turnos = await obtener_todos_turnos_por_fecha(db, fecha_buscada)
-    return turnos
+    config = await obtener_configuracion_por_mes(db, fecha_buscada.month, fecha_buscada.year)
+    turnos_por_slot = config.turnos_por_slot if config else 1
+    return turnos, turnos_por_slot
 
 
 # Cancela un turno

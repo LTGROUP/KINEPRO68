@@ -2,7 +2,8 @@
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession #ORM para conectarme a la base de datos postgreseSQL
 from sqlalchemy import select, delete, and_
-from app.models.turno import Turno, DiasCerrados, EstadoTurno
+from app.models.turno import Turno, DiasCerrados, EstadoTurno, ConfiguracionGrilla
+from typing import Optional
 
 
 async def eliminar_turnos_disponibles_del_mes(
@@ -68,3 +69,17 @@ async def obtener_turnos_del_rango(
         ).order_by(Turno.fecha, Turno.hora_inicio)
     )
     return result.scalars().all()
+async def obtener_configuracion_por_mes(
+    db: AsyncSession,
+    mes: int,
+    anio: int,
+) -> Optional[ConfiguracionGrilla]:
+    result = await db.execute(
+        select(ConfiguracionGrilla).where(
+            and_(
+                ConfiguracionGrilla.mes == mes,
+                ConfiguracionGrilla.anio == anio,
+            )
+        )
+    )
+    return result.scalar_one_or_none()

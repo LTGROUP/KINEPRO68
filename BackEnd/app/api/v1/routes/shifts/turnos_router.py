@@ -221,11 +221,12 @@ async def obtener_todos_turnos_endpoint(
     db: AsyncSession = Depends(get_db),
     secretaria=Depends(get_current_secretaria),
 ):
-    turnos = await consultar_todos_turnos_fecha(db, fecha)
+    turnos, turnos_por_slot = await consultar_todos_turnos_fecha(db, fecha)
     return TurnosFechaResponse(
         fecha=fecha,
         turnos=[TurnoFechaResponse.model_validate(t) for t in turnos],
         total=len(turnos),
+        turnos_por_slot=turnos_por_slot,
     )
 
 
