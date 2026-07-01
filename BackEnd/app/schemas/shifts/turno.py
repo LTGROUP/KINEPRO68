@@ -196,6 +196,7 @@ class TurnosFechaResponse(BaseModel):
     fecha: date
     turnos: List[TurnoFechaResponse]
     total: int
+    turnos_por_slot: int
 
 class CancelarTurnoResponse(BaseModel):
     mensaje: Optional[str] = None
@@ -297,4 +298,19 @@ class MiInscripcionListaEsperaResponse(BaseModel):
 
 class MisInscripcionesListaEsperaResponse(BaseModel):
     inscripciones: List[MiInscripcionListaEsperaResponse]
+    total: int
+
+#Esquema correcto para la secretaria consultar la lista de espera de un turno
+class TurnoConListaEsperaResponse(BaseModel):
+    id: UUID
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    estado: EstadoTurno
+
+    model_config = {"from_attributes": True}
+
+
+class TurnosConListaEsperaResponse(BaseModel):
+    turnos: List[TurnoConListaEsperaResponse]
     total: int

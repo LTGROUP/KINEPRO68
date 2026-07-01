@@ -32,6 +32,8 @@ from app.schemas.shifts.turno import (
     ReporteAusentismoResponse,
     TurnoInfoTokenResponse,
     MisInscripcionesListaEsperaResponse,
+    TurnoConListaEsperaResponse,
+    TurnosConListaEsperaResponse
 )
 from app.services.shifts.turnos_service import (
     consultar_turnos_disponibles,
@@ -54,7 +56,8 @@ from app.services.shifts.turnos_service import (
     aceptar_turno_por_token,
     rechazar_turno_por_token,
     ver_mis_inscripciones_lista_espera, 
-    cancelar_inscripcion_lista_espera
+    cancelar_inscripcion_lista_espera,
+    consultar_turnos_con_lista_espera_activa
 )
 
 router = APIRouter(prefix="/turnos", tags=["Turnos"])
@@ -221,13 +224,29 @@ async def obtener_todos_turnos_endpoint(
     db: AsyncSession = Depends(get_db),
     secretaria=Depends(get_current_secretaria),
 ):
-    turnos = await consultar_todos_turnos_fecha(db, fecha)
+    turnos, turnos_por_slot = await consultar_todos_turnos_fecha(db, fecha)
     return TurnosFechaResponse(
         fecha=fecha,
         turnos=[TurnoFechaResponse.model_validate(t) for t in turnos],
         total=len(turnos),
+        turnos_por_slot=turnos_por_slot,
     )
 
+@router.get(
+    "/lista-espera/activas",
+    response_model=TurnosConListaEsperaResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Obtener todos los turnos con lista de espera activa (secretaria)",
+)
+async def obtener_turnos_lista_espera_activa(
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    turnos = await consultar_turnos_con_lista_espera_activa(db)
+    return TurnosConListaEsperaResponse(
+        turnos=[TurnoConListaEsperaResponse.model_validate(t) for t in turnos],
+        total=len(turnos),
+    )
 
 @router.get(
     "/{turno_id}/lista-espera",

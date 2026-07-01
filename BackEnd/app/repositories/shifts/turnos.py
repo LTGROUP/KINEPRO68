@@ -301,4 +301,13 @@ async def obtener_inscripciones_lista_espera_por_paciente(db: AsyncSession, paci
     
     # Extraemos todas las filas (retorna una lista de tuplas: [(lista_obj, turno_obj), ...])
     return result.all()
-        
+
+async def obtener_turnos_con_lista_espera_activa(db: AsyncSession):
+    result = await db.execute(
+        select(Turno)
+        .join(ListaEspera, ListaEspera.turno_id == Turno.id)
+        .where(ListaEspera.activo == True)
+        .distinct()
+        .order_by(Turno.fecha, Turno.hora_inicio)
+    )
+    return result.scalars().all()
