@@ -42,7 +42,7 @@ function canUserManage(currentUser) {
 // Logica unificada: inicializamos segun el rol del usuario
 function getInitialSectionForUser(currentUser) {
   if (!currentUser) return 'inicio'
-  
+
   if (currentUser.rol === 'secretaria' || currentUser.rol === 'profesional') {
     return 'inicio'
   }
@@ -67,12 +67,13 @@ function App() {
   const isRecoveryFlow = getIsRecoveryFlow()
   const isAceptarTurnoFlow = getIsAceptarTurnoFlow()
   const [user, setUser] = useState(readStoredSession)
-  
+
   // Usamos el hook de inicio basado en el usuario actual
   const [activeSection, setActiveSection] = useState(() => {
     return getInitialSectionForUser(readStoredSession())
   })
-  
+  const [turnosInitialTab, setTurnosInitialTab] = useState(null)
+
   const canManageStaff = canUserManage(user)
   const canManagePatients = canUserManage(user)
 
@@ -109,6 +110,12 @@ function App() {
     setActiveSection('inicio')
   }
 
+  // Navega a Turnos abriendo directamente un tab específico (ej: lista-espera)
+  function handleNavigateToTurnos(tab) {
+    setTurnosInitialTab(tab)
+    setActiveSection('turnos')
+  }
+
   function getSectionTitle(sectionId) {
     const titles = {
       inicio: 'Inicio',
@@ -142,11 +149,24 @@ function App() {
     }
 
     if (activeSection === 'turnos') {
-      return <TurnosPage user={user} />
+      return (
+        <TurnosPage
+          user={user}
+          onSectionChange={setActiveSection}
+          initialTab={turnosInitialTab}
+          onInitialTabConsumed={() => setTurnosInitialTab(null)}
+        />
+      )
     }
 
     if (activeSection === 'pacientes' && canManagePatients) {
-      return <PatientsPage user={user} />
+      return (
+        <PatientsPage
+          user={user}
+          onSectionChange={setActiveSection}
+          onNavigateToTurnos={handleNavigateToTurnos}
+        />
+      )
     }
 
     if (activeSection === 'perfil') {

@@ -243,6 +243,16 @@ async def inscribirse_lista_espera(
 
     # Se busca el turno por id
     turno = await obtener_turno_por_id_con_lock(db, turno_id)
+    # Verificar que no se supere el límite de lista de espera
+    conteo = await db.scalar(
+    select(func.count()).select_from(ListaEsperaModel).where(
+            ListaEsperaModel.turno_id == turno_id,
+            ListaEsperaModel.activo == True
+        )
+    )
+    if conteo >= 5:
+        raise ValueError("La lista de espera para este turno ya está completa (máximo 5 personas)")
+
     if not turno:
         raise ValueError("El turno indicado no existe")
 
@@ -616,6 +626,16 @@ async def inscribir_paciente_lista_espera_secretaria(
     async with db.begin():
         turno = await obtener_turno_por_id_con_lock(db, turno_id)
 
+        # Verificar límite de lista de espera
+        conteo = await db.scalar(
+            select(func.count()).select_from(ListaEsperaModel).where(
+                ListaEsperaModel.turno_id == turno_id,
+                ListaEsperaModel.activo == True
+            )
+        )
+        if conteo >= 5:
+                raise ValueError("La lista de espera está completa (máximo 5 personas)")     
+               
         if not turno:
             raise ValueError("El turno indicado no existe")
 

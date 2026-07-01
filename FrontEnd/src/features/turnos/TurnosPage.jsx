@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import SolicitarTurnoView from './paciente/SolicitarTurnoView'
 import VerListaDeEspera from './paciente/ListasDeEspera'
@@ -7,13 +7,29 @@ import ConfigurarGrillaView from './secretaria/ConfigurarGrillaView'
 import ListaEsperaView from './secretaria/ListaEsperaView'
 import '../../styles/turnos.css'
 
-function TurnosPage({ user }) {
+function TurnosPage({ user, onSectionChange, initialTab, onInitialTabConsumed }) {
   const rol = user?.rol
   const [activeTab, setActiveTab] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
   const [preseleccion, setPreseleccion] = useState(null)
+  const initialTabConsumedRef = useRef(false)
+  const onInitialTabConsumedRef = useRef(onInitialTabConsumed)
 
   useEffect(() => {
+    onInitialTabConsumedRef.current = onInitialTabConsumed
+  }, [onInitialTabConsumed])
+
+  useEffect(() => {
+    // Si nos pidieron abrir un tab específico (ej: desde Pacientes), respetalo una sola vez
+    if (initialTab && !initialTabConsumedRef.current) {
+      initialTabConsumedRef.current = true
+      setActiveTab(initialTab)
+      if (onInitialTabConsumedRef.current) onInitialTabConsumedRef.current()
+      return
+    }
+
+    if (initialTabConsumedRef.current) return
+
     if (rol === 'paciente') {
       setActiveTab('mis-turnos')
     } else if (rol === 'secretaria' || rol === 'administrative' || rol === 'administrativo') {
@@ -21,7 +37,7 @@ function TurnosPage({ user }) {
     } else {
       setActiveTab('solicitar')
     }
-  }, [rol])
+  }, [rol, initialTab])
 
   useEffect(() => {
     if (!successMessage) return undefined
@@ -30,9 +46,14 @@ function TurnosPage({ user }) {
     return () => window.clearTimeout(id)
   }, [successMessage])
 
-  function handleSuccess(msg) {
+  function handleSuccess(msg, tabDestino, seccionDestino) {
+    console.log('handleSuccess:', msg, tabDestino, seccionDestino)
     setSuccessMessage(msg)
-    if (rol === 'paciente') {
+    if (seccionDestino && onSectionChange) {
+      onSectionChange(seccionDestino)  // navega a otra página
+    } else if (tabDestino) {
+      setActiveTab(tabDestino)  // cambia tab dentro de turnos
+    } else if (rol === 'paciente') {
       setActiveTab('mis-turnos')
     }
   }
