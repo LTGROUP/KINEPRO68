@@ -865,3 +865,8 @@ async def cancelar_inscripcion_lista_espera(db: AsyncSession, inscripcion_id: in
         await db.commit()           # ¡Obligatorio el await en el commit!
         return True
     return False
+
+async def consultar_turnos_con_lista_espera_activa(db: AsyncSession):
+    from app.repositories.shifts.turnos import obtener_turnos_con_lista_espera_activa
+    turnos = await obtener_turnos_con_lista_espera_activa(db)
+    return turnos
