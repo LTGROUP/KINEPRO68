@@ -7,28 +7,28 @@ import ConfigurarGrillaView from './secretaria/ConfigurarGrillaView'
 import ListaEsperaView from './secretaria/ListaEsperaView'
 import '../../styles/turnos.css'
 
-function TurnosPage({ user, onSectionChange, initialTab, onInitialTabConsumed }) {
+function TurnosPage({ user, onSectionChange, tabInicial, onTabInicialConsumido }) {
   const rol = user?.rol
   const [activeTab, setActiveTab] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
   const [preseleccion, setPreseleccion] = useState(null)
-  const initialTabConsumedRef = useRef(false)
-  const onInitialTabConsumedRef = useRef(onInitialTabConsumed)
+  const tabInicialConsumidoRef = useRef(false)
+  const onTabInicialConsumidoRef = useRef(onTabInicialConsumido)
 
   useEffect(() => {
-    onInitialTabConsumedRef.current = onInitialTabConsumed
-  }, [onInitialTabConsumed])
+    onTabInicialConsumidoRef.current = onTabInicialConsumido
+  }, [onTabInicialConsumido])
 
   useEffect(() => {
     // Si nos pidieron abrir un tab específico (ej: desde Pacientes), respetalo una sola vez
-    if (initialTab && !initialTabConsumedRef.current) {
-      initialTabConsumedRef.current = true
-      setActiveTab(initialTab)
-      if (onInitialTabConsumedRef.current) onInitialTabConsumedRef.current()
+    if (tabInicial && !tabInicialConsumidoRef.current) {
+      tabInicialConsumidoRef.current = true
+      setActiveTab(tabInicial)
+      if (onTabInicialConsumidoRef.current) onTabInicialConsumidoRef.current()
       return
     }
 
-    if (initialTabConsumedRef.current) return
+    if (tabInicialConsumidoRef.current) return
 
     if (rol === 'paciente') {
       setActiveTab('mis-turnos')
@@ -37,7 +37,7 @@ function TurnosPage({ user, onSectionChange, initialTab, onInitialTabConsumed })
     } else {
       setActiveTab('solicitar')
     }
-  }, [rol, initialTab])
+  }, [rol, tabInicial])
 
   useEffect(() => {
     if (!successMessage) return undefined

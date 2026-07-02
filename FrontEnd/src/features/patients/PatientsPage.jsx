@@ -53,7 +53,7 @@ function getFeedbackTitle(error) {
   return 'Accion realizada'
 }
 
-function PatientsPage({ user, onSectionChange, onNavigateToTurnos }) {
+function PatientsPage({ user, onSectionChange, onNavegarATurnos }) {
   const [items, setItems] = useState([])
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [editingPatient, setEditingPatient] = useState(null)
@@ -402,8 +402,8 @@ function PatientsPage({ user, onSectionChange, onNavigateToTurnos }) {
               onSuccess={(msg, tabDestino, seccionDestino) => {
                 setMessage(msg)
                 setPatientForTurno(null)
-                if (tabDestino && onNavigateToTurnos) {
-                  onNavigateToTurnos(tabDestino) // navega a turnos y abre el tab pedido (ej: lista-espera)
+                if (tabDestino && onNavegarATurnos) {
+                  onNavegarATurnos(tabDestino) // navega a turnos y abre el tab pedido (ej: lista-espera)
                 } else if (seccionDestino && onSectionChange) {
                   onSectionChange(seccionDestino)
                 }

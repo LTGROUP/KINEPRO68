@@ -72,7 +72,7 @@ function App() {
   const [activeSection, setActiveSection] = useState(() => {
     return getInitialSectionForUser(readStoredSession())
   })
-  const [turnosInitialTab, setTurnosInitialTab] = useState(null)
+  const [tabInicialTurnos, setTabInicialTurnos] = useState(null)
 
   const canManageStaff = canUserManage(user)
   const canManagePatients = canUserManage(user)
@@ -111,8 +111,8 @@ function App() {
   }
 
   // Navega a Turnos abriendo directamente un tab específico (ej: lista-espera)
-  function handleNavigateToTurnos(tab) {
-    setTurnosInitialTab(tab)
+  function manejarNavegacionATurnos(tab) {
+    setTabInicialTurnos(tab)
     setActiveSection('turnos')
   }
 
@@ -153,8 +153,8 @@ function App() {
         <TurnosPage
           user={user}
           onSectionChange={setActiveSection}
-          initialTab={turnosInitialTab}
-          onInitialTabConsumed={() => setTurnosInitialTab(null)}
+          tabInicial={tabInicialTurnos}
+          onTabInicialConsumido={() => setTabInicialTurnos(null)}
         />
       )
     }
@@ -164,7 +164,7 @@ function App() {
         <PatientsPage
           user={user}
           onSectionChange={setActiveSection}
-          onNavigateToTurnos={handleNavigateToTurnos}
+          onNavegarATurnos={manejarNavegacionATurnos}
         />
       )
     }
