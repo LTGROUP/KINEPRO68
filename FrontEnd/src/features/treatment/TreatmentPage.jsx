@@ -118,6 +118,7 @@ function TreatmentPage({ user }) {
         <div className="treatment-empty">
           <Dumbbell size={30} aria-hidden="true" />
           <h2>Todavía no tenés una rutina asignada</h2>
+          <p>{routineError || 'Tu profesional podrá asignarte una próximamente.'}</p>
           <button type="button" onClick={loadRoutine}>
             Volver a consultar
           </button>
