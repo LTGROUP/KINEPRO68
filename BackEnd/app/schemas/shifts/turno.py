@@ -318,7 +318,8 @@ class TurnoConListaEsperaResponse(BaseModel):
     area_tratamiento: Optional[AreaTratamiento] = None
     estado: EstadoTurno
     paciente: Optional[PacienteAgendaInfo] = None
-    
+    cantidad_en_espera: int = 0
+
     model_config = {"from_attributes": True}
 
 class AgendaProfesionalResponse(BaseModel):

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { ChevronDown } from 'lucide-react'
 
 import { getListaEspera, getListaEsperaActivas, cancelarInscripcionListaEsperaSecretaria } from '../../../services/turnosService'
+import '../../../styles/staff-management.css'
 
 const MES_NAMES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -30,6 +32,83 @@ function formatDatetime(isoStr) {
   })
 }
 
+function TurnoListaEsperaItem({ turno, isSelected, isLoading, error, listaEspera, onToggle, children }) {
+  const [expandido, setExpandido] = useState(false)
+  const [prevIsSelected, setPrevIsSelected] = useState(isSelected)
+  const tieneListaEspera = (turno.cantidad_en_espera || 0) > 0
+  const tieneLista = listaEspera != null && listaEspera.total > 0
+
+  // Si otra fila pasa a estar seleccionada, esta se colapsa (solo una lista cargada a la vez)
+  if (isSelected !== prevIsSelected) {
+    setPrevIsSelected(isSelected)
+    if (!isSelected && expandido) {
+      setExpandido(false)
+    }
+  }
+
+  function handleClick() {
+    if (!tieneListaEspera) return
+    const nuevoExpandido = !expandido
+    setExpandido(nuevoExpandido)
+    if (nuevoExpandido) {
+      onToggle(turno.id)
+    }
+  }
+
+  return (
+    <div>
+      <div
+        className={`turnos-list-item${isSelected ? ' selected' : ''}`}
+        onClick={handleClick}
+        style={{ cursor: tieneListaEspera ? 'pointer' : 'default' }}
+      >
+        <div className="turnos-list-info">
+          <strong>{formatDateLabel(turno.fecha)}</strong>
+          <span>{formatTime(turno.hora_inicio)} – {formatTime(turno.hora_fin)}</span>
+        </div>
+
+        {!expandido && tieneListaEspera && (
+          <span
+            style={{
+              backgroundColor: '#176b5b',
+              color: 'white',
+              borderRadius: '999px',
+              padding: '2px 10px',
+              fontSize: '0.75rem',
+              fontWeight: 'bold',
+              marginLeft: '8px',
+            }}
+          >
+            {turno.cantidad_en_espera} en espera
+          </span>
+        )}
+
+        {tieneListaEspera && (
+          <span
+            className={`staff-action-arrow${expandido ? ' open' : ''}`}
+            style={{
+              transform: expandido ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s ease',
+            }}
+          >
+            <ChevronDown size={20} strokeWidth={3} aria-hidden="true" />
+          </span>
+        )}
+      </div>
+
+      {expandido && isLoading && (
+        <p className="staff-empty">Cargando lista de espera...</p>
+      )}
+
+      {expandido && error && (
+        <p className="staff-message error">{error}</p>
+      )}
+
+      {expandido && tieneLista && children}
+    </div>
+  )
+}
+
 function ListaEsperaView({ user }) {
   const [turnos, setTurnos] = useState([])
   const [loadingTurnos, setLoadingTurnos] = useState(false)
@@ -44,6 +123,11 @@ function ListaEsperaView({ user }) {
   const [idEnCancelacion, setIdEnCancelacion] = useState('')
   const [mensajeExito, setMensajeExito] = useState('')
   const [errorCancelacion, setErrorCancelacion] = useState('')
+
+  // Estado de colapso por mes (vacío = todos expandidos por defecto)
+  const [mesesExpandidos, setMesesExpandidos] = useState({})
+  const toggleMes = (mes) => setMesesExpandidos(prev => ({ ...prev, [mes]: !prev[mes] }))
+  const estaExpandido = (mes) => mesesExpandidos[mes] !== false
 
   useEffect(() => {
     cargarTurnosConListaEspera()
@@ -154,87 +238,110 @@ function ListaEsperaView({ user }) {
       {Object.entries(turnosPorMes).map(([mes, turnosDelMes]) => (
         <div key={mes} style={{ marginBottom: '24px' }}>
 
-          <p className="staff-eyebrow" style={{ marginBottom: '8px' }}>
-            {formatMesLabel(mes)}
-          </p>
+          <div
+            onClick={() => toggleMes(mes)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              cursor: 'pointer',
+              marginBottom: '8px',
+            }}
+          >
+            <p className="staff-eyebrow" style={{ margin: 0 }}>
+              {formatMesLabel(mes)}
+            </p>
 
+            <span
+              style={{
+                backgroundColor: '#176b5b',
+                color: 'white',
+                borderRadius: '999px',
+                padding: '2px 10px',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+              }}
+            >
+              {turnosDelMes.length} turnos
+            </span>
+
+            <span
+              className={`staff-action-arrow${estaExpandido(mes) ? ' open' : ''}`}
+              style={{
+                marginLeft: 'auto',
+                transform: estaExpandido(mes) ? 'rotate(0deg)' : 'rotate(180deg)',
+                transition: 'transform 0.2s ease',
+              }}
+            >
+              <ChevronDown size={20} strokeWidth={3} aria-hidden="true" />
+            </span>
+          </div>
+
+          {estaExpandido(mes) && (
           <div className="turnos-list">
             {turnosDelMes.map(turno => (
-              <div key={turno.id}>
+              <TurnoListaEsperaItem
+                key={turno.id}
+                turno={turno}
+                isSelected={selectedTurnoId === turno.id}
+                isLoading={selectedTurnoId === turno.id && loadingLista}
+                error={selectedTurnoId === turno.id ? errorLista : ''}
+                listaEspera={selectedTurnoId === turno.id ? listaEspera : null}
+                onToggle={handleVerLista}
+              >
+                <div style={{
+                  backgroundColor: '#f0f6f4',
+                  borderLeft: '3px solid #176b5b',
+                  borderRadius: '0 0 8px 8px',
+                  marginTop: '-4px',
+                  marginLeft: '16px',
+                  padding: '12px 16px',
+                }}>
+                  <p className="turnos-slots-heading" style={{ marginBottom: '12px' }}>
+                    Lista de espera — {listaEspera?.total} {listaEspera?.total === 1 ? 'paciente' : 'pacientes'}
+                  </p>
+                  <div className="turnos-list">
+                    {listaEspera?.pacientes?.map(paciente => (
+                      <div key={paciente.id} className="turnos-list-item">
+                        <div className="turnos-espera-posicion">
+                          #{paciente.posicion}
+                        </div>
+                        <div className="turnos-list-info">
+                          <strong>
+                            {paciente.nombre && paciente.apellido
+                              ? `${paciente.nombre} ${paciente.apellido}`
+                              : `Paciente ${String(paciente.paciente_id).slice(0, 8)}…`}
+                          </strong>
+                          {paciente.dni && <span>DNI: {paciente.dni}</span>}
+                          <span>Inscripto el {formatDatetime(paciente.fecha_inscripcion)}</span>
+                        </div>
 
-                <div
-                  className={`turnos-list-item${selectedTurnoId === turno.id ? ' selected' : ''}`}
-                  onClick={() => handleVerLista(turno.id)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="turnos-list-info">
-                    <strong>{formatDateLabel(turno.fecha)}</strong>
-                    <span>{formatTime(turno.hora_inicio)} – {formatTime(turno.hora_fin)}</span>
+                        {/* BOTÓN CANCELAR RESERVA — mismo color que "Cancelar" en Mis turnos del paciente */}
+                        <button
+                          type="button"
+                          onClick={() => abrirModalCancelar(paciente)}
+                          disabled={idEnCancelacion === paciente.id}
+                          style={{
+                            backgroundColor: '#fee2e2',
+                            color: '#b91c1c',
+                            border: '1px solid #f87171',
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          {idEnCancelacion === paciente.id ? 'Cancelando...' : 'Cancelar reserva'}
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
-
-                {selectedTurnoId === turno.id && loadingLista && (
-                  <p className="staff-empty">Cargando lista de espera...</p>
-                )}
-
-                {selectedTurnoId === turno.id && errorLista && (
-                  <p className="staff-message error">{errorLista}</p>
-                )}
-
-                {selectedTurnoId === turno.id && listaEspera && (
-                  <div style={{
-                    backgroundColor: '#f0f6f4',
-                    borderLeft: '3px solid #176b5b',
-                    borderRadius: '0 0 8px 8px',
-                    marginTop: '-4px',
-                    marginLeft: '16px',
-                    padding: '12px 16px',
-                  }}>
-                    <p className="turnos-slots-heading" style={{ marginBottom: '12px' }}>
-                      Lista de espera — {listaEspera.total} {listaEspera.total === 1 ? 'paciente' : 'pacientes'}
-                    </p>
-                    <div className="turnos-list">
-                      {listaEspera.pacientes.map(paciente => (
-                        <div key={paciente.id} className="turnos-list-item">
-                          <div className="turnos-espera-posicion">
-                            #{paciente.posicion}
-                          </div>
-                          <div className="turnos-list-info">
-                            <strong>
-                              {paciente.nombre && paciente.apellido
-                                ? `${paciente.nombre} ${paciente.apellido}`
-                                : `Paciente ${String(paciente.paciente_id).slice(0, 8)}…`}
-                            </strong>
-                            {paciente.dni && <span>DNI: {paciente.dni}</span>}
-                            <span>Inscripto el {formatDatetime(paciente.fecha_inscripcion)}</span>
-                          </div>
-
-                          {/* BOTÓN CANCELAR RESERVA — mismo color que "Cancelar" en Mis turnos del paciente */}
-                          <button
-                            type="button"
-                            onClick={() => abrirModalCancelar(paciente)}
-                            disabled={idEnCancelacion === paciente.id}
-                            style={{
-                              backgroundColor: '#fee2e2',
-                              color: '#b91c1c',
-                              border: '1px solid #f87171',
-                              padding: '6px 12px',
-                              borderRadius: '6px',
-                              cursor: 'pointer',
-                              fontWeight: 'bold',
-                              fontSize: '0.85rem',
-                            }}
-                          >
-                            {idEnCancelacion === paciente.id ? 'Cancelando...' : 'Cancelar reserva'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              </TurnoListaEsperaItem>
             ))}
           </div>
+          )}
         </div>
       ))}
     </div>
