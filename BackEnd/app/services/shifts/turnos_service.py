@@ -102,7 +102,7 @@ async def consultar_turnos_para_paciente(
 
     if not turnos:
         return {
-            "mensaje": f"No existen turnos para la fecha {fecha_buscada}"
+            "mensaje": f"No existen turnos para la fecha {fecha_buscada.strftime('%Y/%m/%d')}"
         }
 
     return turnos
@@ -155,7 +155,7 @@ async def solicitar_turno(
     hora_str = turno.hora_inicio.strftime("%H:%M")
 
     return TurnoSolicitadoResponse(
-         mensaje=f"Turno solicitado con exito para el {mes_nombre} a las {hora_str} hs",
+         mensaje="El turno fue reservado correctamente",
          turno_id=turno.id,
          fecha=turno.fecha,
          hora_inicio=turno.hora_inicio,  
@@ -548,13 +548,13 @@ async def cancelar_turno_secretaria(
         ofertar_turno_lista_espera.delay(str(turno.id))
         notificacion_enviada = True
 
-    mensaje = (
-        "Turno cancelado. Se notificó al primero en lista de espera."
-        if notificacion_enviada
-        else "Turno cancelado exitosamente."
-    )
     if con_menos_48hs:
-        mensaje += " Turno cancelado con menos de 48 horas de anticipación."
+        mensaje = "Turno cancelado. Se cobrará la totalidad del turno por cancelación con menos de 48 horas de anticipación"
+    else:
+        mensaje = "Turno cancelado con éxito. Sin penalidad aplicada"
+
+    if notificacion_enviada:
+        mensaje += ". Se notificó al primero en lista de espera."
 
     return CancelarTurnoSecretariaResponse(
         mensaje=mensaje,
@@ -585,9 +585,13 @@ async def inscribir_paciente_lista_espera_secretaria(
         if turno.estado != EstadoTurno.RESERVADO:
             raise ValueError("No es posible anotarse en lista de espera para este turno")
 
+        from app.repositories.patients.patient_repository import get_patient_by_id
+        if not get_patient_by_id(str(paciente_id)):
+            raise ValueError("No hay pacientes para mostrar")
+
         existente = await verificar_paciente_en_lista(db, turno_id, paciente_id)
         if existente:
-            raise ValueError("El paciente ya se encuentra en la lista de espera de este turno")
+            raise ValueError("El paciente ya se encuentra registrado en la lista de espera de este turno")
 
         inscripcion = ListaEsperaModel(
             turno_id=turno_id,
@@ -597,9 +601,30 @@ async def inscribir_paciente_lista_espera_secretaria(
         db.add(inscripcion)
 
     return InscripcionListaEsperaResponse(
-        mensaje="Paciente inscripto en lista de espera exitosamente",
+        mensaje="Paciente inscripto correctamente en la lista de espera",
         turno_id=turno_id,
     )
+
+
+# HU: El paciente cancela su propia inscripción en lista de espera
+async def cancelar_inscripcion_lista_espera_paciente(
+    db: AsyncSession,
+    inscripcion_id: UUID,
+    paciente_id: UUID,
+) -> dict:
+    async with db.begin():
+        inscripcion = await obtener_inscripcion_por_id(db, inscripcion_id)
+
+        if not inscripcion or not inscripcion.activo:
+            raise ValueError("No se encontró una inscripción activa para cancelar")
+
+        if str(inscripcion.paciente_id) != str(paciente_id):
+            raise ValueError("No tenés permiso para cancelar esta inscripción")
+
+        inscripcion.activo = False
+        db.add(inscripcion)
+
+    return {"mensaje": "Inscripción cancelada correctamente"}
 
 
 # HU-13: La secretaria cancela la inscripción en lista de espera de cualquier paciente
@@ -647,11 +672,13 @@ async def consultar_reporte_ausentismo(
         for datos in agrupado.values()
     ]
 
+    mensaje = None if resultado else "No se encontraron registros de ausentismo para el período seleccionado"
     return ReporteAusentismoResponse(
         fecha_desde=fecha_desde,
         fecha_hasta=fecha_hasta,
         total_pacientes_ausentes=len(resultado),
         ausencias=resultado,
+        mensaje=mensaje,
     )
 
 
@@ -665,16 +692,16 @@ async def obtener_info_turno_por_token(db: AsyncSession, token: str) -> TurnoInf
             options={"verify_aud": False},
         )
     except JWTError:
-        raise ValueError("Token inválido o expirado")
+        raise ValueError("Este link ya no es válido. El tiempo para aceptar el turno ha expirado")
 
     turno_id_str = payload.get("turno_id")
     inscripcion_id_str = payload.get("inscripcion_id")
     if not turno_id_str or not inscripcion_id_str:
-        raise ValueError("Token inválido")
+        raise ValueError("Este link ya no es válido. El tiempo para aceptar el turno ha expirado")
 
     inscripcion = await obtener_inscripcion_por_id(db, UUID(inscripcion_id_str))
     if not inscripcion or not inscripcion.activo:
-        raise ValueError("Este link ya no es válido")
+        raise ValueError("Este link ya no es válido. El cupo ya fue asignado a otro paciente")
 
     turno = await obtener_turno_por_id_simple(db, UUID(turno_id_str))
     if not turno:
@@ -699,7 +726,7 @@ async def aceptar_turno_por_token(db: AsyncSession, token: str) -> dict:
             options={"verify_aud": False},
         )
     except JWTError:
-        raise ValueError("Token inválido o expirado")
+        raise ValueError("Este link ya no es válido. El tiempo para aceptar el turno ha expirado")
 
     turno_id = UUID(payload.get("turno_id"))
     inscripcion_id = UUID(payload.get("inscripcion_id"))
@@ -716,14 +743,14 @@ async def aceptar_turno_por_token(db: AsyncSession, token: str) -> dict:
         inscripcion = result_i.scalar_one_or_none()
 
         if not inscripcion or not inscripcion.activo:
-            raise ValueError("Este link ya no es válido o ya fue utilizado")
+            raise ValueError("Este link ya no es válido. El cupo ya fue asignado a otro paciente")
 
         turno = await obtener_turno_por_id_con_lock(db, turno_id)
         if not turno:
             raise ValueError("El turno no existe")
 
         if turno.estado != EstadoTurno.DISPONIBLE:
-            raise ValueError("El turno ya no está disponible")
+            raise ValueError("Este link ya no es válido. El cupo ya fue asignado a otro paciente")
 
         turno.estado = EstadoTurno.RESERVADO
         turno.paciente_id = paciente_id
@@ -748,7 +775,7 @@ async def rechazar_turno_por_token(db: AsyncSession, token: str) -> dict:
             options={"verify_aud": False},
         )
     except JWTError:
-        raise ValueError("Token inválido o expirado")
+        raise ValueError("Este link ya no es válido. El tiempo para aceptar el turno ha expirado")
 
     turno_id_str = payload.get("turno_id")
     inscripcion_id = UUID(payload.get("inscripcion_id"))
@@ -763,7 +790,7 @@ async def rechazar_turno_por_token(db: AsyncSession, token: str) -> dict:
         inscripcion = result_i.scalar_one_or_none()
 
         if not inscripcion or not inscripcion.activo:
-            raise ValueError("Este link ya no es válido o ya fue utilizado")
+            raise ValueError("Este link ya no es válido. El cupo ya fue asignado a otro paciente")
 
         inscripcion.activo = False
         db.add(inscripcion)
@@ -771,4 +798,4 @@ async def rechazar_turno_por_token(db: AsyncSession, token: str) -> dict:
     from app.tasks.lista_espera import ofertar_turno_lista_espera
     ofertar_turno_lista_espera.delay(turno_id_str)
 
-    return {"mensaje": "Rechazaste el turno. Seguís en lista para otras oportunidades."}
+    return {"mensaje": "Rechazaste el turno. El cupo será ofrecido al siguiente paciente en lista de espera"}

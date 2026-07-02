@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.celery_app import celery_app
 from app.config import settings
+from app.integrations.email.email_service import send_oferta_turno_lista_espera
 from app.models.turno import Turno, EstadoTurno, ListaEspera
 
 logger = logging.getLogger(__name__)
@@ -74,23 +75,41 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
 
             link = f"{settings.app_login_url}aceptar-turno?token={token}"
 
-            logger.info(
-                "[lista_espera] EMAIL → paciente %s\n"
-                "  Asunto: Cupo disponible en KinePro\n"
-                "  Turno: %s %s-%s | Área: %s\n"
-                "  Link: %s\n"
-                "  Válido por %d horas.",
-                paciente_id_str,
-                turno.fecha, turno.hora_inicio, turno.hora_fin,
-                turno.area_tratamiento,
-                link,
-                TOKEN_EXPIRY_HOURS,
-            )
-            print(
-                f"[OFERTA TURNO] paciente={paciente_id_str} "
-                f"turno={turno.fecha} {turno.hora_inicio}-{turno.hora_fin} "
-                f"link={link}"
-            )
+            # Obtener email del paciente desde auth.users
+            email_paciente = None
+            try:
+                from sqlalchemy import text as sa_text
+                res_email = await db.execute(
+                    sa_text("SELECT email FROM auth.users WHERE id = :pid"),
+                    {"pid": paciente_id_str},
+                )
+                row = res_email.fetchone()
+                if row:
+                    email_paciente = row[0]
+            except Exception as e:
+                logger.warning("[lista_espera] No se pudo obtener email para paciente %s: %s", paciente_id_str, e)
+
+            if email_paciente:
+                enviado = send_oferta_turno_lista_espera(
+                    email=email_paciente,
+                    fecha=turno.fecha,
+                    hora_inicio=turno.hora_inicio,
+                    hora_fin=turno.hora_fin,
+                    area_tratamiento=turno.area_tratamiento,
+                    link=link,
+                )
+                if enviado:
+                    logger.info(
+                        "[lista_espera] Email de oferta enviado → %s | Turno %s %s-%s",
+                        email_paciente, turno.fecha, turno.hora_inicio, turno.hora_fin,
+                    )
+                else:
+                    logger.warning("[lista_espera] Falló envío de oferta → %s", email_paciente)
+            else:
+                logger.warning(
+                    "[lista_espera] Sin email para paciente %s — oferta no enviada (link: %s)",
+                    paciente_id_str, link,
+                )
 
         # Programar verificación de vencimiento fuera del bloque de DB
         verificar_vencimiento_oferta.apply_async(

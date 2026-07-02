@@ -270,6 +270,12 @@ class ReporteAusentismoResponse(BaseModel):
     fecha_hasta: date
     total_pacientes_ausentes: int
     ausencias: List[AusentismoResponse]
+    mensaje: Optional[str] = None
+
+
+# ── HU-13: Cancelar inscripción en lista de espera (paciente) ────
+class CancelarInscripcionResponse(BaseModel):
+    mensaje: str
 
 
 # ── HU-15: Info de turno por token ───────────────────────────────
@@ -279,3 +285,23 @@ class TurnoInfoTokenResponse(BaseModel):
     hora_inicio: time
     hora_fin: time
     area_tratamiento: Optional[AreaTratamiento]
+
+
+# ── Agenda del profesional ────────────────────────────────────────
+class AgendaProfesionalTurnoResponse(BaseModel):
+    id: UUID
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    area_tratamiento: Optional[AreaTratamiento] = None
+    estado: EstadoTurno
+    paciente_id: Optional[UUID] = None
+    paciente: Optional[PacienteAgendaInfo] = None
+
+    model_config = {"from_attributes": True}
+
+
+class AgendaProfesionalResponse(BaseModel):
+    fecha: date
+    turnos: List[AgendaProfesionalTurnoResponse]
+    total: int

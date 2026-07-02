@@ -9,6 +9,7 @@ import { StaffManagementPage } from './features/staff-management'
 import { TurnosPage } from './features/turnos'
 import { AppLayout } from './layouts'
 import { AgendaProfesional } from './features/turnos/secretaria/AgendaProfesional'
+import AgendaProfesionalView from './features/turnos/profesional/AgendaProfesionalView'
 import { MetricasPage } from './features/metricas'
 
 import { clearPasswordRecoveryFlow, hasPasswordRecoveryFlow, supabase } from './lib/supabase/client'
@@ -127,9 +128,12 @@ function App() {
   }
 
   function renderActiveSection() {
-    // Si es del staff va a la agenda
-    if (activeSection === 'inicio' && (user.rol === 'secretaria' || user.rol === 'profesional')) {
+    if (activeSection === 'inicio' && user.rol === 'secretaria') {
       return <AgendaProfesional user={user} />
+    }
+
+    if (activeSection === 'inicio' && user.rol === 'profesional') {
+      return <AgendaProfesionalView user={user} />
     }
 
     // Si es un paciente y por algún motivo llegó a inicio, le mostramos el home base

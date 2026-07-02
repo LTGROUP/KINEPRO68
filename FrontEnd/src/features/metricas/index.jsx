@@ -8,11 +8,13 @@ export function MetricasPage({ user }) {
     useEffect(() => {
         async function cargar() {
             try {
-                const session = JSON.parse(localStorage.getItem('kinepro_session'))
-                const token = session?.access_token
+                const token = user?.access_token
                 const res = await fetch('/api/v1/turnos/metricas', {
                     headers: { Authorization: `Bearer ${token}` }
                 })
+                if (!res.ok) {
+                    throw new Error(`Error ${res.status}`)
+                }
                 const json = await res.json()
                 setDatos(json)
             } catch (e) {
@@ -22,7 +24,7 @@ export function MetricasPage({ user }) {
             }
         }
         cargar()
-    }, [])
+    }, [user])
 
     if (cargando) return <p style={{ padding: '2rem' }}>Cargando métricas...</p>
     if (datos?.mensaje) return <p style={{ padding: '2rem' }}>{datos.mensaje}</p>
@@ -45,7 +47,7 @@ export function MetricasPage({ user }) {
 
             {/* Gráfico */}
             <h2 style={{ marginBottom: '1rem' }}>Cancelaciones, reservas y presentes por mes</h2>
-            {datos.grafico_por_mes.length === 0 ? (
+            {(datos.grafico_por_mes?.length ?? 0) === 0 ? (
                 <p>No hay datos registrados por mes.</p>
             ) : (
                 <div style={{ background: 'white', borderRadius: '8px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>

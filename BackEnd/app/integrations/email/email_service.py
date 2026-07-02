@@ -81,6 +81,113 @@ def build_account_created_email(nombre: str, rol: str, login_url: str) -> tuple[
     return subject, plain_text, html
 
 
+def _send_email(config: dict, message: EmailMessage) -> bool:
+    try:
+        with smtplib.SMTP(str(config["host"]), int(config["port"]), timeout=15) as server:
+            if config["use_tls"]:
+                tls_context = ssl.create_default_context(cafile=certifi.where())
+                server.starttls(context=tls_context)
+            server.login(str(config["username"]), str(config["password"]))
+            server.send_message(message)
+        return True
+    except Exception:
+        return False
+
+
+def send_recordatorio_turno(email: str, fecha, hora_inicio, hora_fin, area_tratamiento) -> bool:
+    config = get_email_config()
+    if not config:
+        logger.info("Recordatorio no enviado: falta configurar SMTP en BackEnd/.env")
+        return False
+
+    area_str = area_tratamiento.value if hasattr(area_tratamiento, "value") else str(area_tratamiento or "Sin especificar")
+    subject = "Recordatorio de turno — KinePro"
+    plain_text = (
+        f"Hola,\n\n"
+        f"Te recordamos que mañana tenés turno en KinePro.\n\n"
+        f"Fecha: {fecha}\n"
+        f"Horario: {hora_inicio} – {hora_fin}\n"
+        f"Área: {area_str}\n\n"
+        f"KinePro"
+    )
+    html = f"""
+    <div style="font-family: Arial, sans-serif; color: #17352f; line-height: 1.5;">
+      <h1 style="color: #167761;">Recordatorio de turno</h1>
+      <p>Hola, te recordamos que mañana tenés turno en KinePro.</p>
+      <table style="border-collapse: collapse; margin: 1rem 0;">
+        <tr><td style="padding: 4px 12px 4px 0; color: #61736f;">Fecha</td><td style="font-weight:bold;">{escape(str(fecha))}</td></tr>
+        <tr><td style="padding: 4px 12px 4px 0; color: #61736f;">Horario</td><td style="font-weight:bold;">{escape(str(hora_inicio))} – {escape(str(hora_fin))}</td></tr>
+        <tr><td style="padding: 4px 12px 4px 0; color: #61736f;">Área</td><td style="font-weight:bold;">{escape(area_str)}</td></tr>
+      </table>
+      <p style="color: #61736f;">KinePro</p>
+    </div>
+    """
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = f"{config['from_name']} <{config['from_email']}>"
+    msg["To"] = email
+    msg.set_content(plain_text)
+    msg.add_alternative(html, subtype="html")
+
+    sent = _send_email(config, msg)
+    if not sent:
+        logger.exception("No se pudo enviar el recordatorio de turno a %s", email)
+    return sent
+
+
+def send_oferta_turno_lista_espera(email: str, fecha, hora_inicio, hora_fin, area_tratamiento, link: str) -> bool:
+    config = get_email_config()
+    if not config:
+        logger.info("Oferta de lista de espera no enviada: falta configurar SMTP en BackEnd/.env")
+        return False
+
+    area_str = area_tratamiento.value if hasattr(area_tratamiento, "value") else str(area_tratamiento or "Sin especificar")
+    safe_link = escape(link, quote=True)
+    subject = "Cupo disponible en KinePro — respondé en 4 horas"
+    plain_text = (
+        f"Hola,\n\n"
+        f"Hay un cupo disponible para vos en KinePro.\n\n"
+        f"Fecha: {fecha}\n"
+        f"Horario: {hora_inicio} – {hora_fin}\n"
+        f"Área: {area_str}\n\n"
+        f"Tenés 4 horas para aceptar o rechazar desde que recibiste este email.\n"
+        f"Accedé al link: {link}\n\n"
+        f"KinePro"
+    )
+    html = f"""
+    <div style="font-family: Arial, sans-serif; color: #17352f; line-height: 1.5;">
+      <h1 style="color: #167761;">Cupo disponible para vos</h1>
+      <p>Hay un cupo disponible en KinePro. Tenés <strong>4 horas</strong> para responder.</p>
+      <table style="border-collapse: collapse; margin: 1rem 0;">
+        <tr><td style="padding: 4px 12px 4px 0; color: #61736f;">Fecha</td><td style="font-weight:bold;">{escape(str(fecha))}</td></tr>
+        <tr><td style="padding: 4px 12px 4px 0; color: #61736f;">Horario</td><td style="font-weight:bold;">{escape(str(hora_inicio))} – {escape(str(hora_fin))}</td></tr>
+        <tr><td style="padding: 4px 12px 4px 0; color: #61736f;">Área</td><td style="font-weight:bold;">{escape(area_str)}</td></tr>
+      </table>
+      <p>
+        <a href="{safe_link}"
+           style="display:inline-block;background:#167761;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">
+          Ver oferta de turno
+        </a>
+      </p>
+      <p style="color:#61736f;font-size:0.85rem;">Si no respondés en 4 horas, el cupo pasará al siguiente paciente en lista de espera.</p>
+      <p style="color: #61736f;">KinePro</p>
+    </div>
+    """
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = f"{config['from_name']} <{config['from_email']}>"
+    msg["To"] = email
+    msg.set_content(plain_text)
+    msg.add_alternative(html, subtype="html")
+
+    sent = _send_email(config, msg)
+    if not sent:
+        logger.exception("No se pudo enviar la oferta de lista de espera a %s", email)
+    return sent
+
+
 def send_account_created_email(email: str, nombre: str, rol: str) -> bool:
     config = get_email_config()
 
@@ -101,15 +208,7 @@ def send_account_created_email(email: str, nombre: str, rol: str) -> bool:
     message.set_content(plain_text)
     message.add_alternative(html, subtype="html")
 
-    try:
-        with smtplib.SMTP(str(config["host"]), int(config["port"]), timeout=15) as server:
-            if config["use_tls"]:
-                tls_context = ssl.create_default_context(cafile=certifi.where())
-                server.starttls(context=tls_context)
-            server.login(str(config["username"]), str(config["password"]))
-            server.send_message(message)
-    except Exception:
+    sent = _send_email(config, message)
+    if not sent:
         logger.exception("No se pudo enviar el email de cuenta creada")
-        return False
-
-    return True
+    return sent

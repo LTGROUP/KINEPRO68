@@ -1,4 +1,5 @@
 # app/services/grilla_service.py
+from collections import defaultdict
 from datetime import date, time, datetime, timedelta
 from typing import List, Tuple
 from uuid import UUID
@@ -16,10 +17,41 @@ from app.repositories.shifts.grilla import (
     obtener_dias_cerrados_del_mes,
     obtener_turnos_del_dia,
     obtener_turnos_del_rango,
+    obtener_todos_professional_profiles,
+    obtener_conteo_turnos_por_profesional_mes,
 )
 import calendar
 
 DURACION_SESION_MINUTOS = 60
+
+
+def _parse_time_str(t_str: str | None) -> time:
+    if not t_str:
+        return time(0, 0)
+    try:
+        parts = t_str.split(":")
+        return time(int(parts[0]), int(parts[1]))
+    except (ValueError, IndexError):
+        return time(0, 0)
+
+
+def _elegir_profesional(
+    profesionales: list[dict],
+    hora_inicio: time,
+    hora_fin: time,
+    conteo: defaultdict,
+    fecha: date,
+) -> UUID | None:
+    disponibles = [
+        p for p in profesionales
+        if _parse_time_str(p.get("horario_entrada")) <= hora_inicio
+        and _parse_time_str(p.get("horario_salida")) >= hora_fin
+    ]
+    if not disponibles:
+        return None
+    elegido = min(disponibles, key=lambda p: conteo[(p["profile_id"], fecha)])
+    conteo[(elegido["profile_id"], fecha)] += 1
+    return UUID(elegido["profile_id"])
 
 DIAS_SEMANA_MAP = {
     "lunes": 0, "martes": 1, "miercoles": 2,
@@ -66,6 +98,10 @@ async def generar_grilla(
 
     await eliminar_turnos_disponibles_del_mes(db, primer_dia_mes, ultimo_dia_mes)
 
+    conteo_existente = await obtener_conteo_turnos_por_profesional_mes(db, primer_dia_mes, ultimo_dia_mes)
+    conteo: defaultdict = defaultdict(int, conteo_existente)
+    profesionales = obtener_todos_professional_profiles()
+
     config = ConfiguracionGrilla(
         mes=request.mes,
         anio=request.anio,
@@ -108,12 +144,14 @@ async def generar_grilla(
 
         for hora_ini, hora_fin_slot in slots:
             for _ in range(request.turnos_por_slot):
+                prof_id = _elegir_profesional(profesionales, hora_ini, hora_fin_slot, conteo, fecha_actual)
                 turno = Turno(
                     configuracion_id=config.id,
                     fecha=fecha_actual,
                     hora_inicio=hora_ini,
                     hora_fin=hora_fin_slot,
                     estado=EstadoTurno.DISPONIBLE,
+                    profesional_id=prof_id,
                 )
                 db.add(turno)
                 total_creados += 1
