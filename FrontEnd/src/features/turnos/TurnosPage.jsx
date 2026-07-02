@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import SolicitarTurnoView from './paciente/SolicitarTurnoView'
+import VerListaDeEspera from './paciente/ListasDeEspera'
 import MisTurnosView from './paciente/MisTurnosView'
 import ConfigurarGrillaView from './secretaria/ConfigurarGrillaView'
 import ListaEsperaView from './secretaria/ListaEsperaView'
@@ -11,11 +12,12 @@ function TurnosPage({ user }) {
   const rol = user?.rol
   const [activeTab, setActiveTab] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const [preseleccion, setPreseleccion] = useState(null)
 
   useEffect(() => {
     if (rol === 'paciente') {
       setActiveTab('mis-turnos')
-    } else if (rol === 'secretaria' || rol === 'administrativo') {
+    } else if (rol === 'secretaria' || rol === 'administrative' || rol === 'administrativo') {
       setActiveTab('grilla')
     } else if (rol === 'profesional') {
       setActiveTab('agenda-profesional')
@@ -36,6 +38,11 @@ function TurnosPage({ user }) {
     if (rol === 'paciente') {
       setActiveTab('mis-turnos')
     }
+  }
+
+  function handleTurnoLleno(fecha, turnoId) {
+    setPreseleccion({ fecha, turnoId })
+    setActiveTab('lista-espera')
   }
 
   if (!activeTab) return null
@@ -70,8 +77,8 @@ function TurnosPage({ user }) {
                 onClick={() => setActiveTab('mis-turnos')}
               >
                 Mis turnos
-                
               </button>
+
               <button
                 type="button"
                 role="tab"
@@ -80,6 +87,16 @@ function TurnosPage({ user }) {
                 onClick={() => setActiveTab('solicitar')}
               >
                 Solicitar turno
+              </button>
+
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'lista-espera-paciente'}
+                className={activeTab === 'lista-espera-paciente' ? 'active' : ''}
+                onClick={() => setActiveTab('lista-espera-paciente')}
+              >
+                Turnos en lista de espera
               </button>
             </div>
           )}
@@ -113,6 +130,11 @@ function TurnosPage({ user }) {
           {activeTab === 'mis-turnos' && (
             <MisTurnosView user={user} />
           )}
+
+          {activeTab === 'lista-espera-paciente' && (
+            <VerListaDeEspera user={user} />
+          )}
+
           {activeTab === 'grilla' && (
             <ConfigurarGrillaView user={user} onSuccess={handleSuccess} />
           )}

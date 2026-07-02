@@ -4,6 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession #ORM para conectarme a la base d
 from sqlalchemy import select, delete, and_, func
 from app.models.turno import Turno, DiasCerrados, EstadoTurno
 from app.integrations.supabase.client import get_supabase_admin_client
+from sqlalchemy import select, delete, and_
+from app.models.turno import Turno, DiasCerrados, EstadoTurno, ConfiguracionGrilla
+from typing import Optional
 
 
 async def eliminar_turnos_disponibles_del_mes(
@@ -107,3 +110,17 @@ async def obtener_conteo_turnos_por_profesional_mes(
     for row in result.all():
         conteo[(str(row.profesional_id), row.fecha)] = row.n
     return conteo
+async def obtener_configuracion_por_mes(
+    db: AsyncSession,
+    mes: int,
+    anio: int,
+) -> Optional[ConfiguracionGrilla]:
+    result = await db.execute(
+        select(ConfiguracionGrilla).where(
+            and_(
+                ConfiguracionGrilla.mes == mes,
+                ConfiguracionGrilla.anio == anio,
+            )
+        )
+    )
+    return result.scalar_one_or_none()

@@ -144,11 +144,11 @@ class TurnoSolicitadoResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 class MiTurnoResponse(BaseModel):
-    id:UUID
+    id: UUID
     fecha: date
     hora_inicio: time
     hora_fin: time
-    area_tratamiento:Optional[AreaTratamiento]
+    area_tratamiento: Optional[AreaTratamiento]
     estado: EstadoTurno
 
     model_config = {"from_attributes": True}
@@ -196,6 +196,7 @@ class TurnosFechaResponse(BaseModel):
     fecha: date
     turnos: List[TurnoFechaResponse]
     total: int
+    turnos_por_slot: int
 
 class CancelarTurnoResponse(BaseModel):
     mensaje: Optional[str] = None
@@ -289,19 +290,41 @@ class TurnoInfoTokenResponse(BaseModel):
 
 # ── Agenda del profesional ────────────────────────────────────────
 class AgendaProfesionalTurnoResponse(BaseModel):
+    pass  # Añade los campos necesarios para esta respuesta cuando los tengas
+
+# Ver turnos en lista de espera (paciente)
+class MiInscripcionListaEsperaResponse(BaseModel):
+    inscripcion_id: UUID
+    turno_id: UUID
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    area_tratamiento: str
+    fecha_inscripcion: datetime
+    posicion: int
+    
+    model_config = {"from_attributes": True}
+
+class MisInscripcionesListaEsperaResponse(BaseModel):
+    inscripciones: List[MiInscripcionListaEsperaResponse]
+    total: int
+
+# Esquema correcto para la secretaria consultar la lista de espera de un turno
+class TurnoConListaEsperaResponse(BaseModel):
     id: UUID
     fecha: date
     hora_inicio: time
     hora_fin: time
     area_tratamiento: Optional[AreaTratamiento] = None
     estado: EstadoTurno
-    paciente_id: Optional[UUID] = None
     paciente: Optional[PacienteAgendaInfo] = None
-
+    
     model_config = {"from_attributes": True}
-
 
 class AgendaProfesionalResponse(BaseModel):
     fecha: date
     turnos: List[AgendaProfesionalTurnoResponse]
+
+class TurnosConListaEsperaResponse(BaseModel):
+    turnos: List[TurnoConListaEsperaResponse]
     total: int
