@@ -5,6 +5,7 @@ import VerListaDeEspera from './paciente/ListasDeEspera'
 import MisTurnosView from './paciente/MisTurnosView'
 import ConfigurarGrillaView from './secretaria/ConfigurarGrillaView'
 import ListaEsperaView from './secretaria/ListaEsperaView'
+import AgendaProfesionalView from './profesional/AgendaProfesionalView'
 import '../../styles/turnos.css'
 
 function TurnosPage({ user }) {
@@ -18,6 +19,8 @@ function TurnosPage({ user }) {
       setActiveTab('mis-turnos')
     } else if (rol === 'secretaria' || rol === 'administrative' || rol === 'administrativo') {
       setActiveTab('grilla')
+    } else if (rol === 'profesional') {
+      setActiveTab('agenda-profesional')
     } else {
       setActiveTab('solicitar')
     }
@@ -46,6 +49,7 @@ function TurnosPage({ user }) {
 
   const esPaciente = rol === 'paciente'
   const esSecretaria = rol === 'secretaria' || rol === 'administrativo'
+  const esProfesional = rol === 'profesional'
 
   return (
     <main className="staff-page">
@@ -57,7 +61,8 @@ function TurnosPage({ user }) {
               <p>
                 {esPaciente && 'Reservá y consultá tus turnos'}
                 {esSecretaria && 'Configurá la grilla y gestioná la lista de espera'}
-                {!esPaciente && !esSecretaria && 'Consultá los turnos disponibles'}
+                {esProfesional && 'Tu agenda de turnos asignados'}
+                {!esPaciente && !esSecretaria && !esProfesional && 'Consultá los turnos disponibles'}
               </p>
             </div>
           </div>
@@ -136,9 +141,8 @@ function TurnosPage({ user }) {
           {activeTab === 'lista-espera' && (
             <ListaEsperaView user={user} />
           )}
-
-          {!esPaciente && !esSecretaria && (
-            <MisTurnosView user={user} />
+          {activeTab === 'agenda-profesional' && (
+            <AgendaProfesionalView user={user} />
           )}
         </section>
       </section>

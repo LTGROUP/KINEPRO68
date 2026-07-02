@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.celery_app import celery_app
 from app.config import settings
+from app.integrations.email.email_service import send_recordatorio_turno
 from app.models.turno import Turno, EstadoTurno
 
 logger = logging.getLogger(__name__)
@@ -58,31 +59,31 @@ async def _enviar_recordatorios_24hs() -> int:
                         turno.paciente_id, e,
                     )
 
-                area_str = turno.area_tratamiento.value if turno.area_tratamiento else "Sin especificar"
-                cuerpo = (
-                    f"Hola,\n\n"
-                    f"Te recordamos que tenés turno mañana {turno.fecha} "
-                    f"de {turno.hora_inicio} a {turno.hora_fin}.\n"
-                    f"Área: {area_str}.\n\n"
-                    f"KinePro"
-                )
+                if not email:
+                    logger.warning(
+                        "[recordatorios] Sin email para paciente %s — turno %s %s omitido",
+                        turno.paciente_id, turno.fecha, turno.hora_inicio,
+                    )
+                    continue
 
-                if email:
+                enviado = send_recordatorio_turno(
+                    email=email,
+                    fecha=turno.fecha,
+                    hora_inicio=turno.hora_inicio,
+                    hora_fin=turno.hora_fin,
+                    area_tratamiento=turno.area_tratamiento,
+                )
+                if enviado:
                     logger.info(
-                        "[recordatorios] MAIL → %s | Turno %s %s-%s",
+                        "[recordatorios] Email enviado → %s | Turno %s %s-%s",
                         email, turno.fecha, turno.hora_inicio, turno.hora_fin,
                     )
+                    enviados += 1
                 else:
-                    logger.info(
-                        "[recordatorios] MAIL (sin email) → paciente %s | Turno %s %s-%s",
-                        turno.paciente_id, turno.fecha, turno.hora_inicio, turno.hora_fin,
+                    logger.warning(
+                        "[recordatorios] Falló envío → %s | Turno %s %s",
+                        email, turno.fecha, turno.hora_inicio,
                     )
-
-                print(
-                    f"[RECORDATORIO] paciente={turno.paciente_id} "
-                    f"email={email} turno={turno.fecha} {turno.hora_inicio}\n{cuerpo}"
-                )
-                enviados += 1
 
         return enviados
     finally:

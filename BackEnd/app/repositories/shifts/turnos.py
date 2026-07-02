@@ -271,6 +271,25 @@ async def obtener_inscripcion_por_id(db: AsyncSession, inscripcion_id: UUID) -> 
     return result.scalar_one_or_none()
 
 
+async def obtener_turnos_por_profesional_y_fecha(
+    db: AsyncSession,
+    profesional_id: UUID,
+    fecha: date,
+) -> list[Turno]:
+    result = await db.execute(
+        select(Turno)
+        .where(
+            and_(
+                Turno.profesional_id == profesional_id,
+                Turno.fecha == fecha,
+                Turno.estado != EstadoTurno.DISPONIBLE,
+            )
+        )
+        .order_by(Turno.hora_inicio)
+    )
+    return result.scalars().all()
+
+
 async def obtener_ausencias_por_rango(
     db: AsyncSession,
     fecha_desde: date,

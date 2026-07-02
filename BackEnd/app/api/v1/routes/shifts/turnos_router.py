@@ -28,6 +28,7 @@ from app.schemas.shifts.turno import (
     InscripcionListaEsperaRequest,
     ReprogramarTurnoRequest,
     CancelarTurnoSecretariaResponse,
+    CancelarInscripcionResponse,
     InscribirPacienteListaEsperaRequest,
     ReporteAusentismoResponse,
     TurnoInfoTokenResponse,
@@ -35,6 +36,7 @@ from app.schemas.shifts.turno import (
     TurnoConListaEsperaResponse,
     TurnosConListaEsperaResponse
 )
+from app.models.turno import EstadoTurno
 from app.services.shifts.turnos_service import (
     consultar_turnos_disponibles,
     solicitar_turno,
@@ -46,6 +48,7 @@ from app.services.shifts.turnos_service import (
     marcar_asistencia_turno,
     inscribirse_lista_espera,
     inscribir_paciente_lista_espera_secretaria,
+    cancelar_inscripcion_lista_espera_paciente,
     cancelar_inscripcion_lista_espera_secretaria,
     consultar_turnos_para_paciente,
     reprogramar_turno,
@@ -172,10 +175,15 @@ async def solicitar_turno_endpoint(
     db: AsyncSession = Depends(get_db),
     paciente=Depends(get_current_user),
 ):
+    if paciente.get("rol") == "profesional":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Los profesionales no pueden solicitar turnos como pacientes",
+        )
     try:
         from uuid import UUID
         id_paciente = UUID(str(paciente["id"])) if isinstance(paciente["id"], str) else paciente["id"]
-        
+
         return await solicitar_turno(
             db=db,
             request=request,
@@ -198,6 +206,11 @@ async def ver_mis_turnos_endpoint(
     db: AsyncSession = Depends(get_db),
     paciente=Depends(get_current_user),
 ):
+    if paciente.get("rol") == "profesional":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Los profesionales no pueden solicitar turnos como pacientes",
+        )
     try:
         from uuid import UUID
         id_paciente = UUID(str(paciente["id"])) if isinstance(paciente["id"], str) else paciente["id"]
@@ -248,6 +261,32 @@ async def obtener_turnos_lista_espera_activa(
         total=len(turnos),
     )
 
+# ── HU: Cancelar inscripción propia en lista de espera (paciente) ─────────────
+# IMPORTANTE: declarada antes de /{turno_id}/lista-espera para evitar conflictos de rutas
+
+@router.patch(
+    "/lista-espera/{inscripcion_id}/cancelar",
+    response_model=CancelarInscripcionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Cancelar inscripción propia en lista de espera (paciente)",
+    description="El paciente cancela su propia inscripción activa en la lista de espera.",
+)
+async def cancelar_inscripcion_lista_espera_paciente_endpoint(
+    inscripcion_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    paciente=Depends(get_current_user),
+):
+    try:
+        resultado = await cancelar_inscripcion_lista_espera_paciente(
+            db=db,
+            inscripcion_id=inscripcion_id,
+            paciente_id=UUID(str(paciente["id"])),
+        )
+        return CancelarInscripcionResponse(mensaje=resultado["mensaje"])
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 @router.get(
     "/{turno_id}/lista-espera",
     response_model=ListaEsperaResponse,
@@ -281,10 +320,15 @@ async def consultar_lista_espera_endpoint(
 )
 async def inscribirse_lista_espera_endpoint(
     turno_id: UUID,
-    request: InscripcionListaEsperaRequest,  
+    request: InscripcionListaEsperaRequest,
     db: AsyncSession = Depends(get_db),
     paciente=Depends(get_current_user),
 ):
+    if paciente.get("rol") == "profesional":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Los profesionales no pueden solicitar turnos como pacientes",
+        )
     try:
         return await inscribirse_lista_espera(
             db=db,
@@ -310,6 +354,11 @@ async def cancelar_turno_endpoint(
     db: AsyncSession = Depends(get_db),
     paciente=Depends(get_current_user),
 ):
+    if paciente.get("rol") == "profesional":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Los profesionales no pueden solicitar turnos como pacientes",
+        )
     try:
         return await cancelar_turno(db=db, turno_id=turno_id, paciente_id=paciente["id"])
     except HTTPException:
@@ -355,10 +404,12 @@ async def marcar_asistencia_endpoint(
 ):
     try:
         resultado = await marcar_asistencia_turno(
-            db=db, 
-            turno_id=turno_id, 
+            db=db,
+            turno_id=turno_id,
             nuevo_estado=request.nuevo_estado
         )
+        if resultado.estado == EstadoTurno.AUSENTE:
+            return {"mensaje": "Ausencia registrada con éxito"}
         return {"mensaje": f"Turno marcado como {resultado.estado}"}
     except ValueError as e:
         raise HTTPException(
