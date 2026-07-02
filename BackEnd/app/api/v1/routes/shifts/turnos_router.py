@@ -175,14 +175,33 @@ async def solicitar_turno_endpoint(
     db: AsyncSession = Depends(get_db),
     paciente=Depends(get_current_user),
 ):
-    if paciente.get("rol") == "profesional":
+    actor_role = paciente.get("rol")
+
+    if actor_role == "profesional":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Los profesionales no pueden solicitar turnos como pacientes",
         )
     try:
         from uuid import UUID
+
         id_paciente = UUID(str(paciente["id"])) if isinstance(paciente["id"], str) else paciente["id"]
+
+        if request.paciente_id:
+            if actor_role not in ["secretaria", "administrativo"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="No tenes permisos para asignar turnos a otro paciente",
+                )
+
+            from app.repositories.patients.patient_repository import get_patient_by_id
+            if not get_patient_by_id(str(request.paciente_id)):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El paciente indicado no existe",
+                )
+
+            id_paciente = request.paciente_id
 
         return await solicitar_turno(
             db=db,

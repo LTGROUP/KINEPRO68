@@ -130,6 +130,7 @@ class TurnosDisponiblesResponse(BaseModel):
 class SolicitarTurnoRequest(BaseModel):
     turno_id: UUID
     area_tratamiento: AreaTratamiento
+    paciente_id: Optional[UUID] = None
 
 
 # ── Response: Turno solicitado ────────────────────────────────────

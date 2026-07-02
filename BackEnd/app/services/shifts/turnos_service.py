@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta # restar meses exactos
 from zoneinfo import ZoneInfo
@@ -11,6 +12,8 @@ from fastapi import HTTPException, status
 from jose import jwt, JWTError
 from app.config import settings
 from app.models.turno import EstadoTurno, AreaTratamiento, ListaEspera as ListaEsperaModel
+
+logger = logging.getLogger(__name__)
 
 from app.schemas.shifts.turno import (
     SolicitarTurnoRequest,
@@ -119,25 +122,40 @@ async def consultar_turnos_para_paciente(
 async def _enviar_confirmacion_turno_email(db: AsyncSession, paciente_id: UUID, turno) -> None:
     from sqlalchemy import text as sa_text
     from app.integrations.email.email_service import send_confirmacion_turno
+    from app.repositories.patients.patient_repository import get_patient_by_id
 
+    patient = get_patient_by_id(str(paciente_id))
+    email_paciente = patient.get("email") if patient else None
+
+    if not email_paciente:
+        logger.warning(
+            "Confirmación de turno: paciente %s sin email en profiles; intentando auth.users",
+            paciente_id,
+        )
     try:
-        res_email = await db.execute(
-            sa_text("SELECT email FROM auth.users WHERE id = :pid"),
-            {"pid": str(paciente_id)},
-        )
-        row = res_email.fetchone()
-        email_paciente = row[0] if row else None
+        if not email_paciente:
+            res_email = await db.execute(
+                sa_text("SELECT email FROM auth.users WHERE id = :pid"),
+                {"pid": str(paciente_id)},
+            )
+            row = res_email.fetchone()
+            email_paciente = row[0] if row else None
     except Exception:
-        email_paciente = None
+        logger.exception("No se pudo obtener el email del paciente %s", paciente_id)
 
-    if email_paciente:
-        send_confirmacion_turno(
-            email=email_paciente,
-            fecha=turno.fecha,
-            hora_inicio=turno.hora_inicio,
-            hora_fin=turno.hora_fin,
-            area_tratamiento=turno.area_tratamiento,
-        )
+    if not email_paciente:
+        logger.warning("Confirmación de turno no enviada: sin email para paciente %s", paciente_id)
+        return
+
+    enviado = send_confirmacion_turno(
+        email=email_paciente,
+        fecha=turno.fecha,
+        hora_inicio=turno.hora_inicio,
+        hora_fin=turno.hora_fin,
+        area_tratamiento=turno.area_tratamiento,
+    )
+    if enviado:
+        logger.info("Confirmación de turno enviada a %s", email_paciente)
 
 
 async def _enviar_confirmacion_reprogramacion_email(
@@ -145,29 +163,44 @@ async def _enviar_confirmacion_reprogramacion_email(
 ) -> None:
     from sqlalchemy import text as sa_text
     from app.integrations.email.email_service import send_confirmacion_reprogramacion
+    from app.repositories.patients.patient_repository import get_patient_by_id
 
+    patient = get_patient_by_id(str(paciente_id))
+    email_paciente = patient.get("email") if patient else None
+
+    if not email_paciente:
+        logger.warning(
+            "Confirmación de reprogramación: paciente %s sin email en profiles; intentando auth.users",
+            paciente_id,
+        )
     try:
-        res_email = await db.execute(
-            sa_text("SELECT email FROM auth.users WHERE id = :pid"),
-            {"pid": str(paciente_id)},
-        )
-        row = res_email.fetchone()
-        email_paciente = row[0] if row else None
+        if not email_paciente:
+            res_email = await db.execute(
+                sa_text("SELECT email FROM auth.users WHERE id = :pid"),
+                {"pid": str(paciente_id)},
+            )
+            row = res_email.fetchone()
+            email_paciente = row[0] if row else None
     except Exception:
-        email_paciente = None
+        logger.exception("No se pudo obtener el email del paciente %s", paciente_id)
 
-    if email_paciente:
-        send_confirmacion_reprogramacion(
-            email=email_paciente,
-            fecha_vieja=turno_viejo.fecha,
-            hora_inicio_vieja=turno_viejo.hora_inicio,
-            hora_fin_vieja=turno_viejo.hora_fin,
-            area_vieja=area_vieja,
-            fecha_nueva=turno_nuevo.fecha,
-            hora_inicio_nueva=turno_nuevo.hora_inicio,
-            hora_fin_nueva=turno_nuevo.hora_fin,
-            area_nueva=turno_nuevo.area_tratamiento,
-        )
+    if not email_paciente:
+        logger.warning("Confirmación de reprogramación no enviada: sin email para paciente %s", paciente_id)
+        return
+
+    enviado = send_confirmacion_reprogramacion(
+        email=email_paciente,
+        fecha_vieja=turno_viejo.fecha,
+        hora_inicio_vieja=turno_viejo.hora_inicio,
+        hora_fin_vieja=turno_viejo.hora_fin,
+        area_vieja=area_vieja,
+        fecha_nueva=turno_nuevo.fecha,
+        hora_inicio_nueva=turno_nuevo.hora_inicio,
+        hora_fin_nueva=turno_nuevo.hora_fin,
+        area_nueva=turno_nuevo.area_tratamiento,
+    )
+    if enviado:
+        logger.info("Confirmación de reprogramación enviada a %s", email_paciente)
 
 
 async def solicitar_turno(
