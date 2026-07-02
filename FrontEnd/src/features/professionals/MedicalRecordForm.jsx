@@ -107,7 +107,6 @@ function MedicalRecordForm({ loading, onSubmit, initialData = null, mode = 'crea
             onChange={handleInputChange}
             placeholder="Ej: dolor lumbar persistente al realizar actividad física"
             rows="3"
-            required
           />
         </label>
 
@@ -130,7 +129,6 @@ function MedicalRecordForm({ loading, onSubmit, initialData = null, mode = 'crea
             value={form.zona_afectada}
             onChange={handleInputChange}
             placeholder="Ej: columna lumbar"
-            required
           />
         </label>
 

@@ -31,9 +31,9 @@ class ComplementaryStudyResponse(BaseModel):
 class MedicalRecordCreateRequest(BaseModel):
     paciente_id: str
 
-    motivo_consulta: str = Field(min_length=1)
+    motivo_consulta: str | None = None
     diagnostico_medico: str | None = None
-    zona_afectada: str = Field(min_length=1)
+    zona_afectada: str | None = None
     fecha_inicio_lesion: str | None = None
 
     cirugias_relevantes: str | None = None
@@ -47,9 +47,9 @@ class MedicalRecordCreateRequest(BaseModel):
     estudios: list[ComplementaryStudyRequest] = Field(default_factory=list)
 
 class MedicalRecordUpdateRequest(BaseModel):
-    motivo_consulta: str = Field(min_length=1)
+    motivo_consulta: str | None = None
     diagnostico_medico: str | None = None
-    zona_afectada: str = Field(min_length=1)
+    zona_afectada: str | None = None
     fecha_inicio_lesion: str | None = None
 
     cirugias_relevantes: str | None = None
@@ -66,9 +66,9 @@ class MedicalRecordResponse(BaseModel):
     id: str
     paciente_id: str
 
-    motivo_consulta: str
+    motivo_consulta: str | None = None
     diagnostico_medico: str | None = None
-    zona_afectada: str
+    zona_afectada: str | None = None
     fecha_inicio_lesion: str | None = None
 
     cirugias_relevantes: str | None = None

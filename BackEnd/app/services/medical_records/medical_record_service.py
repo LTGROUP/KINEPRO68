@@ -23,6 +23,18 @@ def validate_professional_role(actor_role: str) -> None:
         raise ValueError("Solo los profesionales pueden gestionar fichas médicas")
 
 
+def clean_optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    clean_value = value.strip()
+
+    if not clean_value:
+        return None
+
+    return clean_value
+
+
 def build_study_response(study: dict) -> ComplementaryStudyResponse:
     return ComplementaryStudyResponse(
         id=study["id"],
@@ -39,9 +51,9 @@ def build_medical_record_response(record: dict, studies: list[dict]) -> MedicalR
     return MedicalRecordResponse(
         id=record["id"],
         paciente_id=record["paciente_id"],
-        motivo_consulta=record["motivo_consulta"],
+        motivo_consulta=record.get("motivo_consulta"),
         diagnostico_medico=record.get("diagnostico_medico"),
-        zona_afectada=record["zona_afectada"],
+        zona_afectada=record.get("zona_afectada"),
         fecha_inicio_lesion=record.get("fecha_inicio_lesion"),
         cirugias_relevantes=record.get("cirugias_relevantes"),
         enfermedades_relevantes=record.get("enfermedades_relevantes"),
@@ -114,16 +126,16 @@ def create_medical_record(
     record = create_medical_record_record(
         {
             "paciente_id": data.paciente_id,
-            "motivo_consulta": data.motivo_consulta,
-            "diagnostico_medico": data.diagnostico_medico,
-            "zona_afectada": data.zona_afectada,
-            "fecha_inicio_lesion": data.fecha_inicio_lesion,
-            "cirugias_relevantes": data.cirugias_relevantes,
-            "enfermedades_relevantes": data.enfermedades_relevantes,
-            "medicacion_actual": data.medicacion_actual,
-            "alergias": data.alergias,
-            "ocupacion": data.ocupacion,
-            "actividad_fisica": data.actividad_fisica,
+            "motivo_consulta": clean_optional_text(data.motivo_consulta),
+            "diagnostico_medico": clean_optional_text(data.diagnostico_medico),
+            "zona_afectada": clean_optional_text(data.zona_afectada),
+            "fecha_inicio_lesion": clean_optional_text(data.fecha_inicio_lesion),
+            "cirugias_relevantes": clean_optional_text(data.cirugias_relevantes),
+            "enfermedades_relevantes": clean_optional_text(data.enfermedades_relevantes),
+            "medicacion_actual": clean_optional_text(data.medicacion_actual),
+            "alergias": clean_optional_text(data.alergias),
+            "ocupacion": clean_optional_text(data.ocupacion),
+            "actividad_fisica": clean_optional_text(data.actividad_fisica),
         }
     )
 
@@ -182,9 +194,9 @@ def update_medical_record(
         raise ValueError("La ficha médica indicada no existe")
 
     previous_record_data = {
-        "motivo_consulta": existing_record["motivo_consulta"],
+        "motivo_consulta": existing_record.get("motivo_consulta"),
         "diagnostico_medico": existing_record.get("diagnostico_medico"),
-        "zona_afectada": existing_record["zona_afectada"],
+        "zona_afectada": existing_record.get("zona_afectada"),
         "fecha_inicio_lesion": existing_record.get("fecha_inicio_lesion"),
         "cirugias_relevantes": existing_record.get("cirugias_relevantes"),
         "enfermedades_relevantes": existing_record.get("enfermedades_relevantes"),
@@ -198,16 +210,16 @@ def update_medical_record(
     record = update_medical_record_record(
         record_id,
         {
-            "motivo_consulta": data.motivo_consulta,
-            "diagnostico_medico": data.diagnostico_medico,
-            "zona_afectada": data.zona_afectada,
-            "fecha_inicio_lesion": data.fecha_inicio_lesion,
-            "cirugias_relevantes": data.cirugias_relevantes,
-            "enfermedades_relevantes": data.enfermedades_relevantes,
-            "medicacion_actual": data.medicacion_actual,
-            "alergias": data.alergias,
-            "ocupacion": data.ocupacion,
-            "actividad_fisica": data.actividad_fisica,
+            "motivo_consulta": clean_optional_text(data.motivo_consulta),
+            "diagnostico_medico": clean_optional_text(data.diagnostico_medico),
+            "zona_afectada": clean_optional_text(data.zona_afectada),
+            "fecha_inicio_lesion": clean_optional_text(data.fecha_inicio_lesion),
+            "cirugias_relevantes": clean_optional_text(data.cirugias_relevantes),
+            "enfermedades_relevantes": clean_optional_text(data.enfermedades_relevantes),
+            "medicacion_actual": clean_optional_text(data.medicacion_actual),
+            "alergias": clean_optional_text(data.alergias),
+            "ocupacion": clean_optional_text(data.ocupacion),
+            "actividad_fisica": clean_optional_text(data.actividad_fisica),
         },
     )
 
