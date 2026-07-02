@@ -44,6 +44,35 @@ def get_email_config() -> dict[str, str | int | bool] | None:
     }
 
 
+def _send_email(to: str, subject: str, plain_text: str, html: str) -> bool:
+    """Helper interno compartido: arma el mensaje y lo manda por SMTP."""
+    config = get_email_config()
+
+    if not config:
+        logger.info("Email no enviado: falta configurar SMTP en BackEnd/.env")
+        return False
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = f"{config['from_name']} <{config['from_email']}>"
+    message["To"] = to
+    message.set_content(plain_text)
+    message.add_alternative(html, subtype="html")
+
+    try:
+        with smtplib.SMTP(str(config["host"]), int(config["port"]), timeout=15) as server:
+            if config["use_tls"]:
+                tls_context = ssl.create_default_context(cafile=certifi.where())
+                server.starttls(context=tls_context)
+            server.login(str(config["username"]), str(config["password"]))
+            server.send_message(message)
+    except Exception:
+        logger.exception("No se pudo enviar el email a %s", to)
+        return False
+
+    return True
+
+
 def build_account_created_email(nombre: str, rol: str, login_url: str) -> tuple[str, str, str]:
     subject = "Tu cuenta de KinePro fue creada"
     safe_nombre = escape(nombre)
@@ -67,7 +96,7 @@ def build_account_created_email(nombre: str, rol: str, login_url: str) -> tuple[
       </p>
       <p>Rol asignado: <strong>{safe_rol}</strong></p>
       <p>
-        <a
+        
           href="{safe_login_url}"
           style="display: inline-block; background: #167761; color: white; padding: 12px 18px; border-radius: 8px; text-decoration: none;"
         >
@@ -190,25 +219,96 @@ def send_oferta_turno_lista_espera(email: str, fecha, hora_inicio, hora_fin, are
 
 def send_account_created_email(email: str, nombre: str, rol: str) -> bool:
     config = get_email_config()
-
-    if not config:
-        logger.info("Email no enviado: falta configurar SMTP en BackEnd/.env")
-        return False
-
     subject, plain_text, html = build_account_created_email(
         nombre=nombre,
         rol=rol,
-        login_url=str(config["login_url"]),
+        login_url=str((config or {}).get("login_url", "http://127.0.0.1:5173/")),
+    )
+    return _send_email(email, subject, plain_text, html)
+
+
+AREA_TRATAMIENTO_LABELS = {
+    "tren_superior": "Tren Superior",
+    "tren_medio": "Tren Medio",
+    "tren_inferior": "Tren Inferior",
+}
+
+
+def build_cupo_liberado_email(
+    nombre: str,
+    area_tratamiento: str,
+    fecha: str,
+    hora_inicio: str,
+    hora_fin: str,
+    link: str,
+    horas_validez: int,
+    login_url: str,
+) -> tuple[str, str, str]:
+    subject = "¡Se liberó un cupo para vos en KinePro!"
+    area_label = AREA_TRATAMIENTO_LABELS.get(area_tratamiento, area_tratamiento.replace("_", " ").title())
+
+    safe_nombre = escape(nombre)
+    safe_area = escape(area_label)
+    safe_link = escape(link, quote=True)
+
+    plain_text = (
+        f"Hola {nombre},\n\n"
+        "Se liberó un cupo que coincide con tu inscripción en lista de espera.\n\n"
+        f"Turno: {fecha} de {hora_inicio} a {hora_fin}\n"
+        f"Área: {area_label}\n\n"
+        f"Tenés {horas_validez} horas para confirmarlo desde el siguiente link:\n"
+        f"{link}\n\n"
+        "Pasado ese tiempo, el cupo se ofrecerá al siguiente paciente en la lista.\n\n"
+        "KinePro"
     )
 
-    message = EmailMessage()
-    message["Subject"] = subject
-    message["From"] = f"{config['from_name']} <{config['from_email']}>"
-    message["To"] = email
-    message.set_content(plain_text)
-    message.add_alternative(html, subtype="html")
+    html = f"""
+    <div style="font-family: Arial, sans-serif; color: #17352f; line-height: 1.5;">
+      <h1 style="color: #167761;">¡Se liberó un cupo para vos!</h1>
+      <p>Hola {safe_nombre}, se liberó un turno que coincide con tu inscripción en lista de espera.</p>
+      <p>
+        <strong>Fecha:</strong> {escape(fecha)}<br/>
+        <strong>Horario:</strong> {escape(hora_inicio)} a {escape(hora_fin)}<br/>
+        <strong>Área:</strong> {safe_area}
+      </p>
+      <p>
+        
+          href="{safe_link}"
+          style="display: inline-block; background: #167761; color: white; padding: 12px 18px; border-radius: 8px; text-decoration: none;"
+        >
+          Confirmar turno
+        </a>
+      </p>
+      <p style="color: #61736f;">
+        Este link vence en {horas_validez} horas. Pasado ese tiempo, el cupo pasará al siguiente paciente en la lista de espera.
+      </p>
+      <p style="color: #61736f;">KinePro</p>
+    </div>
+    """
 
-    sent = _send_email(config, message)
-    if not sent:
-        logger.exception("No se pudo enviar el email de cuenta creada")
-    return sent
+    return subject, plain_text, html
+
+
+def send_cupo_liberado_email(
+    email: str,
+    nombre: str,
+    area_tratamiento: str,
+    fecha: str,
+    hora_inicio: str,
+    hora_fin: str,
+    link: str,
+    horas_validez: int,
+) -> bool:
+    config = get_email_config()
+    subject, plain_text, html = build_cupo_liberado_email(
+        nombre=nombre,
+        area_tratamiento=area_tratamiento,
+        fecha=fecha,
+        hora_inicio=hora_inicio,
+        hora_fin=hora_fin,
+        link=link,
+        horas_validez=horas_validez,
+        login_url=str((config or {}).get("login_url", "http://127.0.0.1:5173/")),
+    )
+    return _send_email(email, subject, plain_text, html)
+

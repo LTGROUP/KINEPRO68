@@ -78,7 +78,9 @@ async def get_mis_inscripciones_lista_espera(
 @router.delete("/lista-espera/mis-inscripciones/{inscripcion_id}")
 async def delete_mi_inscripcion_lista_espera(
     inscripcion_id: UUID,
+
     db: AsyncSession = Depends(get_db), # Cambiado Session por AsyncSession
+
     paciente = Depends(get_current_user)
 ):
     exito = await cancelar_inscripcion_lista_espera(db, inscripcion_id, paciente["id"])

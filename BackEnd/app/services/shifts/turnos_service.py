@@ -319,10 +319,19 @@ async def cancelar_turno(db: AsyncSession, turno_id: UUID, paciente_id: UUID):
         # Verificar lista de espera antes de liberar (para decidir si despachar tarea)
         primer_espera = await obtener_primer_paciente_en_espera(db, turno.id)
 
-        # Siempre liberar el turno — la oferta al primero en lista se gestiona por Celery
-        turno.estado = EstadoTurno.DISPONIBLE
         turno.paciente_id = None
         turno.area_tratamiento = None
+
+        # NO Siempre liberar el turno — la oferta al primero en lista se gestiona por Celery
+        if primer_espera:
+            # Se mantiene RESERVADO (sin dueño) para que el turno siga
+            # figurando como "ocupado": nadie puede solicitarlo directo,
+            # solo anotarse en lista de espera, hasta que el primero
+            # de la lista confirme o se agote la lista.
+            turno.estado = EstadoTurno.RESERVADO
+        else:
+            turno.estado = EstadoTurno.DISPONIBLE
+        
         db.add(turno)
 
     # Disparar oferta asíncrona si hay alguien en lista de espera
@@ -587,9 +596,14 @@ async def cancelar_turno_secretaria(
 
         primer_espera = await obtener_primer_paciente_en_espera(db, turno.id)
 
-        turno.estado = EstadoTurno.DISPONIBLE
         turno.paciente_id = None
         turno.area_tratamiento = None
+
+        if primer_espera:
+            turno.estado = EstadoTurno.RESERVADO
+        else:
+            turno.estado = EstadoTurno.DISPONIBLE
+
         db.add(turno)
 
     notificacion_enviada = False
@@ -809,10 +823,11 @@ async def aceptar_turno_por_token(db: AsyncSession, token: str) -> dict:
         if not turno:
             raise ValueError("El turno no existe")
 
-        if turno.estado != EstadoTurno.DISPONIBLE:
-            raise ValueError("Este link ya no es válido. El cupo ya fue asignado a otro paciente")
 
-        turno.estado = EstadoTurno.RESERVADO
+        # El turno debe estar "pendiente de oferta": RESERVADO pero sin paciente asignado
+        if turno.estado != EstadoTurno.RESERVADO or turno.paciente_id is not None:
+            raise ValueError("El turno ya no está disponible")
+
         turno.paciente_id = paciente_id
         turno.area_tratamiento = inscripcion.area_tratamiento
         inscripcion.activo = False

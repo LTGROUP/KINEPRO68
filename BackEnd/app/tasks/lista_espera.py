@@ -5,7 +5,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from jose import jwt
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -13,6 +13,7 @@ from app.celery_app import celery_app
 from app.config import settings
 from app.integrations.email.email_service import send_oferta_turno_lista_espera
 from app.models.turno import Turno, EstadoTurno, ListaEspera
+from app.integrations.email import send_cupo_liberado_email
 
 logger = logging.getLogger(__name__)
 ARGENTINA_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
@@ -36,13 +37,24 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
     engine, session_factory = _make_session_factory()
     try:
         async with session_factory() as db:
-            # Verificar que el turno siga disponible
+            # Verificar que el turno siga "pendiente de oferta"
             result_turno = await db.execute(
                 select(Turno).where(Turno.id == UUID(turno_id))
             )
             turno = result_turno.scalar_one_or_none()
-            if not turno or turno.estado != EstadoTurno.DISPONIBLE:
-                logger.info("[lista_espera] Turno %s ya no está disponible. No se oferta.", turno_id)
+
+            if not turno:
+                logger.info("[lista_espera] Turno %s no existe.", turno_id)
+                return False
+
+            turno_pendiente_oferta = (
+                turno.estado == EstadoTurno.RESERVADO and turno.paciente_id is None
+            )
+            if not turno_pendiente_oferta:
+                logger.info(
+                    "[lista_espera] Turno %s ya no está pendiente de oferta (estado=%s, paciente_id=%s).",
+                    turno_id, turno.estado, turno.paciente_id,
+                )
                 return False
 
             # Buscar primer inscripto activo (FIFO)
@@ -57,11 +69,32 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
             inscripcion = result.scalar_one_or_none()
 
             if not inscripcion:
-                logger.info("[lista_espera] Sin inscriptos en espera para turno %s.", turno_id)
+                # Nadie más en la lista: recién ahí se libera el turno
+                turno.estado = EstadoTurno.DISPONIBLE
+                db.add(turno)
+                await db.commit()
+                logger.info(
+                    "[lista_espera] Sin inscriptos en espera para turno %s. Turno liberado a DISPONIBLE.",
+                    turno_id,
+                )
                 return False
 
             inscripcion_id_str = str(inscripcion.id)
             paciente_id_str = str(inscripcion.paciente_id)
+
+            # Buscar datos de contacto del paciente en profiles
+            result_paciente = await db.execute(
+                text("SELECT nombre, apellido, email FROM profiles WHERE id = :id"),
+                {"id": inscripcion.paciente_id},
+            )
+            paciente = result_paciente.first()
+
+            if not paciente or not paciente.email:
+                logger.warning(
+                    "[lista_espera] No se encontró email para paciente %s. No se puede notificar.",
+                    paciente_id_str,
+                )
+                return False
 
             # Generar token JWT con expiración de 4hs
             expiry = datetime.utcnow() + timedelta(hours=TOKEN_EXPIRY_HOURS)
@@ -75,40 +108,29 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
 
             link = f"{settings.app_login_url}aceptar-turno?token={token}"
 
-            # Obtener email del paciente desde auth.users
-            email_paciente = None
-            try:
-                from sqlalchemy import text as sa_text
-                res_email = await db.execute(
-                    sa_text("SELECT email FROM auth.users WHERE id = :pid"),
-                    {"pid": paciente_id_str},
-                )
-                row = res_email.fetchone()
-                if row:
-                    email_paciente = row[0]
-            except Exception as e:
-                logger.warning("[lista_espera] No se pudo obtener email para paciente %s: %s", paciente_id_str, e)
+            nombre_completo = f"{paciente.nombre} {paciente.apellido}".strip()
 
-            if email_paciente:
-                enviado = send_oferta_turno_lista_espera(
-                    email=email_paciente,
-                    fecha=turno.fecha,
-                    hora_inicio=turno.hora_inicio,
-                    hora_fin=turno.hora_fin,
-                    area_tratamiento=turno.area_tratamiento,
-                    link=link,
+            enviado = send_cupo_liberado_email(
+                email=paciente.email,
+                nombre=nombre_completo,
+                area_tratamiento=turno.area_tratamiento.value if turno.area_tratamiento else "",
+                fecha=turno.fecha.strftime("%d/%m/%Y"),
+                hora_inicio=turno.hora_inicio.strftime("%H:%M"),
+                hora_fin=turno.hora_fin.strftime("%H:%M"),
+                link=link,
+                horas_validez=TOKEN_EXPIRY_HOURS,
+            )
+
+            if enviado:
+                logger.info(
+                    "[lista_espera] Email de cupo liberado enviado a %s (paciente %s, turno %s).",
+                    paciente.email, paciente_id_str, turno_id,
                 )
-                if enviado:
-                    logger.info(
-                        "[lista_espera] Email de oferta enviado → %s | Turno %s %s-%s",
-                        email_paciente, turno.fecha, turno.hora_inicio, turno.hora_fin,
-                    )
-                else:
-                    logger.warning("[lista_espera] Falló envío de oferta → %s", email_paciente)
             else:
                 logger.warning(
-                    "[lista_espera] Sin email para paciente %s — oferta no enviada (link: %s)",
-                    paciente_id_str, link,
+                    "[lista_espera] Falló el envío de email a %s (paciente %s, turno %s). "
+                    "Se programa igual el vencimiento de la oferta.",
+                    paciente.email, paciente_id_str, turno_id,
                 )
 
         # Programar verificación de vencimiento fuera del bloque de DB
