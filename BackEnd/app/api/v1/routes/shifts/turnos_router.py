@@ -256,9 +256,15 @@ async def obtener_turnos_lista_espera_activa(
     secretaria=Depends(get_current_secretaria),
 ):
     turnos = await consultar_turnos_con_lista_espera_activa(db)
+    turnos_response = []
+    for turno, cantidad in turnos:
+        turno_resp = TurnoConListaEsperaResponse.model_validate(turno)
+        turno_resp.cantidad_en_espera = cantidad
+        turnos_response.append(turno_resp)
+
     return TurnosConListaEsperaResponse(
-        turnos=[TurnoConListaEsperaResponse.model_validate(t) for t in turnos],
-        total=len(turnos),
+        turnos=turnos_response,
+        total=len(turnos_response),
     )
 
 # ── HU: Cancelar inscripción propia en lista de espera (paciente) ─────────────
