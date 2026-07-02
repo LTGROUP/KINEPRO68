@@ -630,7 +630,7 @@ function PatientsPage({ user }) {
           routine={selectedRoutine}
           canManage={ownsSelectedRoutine}
           canEdit={user.rol === 'profesional'}
-          canDelete={ownsSelectedRoutine}
+          canDelete={user.rol === 'profesional'}
           deleting={deletingRoutine}
           onClose={() => setSelectedRoutine(null)}
           onEdit={handleOpenEditRoutine}

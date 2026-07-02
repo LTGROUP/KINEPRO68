@@ -429,9 +429,6 @@ def deactivate_routine(
     if not existing_routine:
         raise ValueError("La rutina indicada no existe")
 
-    if existing_routine["profesional_id"] != actor_id:
-        raise ValueError("No tenes permisos para eliminar esta rutina")
-
     routine = deactivate_routine_record(routine_id)
     exercises = get_exercises_by_routine_id(routine_id)
 
