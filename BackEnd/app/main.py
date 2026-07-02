@@ -12,6 +12,9 @@ from app.api.v1.routes.medical_records.medical_record_routes import (
 )
 from app.api.v1.routes.patients.patient_routes import router as patients_router
 from app.api.v1.routes.routines.routine_routes import router as routines_router
+from app.api.v1.routes.session_notes.session_note_routes import (
+    router as session_notes_router,
+)
 from app.api.v1.routes.shifts import grilla_router as grilla
 from app.api.v1.routes.shifts import turnos_router as turnos
 from app.api.v1.routes.staff_management.staff_routes import router as staff_router
@@ -64,3 +67,4 @@ app.include_router(exercise_catalog_router, prefix="/api/v1")
 app.include_router(patients_router, prefix="/api/v1")
 app.include_router(staff_router, prefix="/api/v1")
 app.include_router(medical_records_router, prefix="/api/v1")
+app.include_router(session_notes_router, prefix="/api/v1")

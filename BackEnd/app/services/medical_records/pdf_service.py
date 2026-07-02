@@ -102,7 +102,7 @@ def generate_medical_record_pdf(record: dict, patient: dict | None = None) -> by
             )
     )
 
-    story.append(Paragraph("Ficha médica del paciente", styles["Subtitle"]))
+    story.append(Paragraph("Historia clínica del paciente", styles["Subtitle"]))
 
     if patient:
       add_section(story, "Datos del paciente", styles)

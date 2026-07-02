@@ -113,6 +113,8 @@ function RoutineDayContent({ day, exercises }) {
 function RoutineDetailModal({
   routine,
   canManage,
+  canEdit = canManage,
+  canDelete = canManage,
   deleting,
   onClose,
   onEdit,
@@ -195,21 +197,26 @@ function RoutineDetailModal({
           )}
         </div>
 
-        {canManage && (
+        {(canEdit || canDelete) && (
           <footer className="routine-detail-actions">
-            <button type="button" className="primary" onClick={onEdit}>
-              <Pencil size={17} aria-hidden="true" />
-              Editar rutina
-            </button>
-            <button
-              type="button"
-              className="danger"
-              onClick={() => setShowDeleteConfirmation(true)}
-              disabled={deleting}
-            >
-              <Trash2 size={17} aria-hidden="true" />
-              {deleting ? 'Eliminando...' : 'Eliminar rutina'}
-            </button>
+            {canEdit && (
+              <button type="button" className="primary" onClick={onEdit}>
+                <Pencil size={17} aria-hidden="true" />
+                Editar rutina
+              </button>
+            )}
+
+            {canDelete && (
+              <button
+                type="button"
+                className="danger"
+                onClick={() => setShowDeleteConfirmation(true)}
+                disabled={deleting}
+              >
+                <Trash2 size={17} aria-hidden="true" />
+                {deleting ? 'Eliminando...' : 'Eliminar rutina'}
+              </button>
+            )}
           </footer>
         )}
 

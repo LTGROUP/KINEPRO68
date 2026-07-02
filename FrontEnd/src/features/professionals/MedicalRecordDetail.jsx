@@ -1,9 +1,7 @@
-function MedicalRecordDetail({ record, onEdit, onExportPdf }) {
+function MedicalRecordDetail({ record }) {
   return (
     <div className="space-y-5">
       <section>
-        <p className="staff-eyebrow">Información médica</p>
-
         <div className="space-y-3">
           <div>
             <strong>Motivo de consulta</strong>
@@ -93,24 +91,6 @@ function MedicalRecordDetail({ record, onEdit, onExportPdf }) {
           </div>
         )}
       </section>
-
-      <div className="flex flex-wrap gap-3 pt-2">
-        <button
-          type="button"
-          className="staff-register-button"
-          onClick={() => onEdit(record)}
-        >
-          Editar ficha
-        </button>
-
-        <button
-          type="button"
-          className="staff-qr-button"
-          onClick={() => onExportPdf(record)}
-        >
-          Exportar PDF
-        </button>
-      </div>
     </div>
   )
 }

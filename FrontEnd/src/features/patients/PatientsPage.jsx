@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { QrCode, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, QrCode, Search, X } from 'lucide-react'
 
 import RoutineForm from '../professionals/RoutineForm'
 import {
@@ -26,8 +26,13 @@ import {
   updateMedicalRecord,
   downloadMedicalRecordPdf,
 } from '../../services/medicalRecordService'
+import {
+  createSessionNote,
+  getPatientSessionNotes,
+} from '../../services/sessionNoteService'
 
 import MedicalRecordDetail from '../professionals/MedicalRecordDetail'
+import ClinicalHistoryPanel from '../professionals/ClinicalHistoryPanel'
 import RoutineDetailModal from '../professionals/RoutineDetailModal'
 
 function getSearchButtonClass(searchTerm) {
@@ -90,6 +95,10 @@ function PatientsPage({ user }) {
   const [deletingRoutine, setDeletingRoutine] = useState(false)
   const [patientForMedicalRecord, setPatientForMedicalRecord] = useState(null)
   const [selectedMedicalRecord, setSelectedMedicalRecord] = useState(null)
+  const [showMedicalRecordActions, setShowMedicalRecordActions] = useState(false)
+  const [clinicalHistoryNotes, setClinicalHistoryNotes] = useState([])
+  const [loadingClinicalHistory, setLoadingClinicalHistory] = useState(false)
+  const [savingSessionNote, setSavingSessionNote] = useState(false)
   const [editingMedicalRecord, setEditingMedicalRecord] = useState(null)
   const [savingMedicalRecord, setSavingMedicalRecord] = useState(false)
   const [patientWithoutRoutine, setPatientWithoutRoutine] = useState(null)
@@ -209,10 +218,13 @@ function PatientsPage({ user }) {
   async function handleMedicalRecordAction(patient) {
     setError('')
     setMessage('')
+    setClinicalHistoryNotes([])
 
     try {
       const record = await getMedicalRecord(user, patient.id)
       setSelectedMedicalRecord(record)
+      setShowMedicalRecordActions(false)
+      await loadClinicalHistory(record.paciente_id)
     } catch (requestError) {
       if (requestError.status === 404) {
         setPatientWithoutMedicalRecord(patient)
@@ -231,7 +243,7 @@ function PatientsPage({ user }) {
         paciente_id: patientForMedicalRecord.id,
       })
 
-      setMessage('Ficha médica creada correctamente')
+      setMessage('Historia clínica creada correctamente')
       setPatientForMedicalRecord(null)
     } catch (requestError) {
       setError(requestError.message)
@@ -250,7 +262,7 @@ function PatientsPage({ user }) {
         payload,
       )
 
-      setMessage('Ficha médica actualizada correctamente')
+      setMessage('Historia clínica actualizada correctamente')
       setEditingMedicalRecord(null)
     } catch (requestError) {
       setError(requestError.message)
@@ -264,6 +276,40 @@ function PatientsPage({ user }) {
       await downloadMedicalRecordPdf(user, record.id)
     } catch (requestError) {
       setError(requestError.message)
+    }
+  }
+
+  async function loadClinicalHistory(patientId) {
+    setLoadingClinicalHistory(true)
+
+    try {
+      const response = await getPatientSessionNotes(user, patientId)
+      setClinicalHistoryNotes(response.items)
+    } catch (requestError) {
+      setError(requestError.message)
+      setClinicalHistoryNotes([])
+    } finally {
+      setLoadingClinicalHistory(false)
+    }
+  }
+
+  async function handleRegisterSessionNote(payload) {
+    setSavingSessionNote(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const createdNote = await createSessionNote(user, {
+        ...payload,
+        paciente_id: selectedMedicalRecord.paciente_id,
+      })
+
+      setClinicalHistoryNotes((currentNotes) => [createdNote, ...currentNotes])
+      setMessage('Anotacion guardada con exito')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSavingSessionNote(false)
     }
   }
 
@@ -583,6 +629,8 @@ function PatientsPage({ user }) {
         <RoutineDetailModal
           routine={selectedRoutine}
           canManage={ownsSelectedRoutine}
+          canEdit={user.rol === 'profesional'}
+          canDelete={ownsSelectedRoutine}
           deleting={deletingRoutine}
           onClose={() => setSelectedRoutine(null)}
           onEdit={handleOpenEditRoutine}
@@ -652,18 +700,18 @@ function PatientsPage({ user }) {
 
 
       {patientForMedicalRecord && (
-        <aside className="staff-detail" aria-label="Ficha médica">
+        <aside className="staff-detail" aria-label="Historia clínica">
           <div className="staff-detail-card staff-form-card">
             <button
               type="button"
               className="staff-detail-close"
               onClick={() => setPatientForMedicalRecord(null)}
-              aria-label="Cerrar ficha médica"
+              aria-label="Cerrar historia clínica"
             >
               <X size={18} strokeWidth={3} aria-hidden="true" />
             </button>
 
-            <p className="staff-eyebrow">Ficha médica</p>
+            <p className="staff-eyebrow">Historia clínica</p>
 
             <h2>
               {patientForMedicalRecord.nombre} {patientForMedicalRecord.apellido}
@@ -678,46 +726,94 @@ function PatientsPage({ user }) {
       )}
 
       {selectedMedicalRecord && (
-        <aside className="staff-detail" aria-label="Ficha médica">
+        <aside className="staff-detail" aria-label="Historia clínica">
           <div className="staff-detail-card">
             <button
               type="button"
               className="staff-detail-close"
-              onClick={() => setSelectedMedicalRecord(null)}
-              aria-label="Cerrar ficha médica"
+              onClick={() => {
+                setSelectedMedicalRecord(null)
+                setShowMedicalRecordActions(false)
+                setClinicalHistoryNotes([])
+              }}
+              aria-label="Cerrar historia clínica"
             >
               <X size={18} strokeWidth={3} aria-hidden="true" />
             </button>
 
-            <p className="staff-eyebrow">Ficha médica</p>
+            <div className="clinical-history-heading">
+              <h2 className="clinical-history-title">Historia clínica</h2>
 
-            <h2>Historia clínica</h2>
+              <div className="clinical-history-actions-menu">
+                {showMedicalRecordActions && (
+                  <div className="clinical-history-actions-popover">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingMedicalRecord(selectedMedicalRecord)
+                        setSelectedMedicalRecord(null)
+                        setShowMedicalRecordActions(false)
+                      }}
+                    >
+                      Editar
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleDownloadMedicalRecordPdf(selectedMedicalRecord)
+                        setShowMedicalRecordActions(false)
+                      }}
+                    >
+                      Exportar PDF
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className="clinical-history-actions-toggle"
+                  onClick={() =>
+                    setShowMedicalRecordActions((currentValue) => !currentValue)
+                  }
+                  aria-label="Mostrar acciones de historia clínica"
+                >
+                  {showMedicalRecordActions ? (
+                    <ChevronUp size={20} strokeWidth={3} aria-hidden="true" />
+                  ) : (
+                    <ChevronDown size={20} strokeWidth={3} aria-hidden="true" />
+                  )}
+                </button>
+              </div>
+            </div>
 
             <MedicalRecordDetail
               record={selectedMedicalRecord}
-              onEdit={(record) => {
-                setEditingMedicalRecord(record)
-                setSelectedMedicalRecord(null)
-              }}
-              onExportPdf={handleDownloadMedicalRecordPdf}
+            />
+
+            <ClinicalHistoryPanel
+              notes={clinicalHistoryNotes}
+              loading={loadingClinicalHistory}
+              saving={savingSessionNote}
+              onRegister={handleRegisterSessionNote}
             />
           </div>
         </aside>
       )}
 
       {editingMedicalRecord && (
-        <aside className="staff-detail" aria-label="Editar ficha médica">
+        <aside className="staff-detail" aria-label="Editar historia clínica">
           <div className="staff-detail-card staff-form-card">
             <button
               type="button"
               className="staff-detail-close"
               onClick={() => setEditingMedicalRecord(null)}
-              aria-label="Cerrar edición de ficha médica"
+              aria-label="Cerrar edición de historia clínica"
             >
               <X size={18} strokeWidth={3} aria-hidden="true" />
             </button>
 
-            <p className="staff-eyebrow">Editar ficha médica</p>
+            <p className="staff-eyebrow">Editar historia clínica</p>
             <h2>Historia clínica</h2>
 
             <MedicalRecordForm
@@ -731,7 +827,7 @@ function PatientsPage({ user }) {
       )}
 
       {patientWithoutMedicalRecord && (
-        <aside className="staff-detail" aria-label="Ficha médica">
+        <aside className="staff-detail" aria-label="Historia clínica">
           <div className="staff-detail-card">
             <button
               type="button"
@@ -741,10 +837,10 @@ function PatientsPage({ user }) {
               <X size={18} strokeWidth={3} aria-hidden="true" />
             </button>
 
-            <p className="staff-eyebrow">Ficha médica</p>
-            <h2>No hay ficha médica cargada</h2>
+            <p className="staff-eyebrow">Historia clínica</p>
+            <h2>No hay historia clínica cargada</h2>
             <p className="staff-confirm-copy">
-              Este paciente todavía no tiene una ficha médica registrada.
+              Este paciente todavía no tiene una historia clínica registrada.
             </p>
 
             <div className="staff-confirm-actions">
@@ -756,7 +852,7 @@ function PatientsPage({ user }) {
                   setPatientWithoutMedicalRecord(null)
                 }}
               >
-                Cargar ficha médica
+                Cargar historia clínica
               </button>
             </div>
           </div>

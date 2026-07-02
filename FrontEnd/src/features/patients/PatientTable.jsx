@@ -56,7 +56,7 @@ function PatientTable({
           </button>
 
           <button type="button" onClick={() => onMedicalRecord(patient)}>
-            Ficha médica
+            Historia clínica
           </button>
 
           <button type="button" onClick={() => onView(patient)}>

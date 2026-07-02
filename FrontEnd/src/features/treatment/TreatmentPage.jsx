@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   CalendarDays,
-  ClipboardClock,
   Dumbbell,
-  FileHeart,
 } from 'lucide-react'
 
 import {
@@ -22,18 +20,6 @@ const MODULES = [
     description: 'Consultá los días, bloques y ejercicios de tu rutina activa.',
     Icon: Dumbbell,
   },
-  {
-    id: 'history',
-    title: 'Historial clínico',
-    description: 'Revisá la información de tu seguimiento clínico.',
-    Icon: FileHeart,
-  },
-  {
-    id: 'sessions',
-    title: 'Sesiones',
-    description: 'Consultá el registro de tus sesiones de tratamiento.',
-    Icon: ClipboardClock,
-  },
 ]
 
 function formatDate(dateValue) {
@@ -48,16 +34,6 @@ function formatDate(dateValue) {
   }
 
   return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`
-}
-
-function getModuleById(moduleId) {
-  for (const module of MODULES) {
-    if (module.id === moduleId) {
-      return module
-    }
-  }
-
-  return MODULES[0]
 }
 
 function TreatmentPage({ user }) {
@@ -142,7 +118,6 @@ function TreatmentPage({ user }) {
         <div className="treatment-empty">
           <Dumbbell size={30} aria-hidden="true" />
           <h2>Todavía no tenés una rutina asignada</h2>
-          <p>{routineError || 'Tu profesional podrá asignarte una próximamente.'}</p>
           <button type="button" onClick={loadRoutine}>
             Volver a consultar
           </button>
@@ -176,28 +151,7 @@ function TreatmentPage({ user }) {
     )
   }
 
-  function renderPendingModule(moduleId) {
-    const module = getModuleById(moduleId)
-    const Icon = module.Icon
-
-    return (
-      <div className="treatment-empty">
-        <Icon size={30} aria-hidden="true" />
-        <h2>{module.title}</h2>
-        <p>Aún no hay información disponible en esta sección.</p>
-      </div>
-    )
-  }
-
-  function renderModuleContent(moduleId) {
-    if (moduleId === 'routine') {
-      return renderRoutineContent()
-    }
-
-    return renderPendingModule(moduleId)
-  }
-
-  const selectedMobileModule = getModuleById(mobileModule)
+  const selectedMobileModule = MODULES[0]
   const desktopOptions = MODULES.map((module) => ({
     id: module.id,
     label: module.title,
@@ -219,9 +173,9 @@ function TreatmentPage({ user }) {
             options={desktopOptions}
             activeSection={activeModule}
             onSelect={setActiveModule}
-            contentTitle={getModuleById(activeModule).title}
+            contentTitle="Mi rutina"
           >
-            {renderModuleContent(activeModule)}
+            {renderRoutineContent()}
           </DesktopSectionLayout>
 
           <div className="treatment-mobile-layout">
@@ -245,7 +199,7 @@ function TreatmentPage({ user }) {
                   backLabel="Volver a las secciones de tratamiento"
                   onBack={handleBackToModules}
                 />
-                {renderModuleContent(mobileModule)}
+                {renderRoutineContent()}
               </section>
             )}
           </div>

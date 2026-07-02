@@ -301,11 +301,11 @@ function MedicalRecordForm({ loading, onSubmit, initialData = null, mode = 'crea
       <button className="auth-submit" type="submit" disabled={loading}>
         {loading
           ? mode === 'edit'
-            ? 'Actualizando ficha...'
-            : 'Guardando ficha...'
+            ? 'Actualizando historia clínica...'
+            : 'Guardando historia clínica...'
           : mode === 'edit'
-            ? 'Actualizar ficha médica'
-            : 'Guardar ficha médica'}
+            ? 'Actualizar historia clínica'
+            : 'Guardar historia clínica'}
       </button>
     </form>
   )
