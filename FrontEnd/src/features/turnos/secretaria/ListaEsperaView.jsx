@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Users } from 'lucide-react'
 
-import { getTodosLosTurnos, getListaEspera, getListaEsperaActivas } from '../../../services/turnosService'
+import { getListaEspera, getListaEsperaActivas, cancelarInscripcionListaEsperaSecretaria } from '../../../services/turnosService'
 
 const MES_NAMES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -37,13 +36,32 @@ function ListaEsperaView({ user }) {
   const [errorTurnos, setErrorTurnos] = useState('')
   const [selectedTurnoId, setSelectedTurnoId] = useState('')
   const [listaEspera, setListaEspera] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [errorLista, setErrorLista] = useState('')
   const [loadingLista, setLoadingLista] = useState(false)
+  const [errorLista, setErrorLista] = useState('')
+
+  // Estados para la baja de una reserva en lista de espera (HU-13)
+  const [modalCancelar, setModalCancelar] = useState(null) // guarda el paciente a dar de baja
+  const [idEnCancelacion, setIdEnCancelacion] = useState('')
+  const [mensajeExito, setMensajeExito] = useState('')
+  const [errorCancelacion, setErrorCancelacion] = useState('')
 
   useEffect(() => {
     cargarTurnosConListaEspera()
   }, [user])
+
+  useEffect(() => {
+    if (!mensajeExito) return undefined
+
+    const id = window.setTimeout(() => setMensajeExito(''), 5000)
+    return () => window.clearTimeout(id)
+  }, [mensajeExito])
+
+  useEffect(() => {
+    if (!errorCancelacion) return undefined
+
+    const id = window.setTimeout(() => setErrorCancelacion(''), 5000)
+    return () => window.clearTimeout(id)
+  }, [errorCancelacion])
 
   async function cargarTurnosConListaEspera() {
     setLoadingTurnos(true)
@@ -55,6 +73,45 @@ function ListaEsperaView({ user }) {
       setErrorTurnos(err.message)
     } finally {
       setLoadingTurnos(false)
+    }
+  }
+
+  async function handleVerLista(turnoId) {
+    setSelectedTurnoId(turnoId)
+    setLoadingLista(true)
+    setErrorLista('')
+    setListaEspera(null)
+
+    try {
+      const data = await getListaEspera(user, turnoId)
+      setListaEspera(data)
+    } catch (err) {
+      setErrorLista(err.message)
+    } finally {
+      setLoadingLista(false)
+    }
+  }
+
+  function abrirModalCancelar(paciente) {
+    setModalCancelar(paciente)
+  }
+
+  async function confirmarCancelarReserva() {
+    const paciente = modalCancelar
+    setModalCancelar(null)
+
+    setIdEnCancelacion(paciente.id)
+    setErrorCancelacion('')
+
+    try {
+      const data = await cancelarInscripcionListaEsperaSecretaria(user, paciente.id)
+      setMensajeExito(data.mensaje || 'Reserva dada de baja exitosamente')
+      await handleVerLista(selectedTurnoId)
+      await cargarTurnosConListaEspera()
+    } catch (err) {
+      setErrorCancelacion(err.message || 'No se pudo cancelar la reserva')
+    } finally {
+      setIdEnCancelacion('')
     }
   }
 
@@ -71,7 +128,16 @@ function ListaEsperaView({ user }) {
   }
 
   return (
+    <>
     <div className="turnos-espera-layout" style={{ marginTop: '24px' }}>
+
+      {mensajeExito && (
+        <p className="staff-message success" style={{ marginBottom: '16px' }}>{mensajeExito}</p>
+      )}
+
+      {errorCancelacion && (
+        <p className="staff-message error" style={{ marginBottom: '16px' }}>{errorCancelacion}</p>
+      )}
 
       {loadingTurnos && (
         <p className="staff-empty">Cargando listas de espera...</p>
@@ -142,6 +208,25 @@ function ListaEsperaView({ user }) {
                             {paciente.dni && <span>DNI: {paciente.dni}</span>}
                             <span>Inscripto el {formatDatetime(paciente.fecha_inscripcion)}</span>
                           </div>
+
+                          {/* BOTÓN CANCELAR RESERVA — mismo color que "Cancelar" en Mis turnos del paciente */}
+                          <button
+                            type="button"
+                            onClick={() => abrirModalCancelar(paciente)}
+                            disabled={idEnCancelacion === paciente.id}
+                            style={{
+                              backgroundColor: '#fee2e2',
+                              color: '#b91c1c',
+                              border: '1px solid #f87171',
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              fontSize: '0.85rem',
+                            }}
+                          >
+                            {idEnCancelacion === paciente.id ? 'Cancelando...' : 'Cancelar reserva'}
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -153,155 +238,52 @@ function ListaEsperaView({ user }) {
         </div>
       ))}
     </div>
-  )
 
-  async function buscarTurnosPorFecha(fechaBuscar) {
-    console.log('fechaBuscar:', fechaBuscar)
-    setLoadingTurnos(true)
-    setErrorTurnos('')
-    setTurnos([])
-    setSelectedTurnoId('')
-    setListaEspera(null)
-
-    try {
-      const data = await getTodosLosTurnos(user, fechaBuscar)
-
-      const conteo = {}
-        ; (data.turnos || []).forEach(t => {
-          const key = t.hora_inicio
-          conteo[key] = (conteo[key] || 0) + 1
-        })
-
-      const llenos = (data.turnos || []).filter(t =>
-        conteo[t.hora_inicio] >= data.turnos_por_slot
-      )
-
-      const vistos = new Set()
-      const turnosLlenos = llenos.filter(t => {
-        if (vistos.has(t.hora_inicio)) return false
-        vistos.add(t.hora_inicio)
-        return true
-      })
-
-      setTurnos(turnosLlenos)
-    } catch (err) {
-      setErrorTurnos(err.message)
-    } finally {
-      setLoadingTurnos(false)
-    }
-  }
-
-  async function handleBuscarFecha(event) {
-    event.preventDefault()
-    if (!fecha) return
-    await buscarTurnosPorFecha(fecha)
-  }
-  async function handleVerLista(turnoId) {
-    setSelectedTurnoId(turnoId)
-    setLoadingLista(true)
-    setErrorLista('')
-    setListaEspera(null)
-
-    try {
-      const data = await getListaEspera(user, turnoId)
-      setListaEspera(data)
-    } catch (err) {
-      setErrorLista(err.message)
-    } finally {
-      setLoadingLista(false)
-    }
-  }
-
-  return (
-    <div className="turnos-espera-layout" style={{ marginTop: '24px' }}>
-      <form className="turnos-espera-search" onSubmit={handleBuscarFecha}>
-        <label className="staff-form-field" htmlFor="espera-fecha">
-          Ingrese una fecha
-          <input
-            id="espera-fecha"
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-          />
-        </label>
-        <button type="submit" className="staff-register-button" disabled={!fecha || loadingTurnos}>
-          {loadingTurnos ? 'Buscando...' : 'Consultar turnos'}
-        </button>
-      </form>
-
-      {errorTurnos && (
-        <p className="staff-message error">{errorTurnos}</p>
-      )}
-
-      {!loadingTurnos && fecha && turnos.length === 0 && !errorTurnos && (
-        <p className="staff-empty">No hay turnos llenos (reservados) para esta fecha.</p>
-      )}
-
-      {turnos.length > 0 && (
-        <div className="turnos-espera-slots">
-          <p className="turnos-slots-heading">
-            Turnos llenos del <strong>{formatDateLabel(fecha)}</strong> — seleccioná uno para ver su lista de espera
+    {/* MODAL DE CONFIRMACIÓN — mismo estilo que el de Mis turnos del paciente */}
+    {modalCancelar && (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9999,
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        padding: '20px'
+      }}>
+        <div style={{
+          backgroundColor: 'white', borderRadius: '12px', padding: '32px',
+          maxWidth: '450px', width: '100%',
+          boxShadow: '0px 20px 25px -5px rgba(0,0,0,0.1)'
+        }}>
+          <h3 style={{ margin: '0 0 12px 0', color: '#111827', fontSize: '1.2rem' }}>
+            ¿Cancelar reserva?
+          </h3>
+          <p style={{ color: '#4b5563', marginBottom: '24px' }}>
+            {`¿Confirmás dar de baja la reserva de ${modalCancelar.nombre && modalCancelar.apellido
+              ? `${modalCancelar.nombre} ${modalCancelar.apellido}`
+              : 'este paciente'} en la lista de espera?`}
           </p>
-          <div className="turnos-slots-grid">
-            {turnos.map((turno) => (
-              <button
-                key={turno.id}
-                type="button"
-                className={`turnos-slot-card${selectedTurnoId === turno.id ? ' active' : ''}`}
-                onClick={() => handleVerLista(turno.id)}
-              >
-                <span className="turnos-slot-time">
-                  {formatTime(turno.hora_inicio)} – {formatTime(turno.hora_fin)}
-                </span>
-              </button>
-            ))}
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setModalCancelar(null)}
+              style={{
+                padding: '8px 20px', borderRadius: '6px', border: '1px solid #d1d5db',
+                background: 'white', cursor: 'pointer', fontWeight: 'bold'
+              }}
+            >
+              Volver
+            </button>
+            <button
+              onClick={confirmarCancelarReserva}
+              style={{
+                padding: '8px 20px', borderRadius: '6px', border: 'none',
+                background: '#b91c1c', color: 'white', cursor: 'pointer', fontWeight: 'bold'
+              }}
+            >
+              Confirmar cancelación
+            </button>
           </div>
         </div>
-      )}
-
-      {loadingLista && (
-        <p className="staff-empty">Cargando lista de espera...</p>
-      )}
-
-      {errorLista && (
-        <p className="staff-message error">{errorLista}</p>
-      )}
-
-      {listaEspera && (
-        <div className="turnos-espera-result">
-          <p className="turnos-slots-heading">
-            Lista de espera — {listaEspera.total} {listaEspera.total === 1 ? 'paciente' : 'pacientes'}
-            {listaEspera.mensaje && <span> · {listaEspera.mensaje}</span>}
-          </p>
-
-          {listaEspera.total === 0 ? (
-            <div className="turnos-empty-state">
-              <Users size={32} aria-hidden="true" />
-              <p>No hay pacientes en lista de espera para este turno.</p>
-            </div>
-          ) : (
-            <div className="turnos-list">
-              {listaEspera.pacientes.map((paciente) => (
-                <div key={paciente.id} className="turnos-list-item">
-                  <div className="turnos-espera-posicion">
-                    #{paciente.posicion}
-                  </div>
-                  <div className="turnos-list-info">
-                    <strong className="turnos-list-id">
-                      {paciente.nombre && paciente.apellido
-                        ? `${paciente.nombre} ${paciente.apellido}`
-                        : `Paciente ${String(paciente.paciente_id).slice(0, 8)}…`}
-                    </strong>
-                    {paciente.dni && <span>DNI: {paciente.dni}</span>}
-                    <span>Inscripto el {formatDatetime(paciente.fecha_inscripcion)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+      </div>
+    )}
+    </>
   )
 }
 

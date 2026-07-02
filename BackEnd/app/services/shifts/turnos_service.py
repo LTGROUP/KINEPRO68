@@ -243,6 +243,16 @@ async def inscribirse_lista_espera(
 
     # Se busca el turno por id
     turno = await obtener_turno_por_id_con_lock(db, turno_id)
+    # Verificar que no se supere el límite de lista de espera
+    conteo = await db.scalar(
+    select(func.count()).select_from(ListaEsperaModel).where(
+            ListaEsperaModel.turno_id == turno_id,
+            ListaEsperaModel.activo == True
+        )
+    )
+    if conteo >= 5:
+        raise ValueError("La lista de espera para este turno ya está completa (máximo 5 personas)")
+
     if not turno:
         raise ValueError("El turno indicado no existe")
 
@@ -616,6 +626,16 @@ async def inscribir_paciente_lista_espera_secretaria(
     async with db.begin():
         turno = await obtener_turno_por_id_con_lock(db, turno_id)
 
+        # Verificar límite de lista de espera
+        conteo = await db.scalar(
+            select(func.count()).select_from(ListaEsperaModel).where(
+                ListaEsperaModel.turno_id == turno_id,
+                ListaEsperaModel.activo == True
+            )
+        )
+        if conteo >= 5:
+                raise ValueError("La lista de espera está completa (máximo 5 personas)")     
+               
         if not turno:
             raise ValueError("El turno indicado no existe")
 
@@ -685,7 +705,7 @@ async def cancelar_inscripcion_lista_espera_secretaria(
         inscripcion.activo = False
         db.add(inscripcion)
 
-    return {"mensaje": "Inscripción cancelada exitosamente", "inscripcion_id": str(inscripcion_id)}
+    return {"mensaje": "Reserva dada de baja exitosamente", "inscripcion_id": str(inscripcion_id)}
 
 
 # HU-5: Reporte de ausentismo por rango de fechas
@@ -842,7 +862,7 @@ async def rechazar_turno_por_token(db: AsyncSession, token: str) -> dict:
     return {"mensaje": "Rechazaste el turno. Seguís en lista para otras oportunidades."}
 
 # ver lista de espera (paciente)
-async def ver_mis_inscripciones_lista_espera(db: AsyncSession, paciente_id: int):
+async def ver_mis_inscripciones_lista_espera(db: AsyncSession, paciente_id: UUID):
     # ¡Obligatorio el await acá porque la función de arriba ahora es asíncrona!
     resultados = await obtener_inscripciones_lista_espera_por_paciente(db, paciente_id)
     inscripciones_formateadas = []
@@ -877,7 +897,7 @@ async def ver_mis_inscripciones_lista_espera(db: AsyncSession, paciente_id: int)
         "total": len(inscripciones_formateadas)
     }
 #Cancelar lista de espera (paciente)
-async def cancelar_inscripcion_lista_espera(db: AsyncSession, inscripcion_id: int, paciente_id: int):
+async def cancelar_inscripcion_lista_espera(db: AsyncSession, inscripcion_id: UUID, paciente_id: UUID):
     # Reemplazamos db.query por select()
     query = select(ListaEsperaModel).where(
         ListaEsperaModel.id == inscripcion_id, 

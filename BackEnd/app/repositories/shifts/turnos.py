@@ -308,7 +308,7 @@ async def obtener_ausencias_por_rango(
 
 #ver lista de espera (paciente)
 
-async def obtener_inscripciones_lista_espera_por_paciente(db: AsyncSession, paciente_id: int):
+async def obtener_inscripciones_lista_espera_por_paciente(db: AsyncSession, paciente_id: UUID):
     # En SQLAlchemy asíncrono/2.0 armamos el select primero
     query = (
         select(ListaEspera, Turno)
