@@ -56,16 +56,17 @@ function isTurnoBlocked(fechaStr, horaInicioStr) {
 }
 
 function groupTurnosByTime(turnos) {
-  const seen = new Set()
-  const result = []
+  const byKey = new Map()
   for (const turno of turnos) {
     const key = `${turno.hora_inicio}-${turno.hora_fin}`
-    if (!seen.has(key)) {
-      seen.add(key)
-      result.push(turno)
+    const actual = byKey.get(key)
+    // Si hay varios cupos para el mismo horario, priorizar uno disponible
+    // por sobre uno reservado, para no ocultar cupos libres en paralelo.
+    if (!actual || (actual.estado !== 'disponible' && turno.estado === 'disponible')) {
+      byKey.set(key, turno)
     }
   }
-  return result
+  return Array.from(byKey.values())
 }
 
 function formatLongDate(dateStr) {
