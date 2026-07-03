@@ -20,6 +20,32 @@ TOKEN_ALGORITHM = "HS256"
 TOKEN_EXPIRY_HOURS = 4
 
 
+async def _obtener_email_paciente(db: AsyncSession, paciente_id: str) -> str | None:
+    from sqlalchemy import text as sa_text
+    from app.repositories.patients.patient_repository import get_patient_by_id
+
+    patient = get_patient_by_id(paciente_id)
+    email_paciente = patient.get("email") if patient else None
+
+    if email_paciente:
+        return email_paciente
+
+    try:
+        res_email = await db.execute(
+            sa_text("SELECT email FROM auth.users WHERE id = :pid"),
+            {"pid": paciente_id},
+        )
+        row = res_email.fetchone()
+        return row[0] if row else None
+    except Exception as error:
+        logger.warning(
+            "[lista_espera] No se pudo obtener email para paciente %s: %s",
+            paciente_id,
+            error,
+        )
+        return None
+
+
 def _make_session_factory():
     engine = create_async_engine(
         settings.database_url,
@@ -75,19 +101,7 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
 
             link = f"{settings.app_login_url}aceptar-turno?token={token}"
 
-            # Obtener email del paciente desde auth.users
-            email_paciente = None
-            try:
-                from sqlalchemy import text as sa_text
-                res_email = await db.execute(
-                    sa_text("SELECT email FROM auth.users WHERE id = :pid"),
-                    {"pid": paciente_id_str},
-                )
-                row = res_email.fetchone()
-                if row:
-                    email_paciente = row[0]
-            except Exception as e:
-                logger.warning("[lista_espera] No se pudo obtener email para paciente %s: %s", paciente_id_str, e)
+            email_paciente = await _obtener_email_paciente(db, paciente_id_str)
 
             if email_paciente:
                 enviado = send_oferta_turno_lista_espera(
@@ -112,13 +126,32 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
                 )
 
         # Programar verificación de vencimiento fuera del bloque de DB
-        verificar_vencimiento_oferta.apply_async(
-            args=[turno_id, inscripcion_id_str],
-            countdown=TOKEN_EXPIRY_HOURS * 3600,
-        )
+        try:
+            verificar_vencimiento_oferta.apply_async(
+                args=[turno_id, inscripcion_id_str],
+                countdown=TOKEN_EXPIRY_HOURS * 3600,
+            )
+        except Exception:
+            logger.warning(
+                "[lista_espera] No se pudo programar la verificación de vencimiento para turno %s "
+                "(Celery/Redis no disponible). El mail de oferta se envió igual.",
+                turno_id,
+            )
         return True
     finally:
         await engine.dispose()
+
+
+async def despachar_oferta_turno(turno_id: str) -> None:
+    """Encola la oferta por Celery; si no hay broker disponible, la ejecuta en el momento."""
+    try:
+        ofertar_turno_lista_espera.delay(turno_id)
+    except Exception:
+        logger.warning(
+            "[lista_espera] Celery/Redis no disponible, enviando oferta en línea para turno %s",
+            turno_id,
+        )
+        await _ofertar_turno_lista_espera(turno_id)
 
 
 @celery_app.task(name="tasks.ofertar_turno_lista_espera")
@@ -150,7 +183,7 @@ async def _verificar_vencimiento_oferta(turno_id: str, inscripcion_id: str) -> N
                 inscripcion_id,
             )
 
-        ofertar_turno_lista_espera.delay(turno_id)
+        await despachar_oferta_turno(turno_id)
     finally:
         await engine.dispose()
 

@@ -416,8 +416,8 @@ async def cancelar_turno(db: AsyncSession, turno_id: UUID, paciente_id: UUID):
 
     # Disparar oferta asíncrona si hay alguien en lista de espera
     if primer_espera:
-        from app.tasks.lista_espera import ofertar_turno_lista_espera
-        ofertar_turno_lista_espera.delay(str(turno.id))
+        from app.tasks.lista_espera import despachar_oferta_turno
+        await despachar_oferta_turno(str(turno.id))
         mensaje_lista_espera = "El cupo fue liberado. Se notificará al primero en lista de espera."
     else:
         mensaje_lista_espera = "El cupo fue liberado y está disponible para nuevos turnos"
@@ -686,8 +686,8 @@ async def cancelar_turno_secretaria(
 
     notificacion_enviada = False
     if primer_espera:
-        from app.tasks.lista_espera import ofertar_turno_lista_espera
-        ofertar_turno_lista_espera.delay(str(turno.id))
+        from app.tasks.lista_espera import despachar_oferta_turno
+        await despachar_oferta_turno(str(turno.id))
         notificacion_enviada = True
 
     if con_menos_48hs:
@@ -949,8 +949,8 @@ async def rechazar_turno_por_token(db: AsyncSession, token: str) -> dict:
         inscripcion.activo = False
         db.add(inscripcion)
 
-    from app.tasks.lista_espera import ofertar_turno_lista_espera
-    ofertar_turno_lista_espera.delay(turno_id_str)
+    from app.tasks.lista_espera import despachar_oferta_turno
+    await despachar_oferta_turno(turno_id_str)
 
     return {"mensaje": "Rechazaste el turno. El cupo será ofrecido al siguiente paciente en lista de espera"}
     return {"mensaje": "Rechazaste el turno. Seguís en lista para otras oportunidades."}
