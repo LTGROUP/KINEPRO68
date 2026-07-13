@@ -90,7 +90,7 @@ class ListaEspera(Base):
     __tablename__ = "lista_espera"
 
     id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    turno_id    = Column(UUID(as_uuid=True), ForeignKey("turnos.id"), nullable=False)
+    turno_id    = Column(UUID(as_uuid=True), ForeignKey("turnos.id"), nullable=False, index=True)
     paciente_id = Column(UUID(as_uuid=True), nullable=False)
     area_tratamiento = Column(SAEnum(AreaTratamiento, name="area_tratamiento", values_callable=lambda x: [e.value for e in x]), nullable=False)  # ← agregar
     fecha_inscripcion = Column(DateTime, default=datetime.utcnow, nullable=False)

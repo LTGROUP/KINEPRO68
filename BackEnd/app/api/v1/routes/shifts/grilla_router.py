@@ -17,11 +17,14 @@ from app.schemas.shifts.turno import (
     EliminarDiaCerradoResponse,
     DiasCerradosListResponse,
     DiaCerradoItem,
+    EditarHorarioDiaRequest,
+    EditarHorarioDiaResponse,
 )
 from app.services.shifts.grilla_service import (
     generar_grilla,
     bloquear_dia,
     reducir_cupos_rango,
+    editar_horario_dia,
 )
 from app.repositories.shifts.grilla import (
     obtener_dia_cerrado_por_fecha,
@@ -185,6 +188,34 @@ async def eliminar_dia_cerrado_endpoint(
         )
 
     return EliminarDiaCerradoResponse(mensaje="Día cerrado eliminado correctamente")
+
+
+@router.patch(
+    "/dias/{fecha}/horario",
+    response_model=EditarHorarioDiaResponse,
+    summary="Editar el horario de un día ya generado",
+    description="Reemplaza los turnos disponibles de una fecha con un nuevo horario, sin afectar los turnos ya reservados.",
+)
+async def editar_horario_dia_endpoint(
+    fecha: date,
+    request: EditarHorarioDiaRequest,
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    try:
+        resultado = await editar_horario_dia(
+            db=db,
+            fecha=fecha,
+            hora_inicio=request.hora_inicio,
+            hora_fin=request.hora_fin,
+            secretaria_id=secretaria["id"],
+        )
+        return resultado
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
 
 @router.get(

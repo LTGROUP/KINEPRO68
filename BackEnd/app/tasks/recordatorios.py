@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.celery_app import celery_app
 from app.config import settings
-from app.integrations.email.email_service import send_recordatorio_turno
+from app.integrations.email.email_service import send_recordatorio_turno, send_confirmacion_turno
 from app.models.turno import Turno, EstadoTurno
 
 logger = logging.getLogger(__name__)
@@ -93,3 +93,37 @@ async def _enviar_recordatorios_24hs() -> int:
 @celery_app.task(name="tasks.enviar_recordatorios_24hs")
 def enviar_recordatorios_24hs() -> int:
     return asyncio.run(_enviar_recordatorios_24hs())
+
+
+async def _enviar_confirmacion(
+    to_email: str,
+    nombre_paciente: str,
+    fecha,
+    hora_inicio,
+    hora_fin,
+    area_tratamiento,
+) -> bool:
+    try:
+        enviado = send_confirmacion_turno(
+            to_email=to_email,
+            nombre_paciente=nombre_paciente,
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            hora_fin=hora_fin,
+            area_tratamiento=area_tratamiento,
+        )
+        if enviado:
+            logger.info("[confirmacion_turno] Email enviado a %s", to_email)
+        else:
+            logger.warning("[confirmacion_turno] Falló el envío de confirmación a %s", to_email)
+        return enviado
+    except Exception:
+        logger.exception("[confirmacion_turno] Error inesperado enviando confirmación a %s", to_email)
+        return False
+
+
+@celery_app.task(name="tasks.enviar_confirmacion_turno")
+def enviar_confirmacion_turno_task(to_email, nombre_paciente, fecha, hora_inicio, hora_fin, area_tratamiento) -> bool:
+    return asyncio.run(
+        _enviar_confirmacion(to_email, nombre_paciente, fecha, hora_inicio, hora_fin, area_tratamiento)
+    )
