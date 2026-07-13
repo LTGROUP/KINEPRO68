@@ -56,6 +56,46 @@ class BloquearDiaRequest(BaseModel):
     motivo: Optional[str] = "Bloqueado por administración"
 
 
+# ── Request/Response: Día cerrado (calendario de grilla) ──────────
+class DiaCerradoRequest(BaseModel):
+    fecha: date
+    motivo: Optional[str] = None
+    horario_inicio: Optional[time] = None
+    horario_fin: Optional[time] = None
+
+    @model_validator(mode="after")
+    def validar_horario_reducido(self):
+        if (self.horario_inicio is None) != (self.horario_fin is None):
+            raise ValueError("horario_inicio y horario_fin deben venir juntos o ambos vacíos")
+        if self.horario_inicio is not None and self.horario_fin <= self.horario_inicio:
+            raise ValueError("horario_fin debe ser posterior a horario_inicio")
+        return self
+
+
+class DiaCerradoResponse(BaseModel):
+    mensaje: str
+    fecha: date
+    horario_inicio: Optional[time] = None
+    horario_fin: Optional[time] = None
+
+
+class EliminarDiaCerradoResponse(BaseModel):
+    mensaje: str
+
+
+class DiaCerradoItem(BaseModel):
+    fecha: date
+    motivo: Optional[str] = None
+    horario_inicio: Optional[time] = None
+    horario_fin: Optional[time] = None
+
+    model_config = {"from_attributes": True}
+
+
+class DiasCerradosListResponse(BaseModel):
+    dias_cerrados: List[DiaCerradoItem]
+
+
 # ── Request: Modificar cantidad de turnos por rango (Escenario 5) ─
 class ModificarCuposRangoRequest(BaseModel):
     fecha_desde: date

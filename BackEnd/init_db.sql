@@ -141,12 +141,17 @@ CREATE TABLE IF NOT EXISTS turnos (
 --    Fechas marcadas como feriado o cerradas. El generador de grilla las omite.
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS dias_cerrados (
-    id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    fecha      DATE        NOT NULL UNIQUE,
-    motivo     TEXT,                           -- "Feriado nacional", "Mantenimiento", etc.
-    creado_por UUID        NOT NULL,
-    creado_en  TIMESTAMPTZ DEFAULT NOW()
+    id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    fecha          DATE        NOT NULL UNIQUE,
+    motivo         TEXT,                           -- "Feriado nacional", "Mantenimiento", etc.
+    creado_por     UUID        NOT NULL,
+    creado_en      TIMESTAMPTZ DEFAULT NOW(),
+    horario_inicio TIME,                           -- si tiene valor junto con horario_fin: día con horario reducido
+    horario_fin    TIME
 );
+
+ALTER TABLE dias_cerrados ADD COLUMN IF NOT EXISTS horario_inicio TIME;
+ALTER TABLE dias_cerrados ADD COLUMN IF NOT EXISTS horario_fin TIME;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
