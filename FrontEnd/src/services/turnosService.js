@@ -226,3 +226,10 @@ export function getReporteAusentismo(actor, fechaDesde, fechaHasta) {
     }
   )
 }
+
+export function getListaEsperaActivas(actor) {
+  return request('/api/v1/turnos/lista-espera/activas', {
+    method: 'GET',
+    headers: buildActorHeaders(actor),
+  })
+}

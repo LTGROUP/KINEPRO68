@@ -53,7 +53,7 @@ function getFeedbackTitle(error) {
   return 'Accion realizada'
 }
 
-function PatientsPage({ user }) {
+function PatientsPage({ user, onSectionChange, onNavegarATurnos }) {
   const [items, setItems] = useState([])
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [editingPatient, setEditingPatient] = useState(null)
@@ -395,20 +395,25 @@ function PatientsPage({ user }) {
             </button>
             <p className="staff-eyebrow">Asignación manual</p>
             <h2>Turno para {patientForTurno.nombre}</h2>
-            
+
             <SolicitarTurnoView
               user={user}
               targetPatient={patientForTurno}
               isSecretariaMode
-              onSuccess={(msg) => {
-                setMessage(msg);
-                setPatientForTurno(null);
+              onSuccess={(msg, tabDestino, seccionDestino) => {
+                setMessage(msg)
+                setPatientForTurno(null)
+                if (tabDestino && onNavegarATurnos) {
+                  onNavegarATurnos(tabDestino) // navega a turnos y abre el tab pedido (ej: lista-espera)
+                } else if (seccionDestino && onSectionChange) {
+                  onSectionChange(seccionDestino)
+                }
               }}
             />
           </div>
         </aside>
       )}
-        {(error || message) && (
+      {(error || message) && (
         <aside className="staff-feedback" aria-label="Resultado de la accion">
           <div className={getFeedbackCardClass(error)} role="alert">
             <p className="staff-eyebrow">{getFeedbackEyebrow(error)}</p>

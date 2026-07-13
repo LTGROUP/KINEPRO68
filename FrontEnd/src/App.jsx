@@ -9,6 +9,7 @@ import { StaffManagementPage } from './features/staff-management'
 import { TurnosPage } from './features/turnos'
 import { AppLayout } from './layouts'
 import { AgendaProfesional } from './features/turnos/secretaria/AgendaProfesional'
+import AgendaProfesionalView from './features/turnos/profesional/AgendaProfesionalView'
 import { MetricasPage } from './features/metricas'
 
 import { clearPasswordRecoveryFlow, hasPasswordRecoveryFlow, supabase } from './lib/supabase/client'
@@ -42,7 +43,7 @@ function canUserManage(currentUser) {
 // Logica unificada: inicializamos segun el rol del usuario
 function getInitialSectionForUser(currentUser) {
   if (!currentUser) return 'inicio'
-  
+
   if (currentUser.rol === 'secretaria' || currentUser.rol === 'profesional') {
     return 'inicio'
   }
@@ -67,12 +68,13 @@ function App() {
   const isRecoveryFlow = getIsRecoveryFlow()
   const isAceptarTurnoFlow = getIsAceptarTurnoFlow()
   const [user, setUser] = useState(readStoredSession)
-  
+
   // Usamos el hook de inicio basado en el usuario actual
   const [activeSection, setActiveSection] = useState(() => {
     return getInitialSectionForUser(readStoredSession())
   })
-  
+  const [tabInicialTurnos, setTabInicialTurnos] = useState(null)
+
   const canManageStaff = canUserManage(user)
   const canManagePatients = canUserManage(user)
 
@@ -109,6 +111,12 @@ function App() {
     setActiveSection('inicio')
   }
 
+  // Navega a Turnos abriendo directamente un tab específico (ej: lista-espera)
+  function manejarNavegacionATurnos(tab) {
+    setTabInicialTurnos(tab)
+    setActiveSection('turnos')
+  }
+
   function getSectionTitle(sectionId) {
     const titles = {
       inicio: 'Inicio',
@@ -127,9 +135,12 @@ function App() {
   }
 
   function renderActiveSection() {
-    // Si es del staff va a la agenda
-    if (activeSection === 'inicio' && (user.rol === 'secretaria' || user.rol === 'profesional')) {
+    if (activeSection === 'inicio' && user.rol === 'secretaria') {
       return <AgendaProfesional user={user} />
+    }
+
+    if (activeSection === 'inicio' && user.rol === 'profesional') {
+      return <AgendaProfesionalView user={user} />
     }
 
     // Si es un paciente y por algún motivo llegó a inicio, le mostramos el home base
@@ -142,11 +153,24 @@ function App() {
     }
 
     if (activeSection === 'turnos') {
-      return <TurnosPage user={user} />
+      return (
+        <TurnosPage
+          user={user}
+          onSectionChange={setActiveSection}
+          tabInicial={tabInicialTurnos}
+          onTabInicialConsumido={() => setTabInicialTurnos(null)}
+        />
+      )
     }
 
     if (activeSection === 'pacientes' && canManagePatients) {
-      return <PatientsPage user={user} />
+      return (
+        <PatientsPage
+          user={user}
+          onSectionChange={setActiveSection}
+          onNavegarATurnos={manejarNavegacionATurnos}
+        />
+      )
     }
 
     if (activeSection === 'perfil') {

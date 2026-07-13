@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, X, Calendar, Activity } from 'lucide-react'
 
-import { getTurnosParaPaciente, solicitarTurno, reprogramarTurno, inscribirseListaEspera, registrarTurnoManual } from '../../../services/turnosService'
+import { getTurnosParaPaciente, solicitarTurno, reprogramarTurno, inscribirseListaEspera, registrarTurnoManual, inscribirPacienteListaEsperaSecretaria } from '../../../services/turnosService'
 
 const AREAS = [
   { value: 'tren_superior', label: 'Tren superior' },
@@ -56,16 +56,17 @@ function isTurnoBlocked(fechaStr, horaInicioStr) {
 }
 
 function groupTurnosByTime(turnos) {
-  const seen = new Set()
-  const result = []
+  const byKey = new Map()
   for (const turno of turnos) {
     const key = `${turno.hora_inicio}-${turno.hora_fin}`
-    if (!seen.has(key)) {
-      seen.add(key)
-      result.push(turno)
+    const actual = byKey.get(key)
+    // Si hay varios cupos para el mismo horario, priorizar uno disponible
+    // por sobre uno reservado, para no ocultar cupos libres en paralelo.
+    if (!actual || (actual.estado !== 'disponible' && turno.estado === 'disponible')) {
+      byKey.set(key, turno)
     }
   }
-  return result
+  return Array.from(byKey.values())
 }
 
 function formatLongDate(dateStr) {
@@ -87,10 +88,12 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
   const [areaTratamiento, setAreaTratamiento] = useState('')
   const [saving, setSaving] = useState(false)
   const [errorSolicitar, setErrorSolicitar] = useState('')
-  
+  const [turnoConfirmado, setTurnoConfirmado] = useState(null)
+
   // Estados para lista de espera
   const [showListaEspera, setShowListaEspera] = useState(false)
   const [turnoListaEspera, setTurnoListaEspera] = useState(null)
+  const [inscripcionConfirmada, setInscripcionConfirmada] = useState(null)
 
   const weekDays = getWeekDays(weekStart)
 
@@ -187,35 +190,44 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
   }
 
   async function handleInscribirseListaEspera() {
+    console.log('targetPatient:', targetPatient)
+    console.log('user:', user)
     if (!areaTratamiento) {
-      setErrorSolicitar('Debes seleccionar un área de tratamiento');
-      return;
+      setErrorSolicitar('Debes seleccionar un área de tratamiento')
+      return
     }
+    if (!turnoListaEspera) return
 
-    if (!turnoListaEspera) return;
-
-    setSaving(true);
-    setErrorSolicitar('');
+    setSaving(true)
+    setErrorSolicitar('')
 
     try {
-      await inscribirseListaEspera(user, turnoListaEspera.id, areaTratamiento);
-
-      setShowListaEspera(false);
-      setTurnoListaEspera(null);
-      setAreaTratamiento('');
-
-      if (onSuccess) {
-        onSuccess('Te inscribiste correctamente en la lista de espera, te notificaremos cuando se libere un cupo');
+      if (user.rol === 'paciente') {
+        await inscribirseListaEspera(user, turnoListaEspera.id, areaTratamiento)
+      } else {
+        await inscribirPacienteListaEsperaSecretaria(user, turnoListaEspera.id, {
+          paciente_id: targetPatient.id,
+          area_tratamiento: areaTratamiento,
+        })
       }
+      console.log(turnoListaEspera)
+      setInscripcionConfirmada({
+        fecha: selectedDate,
+        hora_inicio: turnoListaEspera.hora_inicio,
+        hora_fin: turnoListaEspera.hora_fin,
+        area_tratamiento: areaTratamiento,
+      })
+      setShowListaEspera(false)
+      setTurnoListaEspera(null)
+      setAreaTratamiento('')
 
     } catch (err) {
-      setErrorSolicitar(err.message || 'Error al inscribirse en lista de espera');
+      setErrorSolicitar(err.message || 'Error al inscribirse en lista de espera')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
   }
 
-  // LOGICA FUERTE: Bifurcación entre Reservar y Reprogramar
   async function handleConfirmarTurno() {
     if (!areaTratamiento) {
       setErrorSolicitar('Seleccioná un área de tratamiento')
@@ -240,20 +252,25 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
           area_tratamiento: areaTratamiento,
         }
         const data = await registrarTurnoManual(user, payload)
-        if (onSuccess) onSuccess(data.mensaje || 'El turno fue reservado correctamente', data)
+        setTurnoConfirmado({
+          fecha: data.fecha || selectedDate,
+          hora_inicio: data.hora_inicio || selectedTurno.hora_inicio,
+          hora_fin: data.hora_fin || selectedTurno.hora_fin,
+          area_tratamiento: data.area_tratamiento || areaTratamiento,
+        })
       } else {
         const payload = {
           turno_id: selectedTurno.id,
           area_tratamiento: areaTratamiento,
         }
         const data = await solicitarTurno(user, payload)
-        if (onSuccess) onSuccess(data.mensaje || 'El turno fue reservado correctamente', data)
+        setTurnoConfirmado({
+          fecha: data.fecha || selectedDate,
+          hora_inicio: data.hora_inicio || selectedTurno.hora_inicio,
+          hora_fin: data.hora_fin || selectedTurno.hora_fin,
+          area_tratamiento: data.area_tratamiento || areaTratamiento,
+        })
       }
-
-      setSelectedTurno(null)
-      setAreaTratamiento('')
-      setSelectedDate(null)
-      setTurnos([])
     } catch (err) {
       setErrorSolicitar(err.message || 'Error al procesar el turno')
     } finally {
@@ -265,8 +282,7 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
 
   return (
     <div className="turnos-solicitar">
-      
-      {/* Indicador visual de que estamos reprogramando */}
+
       {turnoAReprogramar && (
         <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #bfdbfe' }}>
           <p style={{ margin: 0, color: '#1e3a8a', fontSize: '0.9rem' }}>
@@ -315,7 +331,7 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
         <div className="turnos-agenda">
           {loadingTurnos && <p className="turnos-agenda-heading">Cargando turnos...</p>}
           {!loadingTurnos && errorTurnos && <p className="staff-message error">{errorTurnos}</p>}
-          
+
           {!loadingTurnos && !errorTurnos && (
             <p className="turnos-agenda-heading">
               {turnos.length === 0
@@ -326,7 +342,10 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
 
           {!loadingTurnos && turnos.length > 0 && (
             <div className="turnos-agenda-list">
-              {groupTurnosByTime(turnos).map((turno) => (
+              {(turnoAReprogramar
+                ? groupTurnosByTime(turnos).filter(t => t.estado === 'disponible')
+                : groupTurnosByTime(turnos)
+              ).map((turno) => (
                 <div key={`${turno.hora_inicio}-${turno.hora_fin}`} className={`turnos-agenda-item${selectedTurno?.id === turno.id ? ' selected' : ''}`}>
                   <div className="turnos-agenda-time">
                     <Clock size={14} aria-hidden="true" />
@@ -340,28 +359,14 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
 
                     if (blocked) {
                       return (
-                        <button
-                          type="button"
-                          className="turnos-agenda-action"
-                          disabled
-                        >
+                        <button type="button" className="turnos-agenda-action" disabled>
                           Fuera de término
                         </button>
                       )
                     }
 
                     if (turno.estado === 'reservado') {
-                      if (secretariaMode) {
-                        return (
-                          <button
-                            type="button"
-                            className="turnos-agenda-action"
-                            disabled
-                          >
-                            Sin cupo
-                          </button>
-                        )
-                      }
+                      if (turnoAReprogramar) return null
                       return (
                         <button
                           type="button"
@@ -390,31 +395,18 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
         </div>
       )}
 
-      {/* MODAL: LISTA DE ESPERA (solo flujo de paciente) */}
-      {!secretariaMode && showListaEspera && turnoListaEspera && (
+      {/* MODAL: LISTA DE ESPERA */}
+      {showListaEspera && turnoListaEspera && (
         <aside className="staff-detail">
           <div className="staff-detail-card staff-confirm-card">
-
-            <button
-              type="button"
-              className="staff-detail-close"
-              onClick={handleCloseListaEspera}
-            >
+            <button type="button" className="staff-detail-close" onClick={handleCloseListaEspera}>
               <X size={18} />
             </button>
 
-            <p className="staff-eyebrow">
-              Lista de espera
-            </p>
-
+            <p className="staff-eyebrow">Lista de espera</p>
             <h2>
-              {formatLongDate(selectedDate)} ·
-              {' '}
-              {formatTime(turnoListaEspera.hora_inicio)}
-              {' - '}
-              {formatTime(turnoListaEspera.hora_fin)}
+              {formatLongDate(selectedDate)} · {formatTime(turnoListaEspera.hora_inicio)} - {formatTime(turnoListaEspera.hora_fin)}
             </h2>
-
             <p className="staff-confirm-copy">
               Seleccioná el área de tratamiento para anotarte en lista de espera.
             </p>
@@ -424,9 +416,7 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
                 <button
                   key={area.value}
                   type="button"
-                  className={`turnos-area-option${
-                    areaTratamiento === area.value ? ' active' : ''
-                  }`}
+                  className={`turnos-area-option${areaTratamiento === area.value ? ' active' : ''}`}
                   onClick={() => setAreaTratamiento(area.value)}
                 >
                   {area.label}
@@ -437,14 +427,9 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
             {errorSolicitar && <p className="staff-message error" style={{ marginTop: '12px' }}>{errorSolicitar}</p>}
 
             <div className="staff-confirm-actions">
-              <button
-                type="button"
-                className="staff-confirm-button secondary"
-                onClick={handleCloseListaEspera}
-              >
+              <button type="button" className="staff-confirm-button secondary" onClick={handleCloseListaEspera}>
                 Cancelar
               </button>
-
               <button
                 type="button"
                 className="staff-confirm-button primary"
@@ -453,6 +438,102 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
               >
                 {saving ? 'Inscribiendo...' : 'Inscribirse en lista de espera'}
               </button>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* MODAL: INSCRIPCION CONFIRMADA LISTA DE ESPERA */}
+      {inscripcionConfirmada && (
+        <aside className="staff-detail">
+          <div className="staff-detail-card staff-confirm-card">
+
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => setInscripcionConfirmada(null)}
+            >
+              <X size={18} />
+            </button>
+
+            <p className="staff-eyebrow">Inscripto en lista de espera</p>
+
+            <div style={{
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              margin: '16px 0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Calendar size={16} />
+                <span>{formatLongDate(inscripcionConfirmada.fecha)}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={16} />
+                <span>{formatTime(inscripcionConfirmada.hora_inicio)} – {formatTime(inscripcionConfirmada.hora_fin)}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Activity size={16} />
+                <span>{AREAS.find(a => a.value === inscripcionConfirmada.area_tratamiento)?.label}</span>
+              </div>
+            </div>
+
+            <p className="staff-confirm-copy">
+              Te notificaremos por email si se libera un cupo.
+            </p>
+
+            <div className="staff-confirm-actions">
+              {user.rol === 'paciente' ? (
+                <>
+                  <button
+                    type="button"
+                    className="staff-confirm-button secondary"
+                    onClick={() => {
+                      setInscripcionConfirmada(null)
+                      setSelectedDate(null)
+                      setTurnos([])
+                    }}
+                  >
+                    Reservar otro turno
+                  </button>
+                  <button
+                    type="button"
+                    className="staff-confirm-button primary"
+                    onClick={() => {
+                      setInscripcionConfirmada(null)
+                      if (onSuccess) onSuccess('Te inscribiste en la lista de espera.')
+                    }}
+                  >
+                    Ver mis turnos
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="staff-confirm-button secondary"
+                    onClick={() => {
+                      setInscripcionConfirmada(null)
+                      if (onSuccess) onSuccess()
+                    }}
+                  >
+                    Volver
+                  </button>
+                  <button
+                    type="button"
+                    className="staff-confirm-button primary"
+                    onClick={() => {
+                      setInscripcionConfirmada(null)
+                      if (onSuccess) onSuccess('Paciente inscripto.', 'lista-espera')
+                    }}
+                  >
+                    Ver lista de espera
+                  </button>
+                </>
+              )}
             </div>
 
           </div>
@@ -469,7 +550,6 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
 
             <p className="staff-eyebrow">{turnoAReprogramar ? 'Confirmar Reprogramación' : 'Reservar turno'}</p>
             <h2>{formatLongDate(selectedDate)} · {formatTime(selectedTurno.hora_inicio)} – {formatTime(selectedTurno.hora_fin)}</h2>
-
             <p className="staff-confirm-copy">Seleccioná el área de tratamiento para este turno.</p>
 
             <div className="turnos-confirm-area">
@@ -493,7 +573,12 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
               <button type="button" className="staff-confirm-button secondary" onClick={handleCloseModal}>
                 Cancelar
               </button>
-              <button type="button" className="staff-confirm-button primary" onClick={handleConfirmarTurno} disabled={saving}>
+              <button
+                type="button"
+                className="staff-confirm-button primary"
+                onClick={handleConfirmarTurno}
+                disabled={saving}
+              >
                 {saving
                   ? (turnoAReprogramar ? 'Reprogramando...' : 'Reservando...')
                   : (turnoAReprogramar ? 'Reprogramar turno' : 'Confirmar turno')}
@@ -502,7 +587,123 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar,
           </div>
         </aside>
       )}
-    </div>
+
+      {/* MODAL: TURNO CONFIRMADO - HU-9 */}
+      {turnoConfirmado && (
+        <aside className="staff-detail">
+          <div className="staff-detail-card staff-confirm-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => {
+                setTurnoConfirmado(null)
+                setSelectedTurno(null)
+                setAreaTratamiento('')
+                setSelectedDate(null)
+                setTurnos([])
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <p className="staff-eyebrow">Turno confirmado</p>
+
+            <div style={{
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              margin: '16px 0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Calendar size={16} />
+                <span>{formatLongDate(turnoConfirmado.fecha)}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={16} />
+                <span>{formatTime(turnoConfirmado.hora_inicio)} – {formatTime(turnoConfirmado.hora_fin)}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Activity size={16} />
+                <span>{AREAS.find(a => a.value === turnoConfirmado.area_tratamiento)?.label}</span>
+              </div>
+            </div>
+
+            <p className="staff-confirm-copy">
+              Te enviaremos un recordatorio por email 24hs antes.
+            </p>
+
+            <div className="staff-confirm-actions">
+              {user.rol === 'paciente' ? (
+                <>
+                  <button
+                    type="button"
+                    className="staff-confirm-button secondary"
+                    onClick={() => {
+                      setTurnoConfirmado(null)
+                      setSelectedTurno(null)
+                      setAreaTratamiento('')
+                      setSelectedDate(null)
+                      setTurnos([])
+                    }}
+                  >
+                    Reservar otro turno
+                  </button>
+                  <button
+                    type="button"
+                    className="staff-confirm-button primary"
+                    onClick={() => {
+                      setTurnoConfirmado(null)
+                      setSelectedTurno(null)
+                      setAreaTratamiento('')
+                      setSelectedDate(null)
+                      setTurnos([])
+                      if (onSuccess) onSuccess('El turno fue reservado correctamente.')
+                    }}
+                  >
+                    Ver mis turnos
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="staff-confirm-button secondary"
+                    onClick={() => {
+                      setTurnoConfirmado(null)
+                      setSelectedTurno(null)
+                      setAreaTratamiento('')
+                      setSelectedDate(null)
+                      setTurnos([])
+                      if (onSuccess) onSuccess('Turno asignado correctamente.', null, 'pacientes')
+                    }}
+                  >
+                    Ver pacientes
+                  </button>
+                  <button
+                    type="button"
+                    className="staff-confirm-button primary"
+                    onClick={() => {
+                      setTurnoConfirmado(null)
+                      setSelectedTurno(null)
+                      setAreaTratamiento('')
+                      setSelectedDate(null)
+                      setTurnos([])
+                      if (onSuccess) onSuccess('Turno asignado correctamente.', null, 'inicio')
+                    }}
+                  >
+                    Ver turnos
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </aside>
+      )
+      }
+    </div >
   )
 }
 
