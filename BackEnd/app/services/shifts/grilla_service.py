@@ -122,11 +122,14 @@ async def generar_grilla(
 
     await db.commit()
 
+    mes_nombre = MESES_ES[request.mes]
     if dias_omitidos:
-        mensaje = "Agenda generada, omitiendo fechas cerradas"
+        mensaje = (
+            f"Agenda generada con éxito para {mes_nombre} {request.anio}, "
+            f"{total_creados} turnos creados (omitiendo fechas cerradas)"
+        )
     else:
-        mes_nombre = f"{MESES_ES[request.mes]} {request.anio}"
-        mensaje = f"Agenda generada con éxito para {mes_nombre}"
+        mensaje = f"Agenda generada con éxito para {mes_nombre} {request.anio}, {total_creados} turnos creados"
 
     return GrillaGeneradaResponse(
         mensaje=mensaje,

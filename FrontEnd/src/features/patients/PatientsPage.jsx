@@ -396,9 +396,10 @@ function PatientsPage({ user }) {
             <p className="staff-eyebrow">Asignación manual</p>
             <h2>Turno para {patientForTurno.nombre}</h2>
             
-            <SolicitarTurnoView 
-              user={user} 
-              targetPatient={patientForTurno} 
+            <SolicitarTurnoView
+              user={user}
+              targetPatient={patientForTurno}
+              isSecretariaMode
               onSuccess={(msg) => {
                 setMessage(msg);
                 setPatientForTurno(null);

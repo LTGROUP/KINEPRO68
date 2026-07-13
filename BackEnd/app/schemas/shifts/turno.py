@@ -132,6 +132,13 @@ class SolicitarTurnoRequest(BaseModel):
     area_tratamiento: AreaTratamiento
 
 
+# ── Request: Registro manual de turno por secretaria ──────────────
+class RegistrarTurnoManualRequest(BaseModel):
+    turno_id: UUID
+    paciente_id: UUID
+    area_tratamiento: AreaTratamiento
+
+
 # ── Response: Turno solicitado ────────────────────────────────────
 class TurnoSolicitadoResponse(BaseModel):
     mensaje: str
@@ -270,6 +277,7 @@ class ReporteAusentismoResponse(BaseModel):
     fecha_hasta: date
     total_pacientes_ausentes: int
     ausencias: List[AusentismoResponse]
+    mensaje: Optional[str] = None
 
 
 # ── HU-15: Info de turno por token ───────────────────────────────

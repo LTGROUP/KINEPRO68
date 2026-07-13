@@ -20,6 +20,15 @@ export function solicitarTurno(actor, payload) {
   })
 }
 
+// Registro manual de turno por la secretaria a nombre de un paciente
+export function registrarTurnoManual(actor, payload) {
+  return request('/api/v1/turnos/registrar-manual', {
+    method: 'POST',
+    headers: buildActorHeaders(actor),
+    body: payload,
+  })
+}
+
 export function getMisTurnos(actor) {
   return request('/api/v1/turnos/mis-turnos', {
     method: 'GET',

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
 
-import { getTurnosParaPaciente, solicitarTurno, reprogramarTurno, inscribirseListaEspera } from '../../../services/turnosService'
+import { getTurnosParaPaciente, solicitarTurno, reprogramarTurno, inscribirseListaEspera, registrarTurnoManual } from '../../../services/turnosService'
 
 const AREAS = [
   { value: 'tren_superior', label: 'Tren superior' },
@@ -75,7 +75,8 @@ function formatLongDate(dateStr) {
   return `${DIA_LONG[date.getDay()]} ${d} de ${MES_NAMES[Number(m) - 1]}`
 }
 
-function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar }) {
+function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar, isSecretariaMode }) {
+  const secretariaMode = isSecretariaMode ?? Boolean(targetPatient)
   const minDate = getMinDate()
   const [weekStart, setWeekStart] = useState(() => getWeekStart(minDate))
   const [selectedDate, setSelectedDate] = useState(null)
@@ -232,16 +233,21 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
         }
         const data = await reprogramarTurno(user, turnoAReprogramar.id, payload)
         if (onSuccess) onSuccess(data.mensaje || 'El turno fue reprogramado correctamente.')
+      } else if (secretariaMode && targetPatient) {
+        const payload = {
+          turno_id: selectedTurno.id,
+          paciente_id: targetPatient.id,
+          area_tratamiento: areaTratamiento,
+        }
+        const data = await registrarTurnoManual(user, payload)
+        if (onSuccess) onSuccess(data.mensaje || 'El turno fue reservado correctamente', data)
       } else {
         const payload = {
           turno_id: selectedTurno.id,
           area_tratamiento: areaTratamiento,
         }
-        if (targetPatient) {
-          payload.paciente_id = targetPatient.id
-        }
-        await solicitarTurno(user, payload)
-        if (onSuccess) onSuccess('El turno fue reservado correctamente.')
+        const data = await solicitarTurno(user, payload)
+        if (onSuccess) onSuccess(data.mensaje || 'El turno fue reservado correctamente', data)
       }
 
       setSelectedTurno(null)
@@ -345,6 +351,17 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
                     }
 
                     if (turno.estado === 'reservado') {
+                      if (secretariaMode) {
+                        return (
+                          <button
+                            type="button"
+                            className="turnos-agenda-action"
+                            disabled
+                          >
+                            Sin cupo
+                          </button>
+                        )
+                      }
                       return (
                         <button
                           type="button"
@@ -373,8 +390,8 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
         </div>
       )}
 
-      {/* MODAL: LISTA DE ESPERA */}
-      {showListaEspera && turnoListaEspera && (
+      {/* MODAL: LISTA DE ESPERA (solo flujo de paciente) */}
+      {!secretariaMode && showListaEspera && turnoListaEspera && (
         <aside className="staff-detail">
           <div className="staff-detail-card staff-confirm-card">
 

@@ -6,10 +6,29 @@ import ConfigurarGrillaView from './secretaria/ConfigurarGrillaView'
 import ListaEsperaView from './secretaria/ListaEsperaView'
 import '../../styles/turnos.css'
 
+const AREA_LABELS = {
+  tren_superior: 'Tren superior',
+  tren_medio: 'Tren medio',
+  tren_inferior: 'Tren inferior',
+}
+
+function formatFechaLarga(fechaStr) {
+  if (!fechaStr) return ''
+  const [anio, mes, dia] = fechaStr.split('-')
+  return `${dia}/${mes}/${anio}`
+}
+
+function formatHoraCorta(horaStr) {
+  if (!horaStr) return ''
+  return horaStr.slice(0, 5)
+}
+
 function TurnosPage({ user }) {
   const rol = user?.rol
   const [activeTab, setActiveTab] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const [confirmedTurno, setConfirmedTurno] = useState(null)
+  const [solicitarResetKey, setSolicitarResetKey] = useState(0)
 
   useEffect(() => {
     if (rol === 'paciente') {
@@ -28,11 +47,25 @@ function TurnosPage({ user }) {
     return () => window.clearTimeout(id)
   }, [successMessage])
 
-  function handleSuccess(msg) {
+  function handleSuccess(msg, turnoData) {
+    if (rol === 'paciente' && turnoData && turnoData.fecha) {
+      setConfirmedTurno(turnoData)
+      return
+    }
     setSuccessMessage(msg)
     if (rol === 'paciente') {
       setActiveTab('mis-turnos')
     }
+  }
+
+  function handleReservarOtroTurno() {
+    setConfirmedTurno(null)
+    setSolicitarResetKey((k) => k + 1)
+  }
+
+  function handleVerMisTurnos() {
+    setConfirmedTurno(null)
+    setActiveTab('mis-turnos')
   }
 
   if (!activeTab) return null
@@ -103,7 +136,7 @@ function TurnosPage({ user }) {
           )}
 
           {activeTab === 'solicitar' && (
-            <SolicitarTurnoView user={user} onSuccess={handleSuccess} />
+            <SolicitarTurnoView key={solicitarResetKey} user={user} onSuccess={handleSuccess} />
           )}
           {activeTab === 'mis-turnos' && (
             <MisTurnosView user={user} />
@@ -127,6 +160,51 @@ function TurnosPage({ user }) {
             <p className="staff-eyebrow">Confirmación</p>
             <h2>Acción realizada</h2>
             <p>{successMessage}</p>
+          </div>
+        </aside>
+      )}
+
+      {confirmedTurno && (
+        <aside className="staff-detail" aria-label="Turno confirmado">
+          <div className="staff-detail-card staff-confirm-card">
+            <p className="staff-eyebrow">Confirmación</p>
+            <h2>Turno confirmado</h2>
+
+            <div className="turnos-confirm-summary">
+              <div className="flex justify-between text-sm">
+                <span>Día</span>
+                <span>{formatFechaLarga(confirmedTurno.fecha)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Horario</span>
+                <span>
+                  {formatHoraCorta(confirmedTurno.hora_inicio)} – {formatHoraCorta(confirmedTurno.hora_fin)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Área de tratamiento</span>
+                <span>
+                  {AREA_LABELS[confirmedTurno.area_tratamiento] || confirmedTurno.area_tratamiento}
+                </span>
+              </div>
+            </div>
+
+            <div className="staff-confirm-actions">
+              <button
+                type="button"
+                className="staff-confirm-button secondary"
+                onClick={handleReservarOtroTurno}
+              >
+                Reservar otro turno
+              </button>
+              <button
+                type="button"
+                className="staff-confirm-button primary"
+                onClick={handleVerMisTurnos}
+              >
+                Ver mis turnos
+              </button>
+            </div>
           </div>
         </aside>
       )}

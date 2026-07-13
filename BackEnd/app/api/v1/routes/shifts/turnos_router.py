@@ -27,10 +27,12 @@ from app.schemas.shifts.turno import (
     InscribirPacienteListaEsperaRequest,
     ReporteAusentismoResponse,
     TurnoInfoTokenResponse,
+    RegistrarTurnoManualRequest,
 )
 from app.services.shifts.turnos_service import (
     consultar_turnos_disponibles,
     solicitar_turno,
+    registrar_turno_manual_secretaria,
     ver_mis_turnos,
     consultar_lista_espera,
     cancelar_turno,
@@ -156,6 +158,35 @@ async def solicitar_turno_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+@router.post(
+    "/registrar-manual",
+    response_model=TurnoSolicitadoResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Registrar turno manual para un paciente (secretaria)",
+    description="La secretaria reserva un turno disponible a nombre de un paciente puntual.",
+)
+async def registrar_turno_manual_endpoint(
+    request: RegistrarTurnoManualRequest,
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    try:
+        id_secretaria = UUID(str(secretaria["id"])) if isinstance(secretaria["id"], str) else secretaria["id"]
+
+        return await registrar_turno_manual_secretaria(
+            db=db,
+            turno_id=request.turno_id,
+            paciente_id=request.paciente_id,
+            area_tratamiento=request.area_tratamiento,
+            secretaria_id=id_secretaria,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
 
 @router.get(
     "/mis-turnos",
@@ -313,7 +344,7 @@ async def marcar_asistencia_endpoint(
             turno_id=turno_id, 
             nuevo_estado=request.nuevo_estado
         )
-        return {"mensaje": f"Turno marcado como {resultado.estado}"}
+        return {"mensaje": "Ausencia registrada con éxito"}
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

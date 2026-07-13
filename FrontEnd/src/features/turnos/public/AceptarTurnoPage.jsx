@@ -88,8 +88,8 @@ export default function AceptarTurnoPage() {
         }
         return res.json()
       })
-      .then(() => {
-        setMensaje('Rechazaste el turno.')
+      .then((data) => {
+        setMensaje(data.mensaje || 'Rechazaste el turno.')
         setFase('rechazado')
       })
       .catch((err) => {
@@ -167,9 +167,7 @@ export default function AceptarTurnoPage() {
         {fase === 'rechazado' && (
           <div className="text-center py-4">
             <h2 className="text-lg font-semibold text-gray-700 mb-2">Rechazaste el turno</h2>
-            <p className="text-gray-500 text-sm">
-              Quedás en lista de espera para otras oportunidades.
-            </p>
+            <p className="text-gray-500 text-sm">{mensaje}</p>
           </div>
         )}
 
