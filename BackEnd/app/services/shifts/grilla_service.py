@@ -118,10 +118,16 @@ async def generar_grilla(
 
     dias_cerrados_set = set(request.dias_cerrados or [])
 
-    
-    dias_cerrados_bd =  await obtener_dias_cerrados_del_mes(db, primer_dia_mes, ultimo_dia_mes)
+    dias_cerrados_bd = await obtener_dias_cerrados_del_mes(db, primer_dia_mes, ultimo_dia_mes)
+    dias_horario_reducido: dict[date, list[Tuple[time, time]]] = {}
     for dc in dias_cerrados_bd:
-        dias_cerrados_set.add(dc.fecha)
+        if dc.horario_inicio and dc.horario_fin:
+            # Día con horario reducido: no se omite, pero usa su propia franja en vez de las generales.
+            dias_horario_reducido[dc.fecha] = _generar_slots(
+                [FranjaHoraria(hora_inicio=dc.horario_inicio, hora_fin=dc.horario_fin)]
+            )
+        else:
+            dias_cerrados_set.add(dc.fecha)
 
     total_creados = 0
     dias_omitidos = []
@@ -142,7 +148,9 @@ async def generar_grilla(
             fecha_actual += timedelta(days=1)
             continue
 
-        for hora_ini, hora_fin_slot in slots:
+        slots_del_dia = dias_horario_reducido.get(fecha_actual, slots)
+
+        for hora_ini, hora_fin_slot in slots_del_dia:
             for _ in range(request.turnos_por_slot):
                 prof_id = _elegir_profesional(profesionales, hora_ini, hora_fin_slot, conteo, fecha_actual)
                 turno = Turno(
