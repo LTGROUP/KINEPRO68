@@ -113,6 +113,14 @@ export function eliminarDiaCerrado(actor, fecha) {
   })
 }
 
+export function editarHorarioDia(actor, fecha, hora_inicio, hora_fin) {
+  return request(`/api/v1/grilla/dias/${fecha}/horario`, {
+    method: 'PATCH',
+    headers: buildActorHeaders(actor),
+    body: { hora_inicio, hora_fin },
+  })
+}
+
 export function getAgendaDia(actor, fecha, area = '') {
   let url = `/api/v1/turnos/agenda?fecha=${fecha}`
   if (area) {

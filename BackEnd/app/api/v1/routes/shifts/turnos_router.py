@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, extract
 from datetime import date
@@ -606,11 +606,17 @@ async def cancelar_inscripcion_lista_espera_secretaria_endpoint(
     description="Valida el token JWT y devuelve los datos del turno para mostrar en la pantalla pública.",
 )
 async def obtener_info_turno_token_endpoint(
+    response: Response,
     token: str = Query(..., description="Token JWT recibido por email"),
     db: AsyncSession = Depends(get_db),
 ):
+    # El token es de un solo uso: evitamos que el browser lo sirva desde caché
+    # en una recarga o navegación hacia atrás.
+    response.headers["Cache-Control"] = "no-store"
     try:
         return await obtener_info_turno_por_token(db=db, token=token)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 

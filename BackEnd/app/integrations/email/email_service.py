@@ -217,45 +217,71 @@ def send_oferta_turno_lista_espera(email: str, fecha, hora_inicio, hora_fin, are
     return sent
 
 
-def send_confirmacion_turno(email: str, fecha, hora_inicio, hora_fin, area_tratamiento) -> bool:
+def send_confirmacion_turno(
+    to_email: str,
+    nombre_paciente: str,
+    fecha,
+    hora_inicio,
+    hora_fin,
+    area_tratamiento,
+) -> bool:
     config = get_email_config()
     if not config:
         logger.info("Confirmación de turno no enviada: falta configurar SMTP en BackEnd/.env")
         return False
 
     area_str = area_tratamiento.value if hasattr(area_tratamiento, "value") else str(area_tratamiento or "Sin especificar")
-    subject = "Turno confirmado — KinePro"
+    safe_nombre = escape(nombre_paciente or "")
+    subject = "Tu turno fue confirmado — KinePro"
     plain_text = (
-        f"Hola,\n\n"
-        f"Tu turno en KinePro quedó confirmado.\n\n"
+        f"Hola {nombre_paciente},\n\n"
+        f"Tu turno fue confirmado.\n\n"
         f"Fecha: {fecha}\n"
         f"Horario: {hora_inicio} – {hora_fin}\n"
-        f"Área: {area_str}\n\n"
+        f"Área de tratamiento: {area_str}\n\n"
+        f"Te esperamos. Recibirás un recordatorio 24hs antes de tu turno.\n\n"
         f"KinePro"
     )
     html = f"""
-    <div style="font-family: Arial, sans-serif; color: #17352f; line-height: 1.5;">
-      <h1 style="color: #167761;">Turno confirmado</h1>
-      <p>Hola, tu turno en KinePro quedó confirmado.</p>
-      <table style="border-collapse: collapse; margin: 1rem 0;">
-        <tr><td style="padding: 4px 12px 4px 0; color: #61736f;">Fecha</td><td style="font-weight:bold;">{escape(str(fecha))}</td></tr>
-        <tr><td style="padding: 4px 12px 4px 0; color: #61736f;">Horario</td><td style="font-weight:bold;">{escape(str(hora_inicio))} – {escape(str(hora_fin))}</td></tr>
-        <tr><td style="padding: 4px 12px 4px 0; color: #61736f;">Área</td><td style="font-weight:bold;">{escape(area_str)}</td></tr>
-      </table>
-      <p style="color: #61736f;">KinePro</p>
+    <div style="background:#F5F5F5; padding: 24px 0; font-family: Arial, sans-serif;">
+      <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden;">
+        <div style="background:#0D4A3A; padding: 20px 24px;">
+          <span style="color:#ffffff; font-size: 20px; font-weight: bold;">KinePro</span>
+        </div>
+        <div style="padding: 24px; color: #17352f; line-height: 1.5;">
+          <h1 style="color: #0D4A3A; font-size: 18px; margin: 0 0 12px;">Tu turno fue confirmado</h1>
+          <p style="margin: 0 0 16px;">Hola {safe_nombre}, tu turno en KinePro quedó confirmado.</p>
+          <table style="width:100%; border-collapse: collapse; background:#F5F5F5; border-radius: 8px; margin-bottom: 20px;">
+            <tr>
+              <td style="padding: 10px 16px; color:#61736f;">Fecha</td>
+              <td style="padding: 10px 16px; font-weight:bold; text-align:right;">{escape(str(fecha))}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 16px; color:#61736f;">Horario</td>
+              <td style="padding: 10px 16px; font-weight:bold; text-align:right;">{escape(str(hora_inicio))} - {escape(str(hora_fin))}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 16px; color:#61736f;">Área de tratamiento</td>
+              <td style="padding: 10px 16px; font-weight:bold; text-align:right;">{escape(area_str)}</td>
+            </tr>
+          </table>
+          <p style="margin: 0 0 16px;">Te esperamos. Recibirás un recordatorio 24hs antes de tu turno.</p>
+          <p style="color: #61736f; font-size: 13px; margin: 0;">KinePro</p>
+        </div>
+      </div>
     </div>
     """
 
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = f"{config['from_name']} <{config['from_email']}>"
-    msg["To"] = email
+    msg["To"] = to_email
     msg.set_content(plain_text)
     msg.add_alternative(html, subtype="html")
 
     sent = _send_email(config, msg)
     if not sent:
-        logger.exception("No se pudo enviar la confirmación de turno a %s", email)
+        logger.exception("No se pudo enviar la confirmación de turno a %s", to_email)
     return sent
 
 
@@ -368,26 +394,41 @@ def build_cupo_liberado_email(
     )
 
     html = f"""
-    <div style="font-family: Arial, sans-serif; color: #17352f; line-height: 1.5;">
-      <h1 style="color: #167761;">¡Se liberó un cupo para vos!</h1>
-      <p>Hola {safe_nombre}, se liberó un turno que coincide con tu inscripción en lista de espera.</p>
-      <p>
-        <strong>Fecha:</strong> {escape(fecha)}<br/>
-        <strong>Horario:</strong> {escape(hora_inicio)} a {escape(hora_fin)}<br/>
-        <strong>Área:</strong> {safe_area}
-      </p>
-      <p>
-        
-          href="{safe_link}"
-          style="display: inline-block; background: #167761; color: white; padding: 12px 18px; border-radius: 8px; text-decoration: none;"
-        >
-          Confirmar turno
-        </a>
-      </p>
-      <p style="color: #61736f;">
-        Este link vence en {horas_validez} horas. Pasado ese tiempo, el cupo pasará al siguiente paciente en la lista de espera.
-      </p>
-      <p style="color: #61736f;">KinePro</p>
+    <div style="background:#F5F5F5; padding: 24px 0; font-family: Arial, sans-serif;">
+      <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden;">
+        <div style="background:#0D4A3A; padding: 20px 24px;">
+          <span style="color:#ffffff; font-size: 20px; font-weight: bold;">KinePro</span>
+        </div>
+        <div style="padding: 24px; color: #17352f; line-height: 1.5;">
+          <h1 style="color: #0D4A3A; font-size: 18px; margin: 0 0 12px;">¡Se liberó un cupo para vos!</h1>
+          <p style="margin: 0 0 16px;">Hola {safe_nombre}, se liberó un turno que coincide con tu inscripción en lista de espera.</p>
+          <table style="width:100%; border-collapse: collapse; background:#F5F5F5; border-radius: 8px; margin-bottom: 20px;">
+            <tr>
+              <td style="padding: 10px 16px; color:#61736f;">Fecha</td>
+              <td style="padding: 10px 16px; font-weight:bold; text-align:right;">{escape(fecha)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 16px; color:#61736f;">Horario</td>
+              <td style="padding: 10px 16px; font-weight:bold; text-align:right;">{escape(hora_inicio)} a {escape(hora_fin)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 16px; color:#61736f;">Área</td>
+              <td style="padding: 10px 16px; font-weight:bold; text-align:right;">{safe_area}</td>
+            </tr>
+          </table>
+          <a href="{safe_link}"
+             style="display: block; text-align:center; background: #0D4A3A; color: #ffffff; padding: 14px 18px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-bottom: 12px;">
+            Aceptar turno
+          </a>
+          <a href="{safe_link}"
+             style="display: block; text-align:center; background: #ffffff; color: #0D4A3A; padding: 13px 18px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 1px solid #cccccc;">
+            Rechazar turno
+          </a>
+          <p style="color: #61736f; font-size: 13px; margin-top: 20px;">
+            Este link vence en {horas_validez} horas. Pasado ese tiempo, el cupo pasará al siguiente paciente en la lista de espera.
+          </p>
+        </div>
+      </div>
     </div>
     """
 

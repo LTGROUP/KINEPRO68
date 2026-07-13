@@ -152,6 +152,36 @@ async def eliminar_dia_cerrado(
     return result.rowcount
 
 
+async def eliminar_turnos_disponibles_del_dia(
+    db: AsyncSession,
+    fecha: date,
+) -> int:
+    result = await db.execute(
+        delete(Turno).where(
+            and_(
+                Turno.fecha == fecha,
+                Turno.estado == EstadoTurno.DISPONIBLE,
+            )
+        )
+    )
+    return result.rowcount
+
+
+async def obtener_turnos_reservados_del_dia(
+    db: AsyncSession,
+    fecha: date,
+) -> list[Turno]:
+    result = await db.execute(
+        select(Turno).where(
+            and_(
+                Turno.fecha == fecha,
+                Turno.estado != EstadoTurno.DISPONIBLE,
+            )
+        )
+    )
+    return result.scalars().all()
+
+
 async def obtener_configuracion_por_mes(
     db: AsyncSession,
     mes: int,

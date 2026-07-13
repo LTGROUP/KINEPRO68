@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, X, Minus, Clock } from 'lucide-react'
 
-import { generarGrilla, getDiasCerrados, crearDiaCerrado, eliminarDiaCerrado } from '../../../services/turnosService'
+import { generarGrilla, getDiasCerrados, crearDiaCerrado, eliminarDiaCerrado, editarHorarioDia } from '../../../services/turnosService'
 
 const VERDE = '#0D4A3A'
 
@@ -91,6 +91,14 @@ function ConfigurarGrillaView({ user, onSuccess }) {
   const [excMotivo, setExcMotivo] = useState('')
   const [excGuardando, setExcGuardando] = useState(false)
   const [excError, setExcError] = useState('')
+
+  // Editar horario de un día ya generado
+  const [editarFecha, setEditarFecha] = useState('')
+  const [editarHoraInicio, setEditarHoraInicio] = useState('08:00')
+  const [editarHoraFin, setEditarHoraFin] = useState('12:00')
+  const [editarGuardando, setEditarGuardando] = useState(false)
+  const [editarError, setEditarError] = useState('')
+  const [editarResultado, setEditarResultado] = useState(null)
 
   const diasCerradosCompletos = useMemo(
     () => diasCerrados.filter((d) => !(d.horario_inicio && d.horario_fin)),
@@ -186,6 +194,16 @@ function ConfigurarGrillaView({ user, onSuccess }) {
     return fechas
   }, [mes, anio, diasHabiles, diasCerradosCompletosSet, excepcionesMap])
 
+  // Todos los días del mes (para editar el horario de un día ya generado, sin filtrar por hábiles/ocupados)
+  const fechasTodasDelMes = useMemo(() => {
+    const totalDiasMes = new Date(Number(anio), Number(mes), 0).getDate()
+    const fechas = []
+    for (let dia = 1; dia <= totalDiasMes; dia++) {
+      fechas.push(toFechaStr(anio, mes, dia))
+    }
+    return fechas
+  }, [mes, anio])
+
   async function handleToggleDiaCalendario(fechaStr, esCerrado) {
     setErrorCalendario('')
     try {
@@ -250,6 +268,35 @@ function ConfigurarGrillaView({ user, onSuccess }) {
       setDiasCerrados((prev) => prev.filter((d) => d.fecha !== fechaStr))
     } catch (err) {
       setErrorCalendario(err.message || 'No se pudo eliminar la excepción')
+    }
+  }
+
+  async function handleAplicarEditarHorario() {
+    setEditarError('')
+    setEditarResultado(null)
+
+    if (!editarFecha) {
+      setEditarError('Elegí un día para editar.')
+      return
+    }
+
+    if (horaAMinutos(editarHoraFin) <= horaAMinutos(editarHoraInicio)) {
+      setEditarError('La hora de fin debe ser posterior a la hora de inicio.')
+      return
+    }
+
+    setEditarGuardando(true)
+    try {
+      const data = await editarHorarioDia(user, editarFecha, editarHoraInicio, editarHoraFin)
+      setEditarResultado(data)
+
+      // Si el día editado tenía una excepción de horario reducido registrada, refrescamos el calendario del mes.
+      const data2 = await getDiasCerrados(user, mes, anio)
+      setDiasCerrados(data2.dias_cerrados || [])
+    } catch (err) {
+      setEditarError(err.message || 'No se pudo actualizar el horario del día')
+    } finally {
+      setEditarGuardando(false)
     }
   }
 
@@ -777,6 +824,96 @@ function ConfigurarGrillaView({ user, onSuccess }) {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* SECCIÓN Editar día generado */}
+        <div style={panelStyle}>
+          <h2 style={panelTitleStyle}>Editar día generado</h2>
+          <p style={{ color: '#666', fontSize: '0.85rem', margin: '0 0 1rem' }}>
+            Modificá el horario de los turnos disponibles de un día que ya fue generado, sin regenerar toda la grilla. Los turnos ya reservados no se eliminan.
+          </p>
+
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label style={labelStyle}>Día</label>
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', scrollbarWidth: 'thin' }}>
+              {fechasTodasDelMes.map((fecha) => {
+                const [anioF, mesF, diaF] = fecha.split('-').map(Number)
+                const diaSemana = DIA_SEMANA_CORTO[new Date(anioF, mesF - 1, diaF).getDay()]
+                const seleccionado = editarFecha === fecha
+                return (
+                  <div
+                    key={fecha}
+                    onClick={() => setEditarFecha(fecha)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setEditarFecha(fecha) }}
+                    style={{
+                      flex: '0 0 auto',
+                      width: '48px',
+                      height: '56px',
+                      borderRadius: '8px',
+                      border: `1px solid ${VERDE}`,
+                      background: seleccionado ? VERDE : 'white',
+                      color: seleccionado ? 'white' : VERDE,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '2px',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>{diaSemana}</span>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>{diaF}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '0.75rem' }}>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle} htmlFor="editar-hora-inicio">Hora inicio</label>
+              <input
+                id="editar-hora-inicio"
+                type="time"
+                value={editarHoraInicio}
+                onChange={(e) => setEditarHoraInicio(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle} htmlFor="editar-hora-fin">Hora fin</label>
+              <input
+                id="editar-hora-fin"
+                type="time"
+                value={editarHoraFin}
+                onChange={(e) => setEditarHoraFin(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          {editarError && <p style={{ color: '#e63946', fontSize: '0.85rem' }}>{editarError}</p>}
+
+          <button
+            type="button"
+            onClick={handleAplicarEditarHorario}
+            disabled={editarGuardando || !editarFecha}
+            style={{
+              width: '100%', padding: '0.6rem', borderRadius: '8px', border: 'none',
+              background: VERDE, color: 'white', fontWeight: 600,
+              cursor: editarGuardando ? 'default' : 'pointer', opacity: editarGuardando ? 0.7 : 1,
+            }}
+          >
+            {editarGuardando ? 'Aplicando...' : 'Aplicar cambio'}
+          </button>
+
+          {editarResultado && (
+            <div style={{ background: '#e8f5e9', borderRadius: '8px', padding: '1rem', color: VERDE, marginTop: '1rem' }}>
+              Se crearon {editarResultado.turnos_creados} turnos nuevos. Se conservaron {editarResultado.turnos_reservados_conservados} turnos reservados.
             </div>
           )}
         </div>

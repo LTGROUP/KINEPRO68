@@ -333,7 +333,7 @@ class TurnoInfoTokenResponse(BaseModel):
     fecha: date
     hora_inicio: time
     hora_fin: time
-    area_tratamiento: Optional[AreaTratamiento]
+    area_tratamiento: Optional[str] = None
 
 
 # ── Agenda del profesional ────────────────────────────────────────
@@ -347,10 +347,10 @@ class MiInscripcionListaEsperaResponse(BaseModel):
     fecha: date
     hora_inicio: time
     hora_fin: time
-    area_tratamiento: str
+    area_tratamiento: Optional[str] = None
     fecha_inscripcion: datetime
     posicion: int
-    
+
     model_config = {"from_attributes": True}
 
 class MisInscripcionesListaEsperaResponse(BaseModel):
@@ -377,3 +377,21 @@ class AgendaProfesionalResponse(BaseModel):
 class TurnosConListaEsperaResponse(BaseModel):
     turnos: List[TurnoConListaEsperaResponse]
     total: int
+
+
+# ── Editar horario de un día ya generado ──────────────────────────
+class EditarHorarioDiaRequest(BaseModel):
+    hora_inicio: time
+    hora_fin: time
+
+    @model_validator(mode="after")
+    def validar_horario(self):
+        if self.hora_fin <= self.hora_inicio:
+            raise ValueError("La hora de fin debe ser posterior a la hora de inicio")
+        return self
+
+
+class EditarHorarioDiaResponse(BaseModel):
+    mensaje: str
+    turnos_creados: int
+    turnos_reservados_conservados: int

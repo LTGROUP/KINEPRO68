@@ -95,12 +95,17 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
                 )
                 return False
 
+            area_tratamiento_str = (
+                inscripcion.area_tratamiento.value if inscripcion.area_tratamiento else None
+            )
+
             # Generar token JWT con expiración de 4hs
             expiry = datetime.utcnow() + timedelta(hours=TOKEN_EXPIRY_HOURS)
             payload = {
                 "turno_id": turno_id,
                 "inscripcion_id": inscripcion_id_str,
                 "paciente_id": paciente_id_str,
+                "area_tratamiento": area_tratamiento_str,
                 "exp": expiry,
             }
             token = jwt.encode(payload, settings.supabase_jwt_secret, algorithm=TOKEN_ALGORITHM)
@@ -112,7 +117,7 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
             enviado = send_cupo_liberado_email(
                 email=paciente.email,
                 nombre=nombre_completo,
-                area_tratamiento=turno.area_tratamiento.value if turno.area_tratamiento else "",
+                area_tratamiento=area_tratamiento_str or "",
                 fecha=turno.fecha.strftime("%d/%m/%Y"),
                 hora_inicio=turno.hora_inicio.strftime("%H:%M"),
                 hora_fin=turno.hora_fin.strftime("%H:%M"),
