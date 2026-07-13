@@ -133,6 +133,13 @@ class SolicitarTurnoRequest(BaseModel):
     paciente_id: Optional[UUID] = None
 
 
+# ── Request: Registro manual de turno por secretaria ──────────────
+class RegistrarTurnoManualRequest(BaseModel):
+    turno_id: UUID
+    paciente_id: UUID
+    area_tratamiento: AreaTratamiento
+
+
 # ── Response: Turno solicitado ────────────────────────────────────
 class TurnoSolicitadoResponse(BaseModel):
     mensaje: str

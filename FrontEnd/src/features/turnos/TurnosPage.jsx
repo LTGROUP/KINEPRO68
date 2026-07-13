@@ -50,7 +50,6 @@ function TurnosPage({ user, onSectionChange, tabInicial, onTabInicialConsumido }
   }, [successMessage])
 
   function handleSuccess(msg, tabDestino, seccionDestino) {
-    console.log('handleSuccess:', msg, tabDestino, seccionDestino)
     setSuccessMessage(msg)
     if (seccionDestino && onSectionChange) {
       onSectionChange(seccionDestino)  // navega a otra página

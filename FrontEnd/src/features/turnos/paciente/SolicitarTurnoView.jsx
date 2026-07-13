@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock, X, Calendar, Activity } from 'lucide-react'
 
-import { getTurnosParaPaciente, solicitarTurno, reprogramarTurno, inscribirseListaEspera, inscribirPacienteListaEsperaSecretaria } from '../../../services/turnosService'
+import { getTurnosParaPaciente, solicitarTurno, reprogramarTurno, inscribirseListaEspera, registrarTurnoManual, inscribirPacienteListaEsperaSecretaria } from '../../../services/turnosService'
 
 const AREAS = [
   { value: 'tren_superior', label: 'Tren superior' },
@@ -76,7 +76,8 @@ function formatLongDate(dateStr) {
   return `${DIA_LONG[date.getDay()]} ${d} de ${MES_NAMES[Number(m) - 1]}`
 }
 
-function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar }) {
+function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar, isSecretariaMode }) {
+  const secretariaMode = isSecretariaMode ?? Boolean(targetPatient)
   const minDate = getMinDate()
   const [weekStart, setWeekStart] = useState(() => getWeekStart(minDate))
   const [selectedDate, setSelectedDate] = useState(null)
@@ -244,13 +245,23 @@ function SolicitarTurnoView({ user, targetPatient, onSuccess, turnoAReprogramar 
         }
         const data = await reprogramarTurno(user, turnoAReprogramar.id, payload)
         if (onSuccess) onSuccess(data.mensaje || 'El turno fue reprogramado correctamente.')
+      } else if (secretariaMode && targetPatient) {
+        const payload = {
+          turno_id: selectedTurno.id,
+          paciente_id: targetPatient.id,
+          area_tratamiento: areaTratamiento,
+        }
+        const data = await registrarTurnoManual(user, payload)
+        setTurnoConfirmado({
+          fecha: data.fecha || selectedDate,
+          hora_inicio: data.hora_inicio || selectedTurno.hora_inicio,
+          hora_fin: data.hora_fin || selectedTurno.hora_fin,
+          area_tratamiento: data.area_tratamiento || areaTratamiento,
+        })
       } else {
         const payload = {
           turno_id: selectedTurno.id,
           area_tratamiento: areaTratamiento,
-        }
-        if (targetPatient) {
-          payload.paciente_id = targetPatient.id
         }
         const data = await solicitarTurno(user, payload)
         setTurnoConfirmado({

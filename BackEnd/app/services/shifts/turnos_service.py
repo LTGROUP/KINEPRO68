@@ -260,6 +260,45 @@ async def solicitar_turno(
          area_tratamiento=turno.area_tratamiento,
     )
 
+# HU: Registro manual de turno por la secretaria a nombre de un paciente
+async def registrar_turno_manual_secretaria(
+        db: AsyncSession,
+        turno_id: UUID,
+        paciente_id: UUID,
+        area_tratamiento: AreaTratamiento,
+        secretaria_id: UUID,
+) -> TurnoSolicitadoResponse:
+    async with db.begin():
+        turno = await obtener_turno_por_id_con_lock(db, turno_id)
+
+        if not turno:
+            raise ValueError("El turno no existe")
+
+        if turno.estado != EstadoTurno.DISPONIBLE:
+            raise ValueError("El turno ya no esta disponible")
+
+        turno_existe = await obtener_turno_existente_del_paciente(
+            db, paciente_id, turno.fecha, turno.hora_inicio
+        )
+        if turno_existe:
+            raise ValueError("Ya posee un turno registrado para ese horario")
+
+        turno.estado = EstadoTurno.RESERVADO
+        turno.paciente_id = paciente_id
+        turno.area_tratamiento = area_tratamiento
+
+        db.add(turno)
+
+    return TurnoSolicitadoResponse(
+        mensaje="El turno fue reservado correctamente",
+        turno_id=turno.id,
+        fecha=turno.fecha,
+        hora_inicio=turno.hora_inicio,
+        hora_fin=turno.hora_fin,
+        area_tratamiento=turno.area_tratamiento,
+    )
+
+
 async def ver_mis_turnos(
     db: AsyncSession,
     paciente_id: UUID,
@@ -705,7 +744,10 @@ async def cancelar_turno_secretaria(
         notificacion_enviada = True
 
     if con_menos_48hs:
-        mensaje = "Turno cancelado. Se cobrará la totalidad del turno por cancelación con menos de 48 horas de anticipación"
+        mensaje = (
+            "Turno cancelado. Se cobrará la totalidad del turno por cancelación "
+            "con menos de 48 horas de anticipación"
+        )
     else:
         mensaje = "Turno cancelado con éxito. Sin penalidad aplicada"
 
@@ -838,7 +880,10 @@ async def consultar_reporte_ausentismo(
         for datos in agrupado.values()
     ]
 
-    mensaje = None if resultado else "No se encontraron registros de ausentismo para el período seleccionado"
+    mensaje = None
+    if not resultado:
+        mensaje = "No se encontraron registros de ausentismo para el período seleccionado"
+
     return ReporteAusentismoResponse(
         fecha_desde=fecha_desde,
         fecha_hasta=fecha_hasta,
@@ -968,7 +1013,6 @@ async def rechazar_turno_por_token(db: AsyncSession, token: str) -> dict:
     await despachar_oferta_turno(turno_id_str)
 
     return {"mensaje": "Rechazaste el turno. El cupo será ofrecido al siguiente paciente en lista de espera"}
-    return {"mensaje": "Rechazaste el turno. Seguís en lista para otras oportunidades."}
 
 # ver lista de espera (paciente)
 async def ver_mis_inscripciones_lista_espera(db: AsyncSession, paciente_id: UUID):
