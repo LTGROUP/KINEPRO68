@@ -173,6 +173,12 @@
   color: #9ab8b0;
 }
 
+.agenda-session-button {
+  min-height: 38px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
 .turnos-agenda-duration {
   flex: 1;
   color: #8aa59e;

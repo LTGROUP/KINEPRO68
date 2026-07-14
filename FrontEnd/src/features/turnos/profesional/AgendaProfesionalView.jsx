@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
 
 import { getAgendaHoy, getAgendaPorFecha } from '../../../services/profesionalService'
+import {
+  createSessionNote,
+  getPatientSessionNotes,
+} from '../../../services/sessionNoteService'
+import ClinicalHistoryPanel from '../../professionals/ClinicalHistoryPanel'
 import { getEstadoClass } from '../../../utils/estadoColors'
 
 function formatTime(timeStr) {
@@ -27,6 +32,10 @@ export function AgendaProfesionalView({ user }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [esHoyFlag, setEsHoyFlag] = useState(true)
+  const [patientForSessionNotes, setPatientForSessionNotes] = useState(null)
+  const [sessionNotes, setSessionNotes] = useState([])
+  const [loadingSessionNotes, setLoadingSessionNotes] = useState(false)
+  const [savingSessionNote, setSavingSessionNote] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -88,6 +97,45 @@ export function AgendaProfesionalView({ user }) {
       nueva.setDate(nueva.getDate() + 1)
       return nueva
     })
+  }
+
+  async function handleOpenSessionRecord(turno) {
+    if (!turno.paciente?.id) {
+      return
+    }
+
+    setPatientForSessionNotes(turno.paciente)
+    setLoadingSessionNotes(true)
+    setSessionNotes([])
+
+    try {
+      const response = await getPatientSessionNotes(user, turno.paciente.id)
+      setSessionNotes(response.items || [])
+    } catch {
+      setSessionNotes([])
+    } finally {
+      setLoadingSessionNotes(false)
+    }
+  }
+
+  async function handleRegisterSessionNote(values) {
+    if (!patientForSessionNotes?.id) {
+      return
+    }
+
+    setSavingSessionNote(true)
+
+    try {
+      const createdNote = await createSessionNote(user, {
+        paciente_id: patientForSessionNotes.id,
+        actividad_realizada: values.actividad_realizada,
+        evolucion: values.evolucion,
+      })
+
+      setSessionNotes((currentNotes) => [createdNote, ...currentNotes])
+    } finally {
+      setSavingSessionNote(false)
+    }
   }
 
   const textoFecha = fecha.toLocaleDateString('es-AR', {
@@ -193,11 +241,51 @@ export function AgendaProfesionalView({ user }) {
                 <span className={getEstadoClass(turno.estado)}>
                   {turno.estado.charAt(0).toUpperCase() + turno.estado.slice(1)}
                 </span>
+
+                {esHoyFlag && turno.paciente?.id && (
+                  <button
+                    type="button"
+                    className="staff-register-button agenda-session-button"
+                    onClick={() => handleOpenSessionRecord(turno)}
+                  >
+                    Registrar sesión
+                  </button>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {patientForSessionNotes && (
+        <aside className="staff-detail" aria-label="Registrar sesión">
+          <div className="staff-detail-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => {
+                setPatientForSessionNotes(null)
+                setSessionNotes([])
+              }}
+              aria-label="Cerrar registro de sesión"
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+
+            <h2 className="clinical-history-title">Registrar sesión</h2>
+            <p className="staff-confirm-copy">
+              {patientForSessionNotes.nombre} {patientForSessionNotes.apellido}
+            </p>
+
+            <ClinicalHistoryPanel
+              notes={sessionNotes}
+              loading={loadingSessionNotes}
+              saving={savingSessionNote}
+              onRegister={handleRegisterSessionNote}
+            />
+          </div>
+        </aside>
+      )}
     </div>
   )
 }

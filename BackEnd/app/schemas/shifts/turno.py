@@ -346,7 +346,16 @@ class TurnoInfoTokenResponse(BaseModel):
 
 # ── Agenda del profesional ────────────────────────────────────────
 class AgendaProfesionalTurnoResponse(BaseModel):
-    pass  # Añade los campos necesarios para esta respuesta cuando los tengas
+    id: UUID
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    estado: EstadoTurno
+    area_tratamiento: Optional[AreaTratamiento] = None
+    paciente_id: Optional[UUID] = None
+    paciente: Optional[PacienteAgendaInfo] = None
+
+    model_config = {"from_attributes": True}
 
 # Ver turnos en lista de espera (paciente)
 class MiInscripcionListaEsperaResponse(BaseModel):
@@ -381,6 +390,7 @@ class TurnoConListaEsperaResponse(BaseModel):
 class AgendaProfesionalResponse(BaseModel):
     fecha: date
     turnos: List[AgendaProfesionalTurnoResponse]
+    total: int = 0
 
 class TurnosConListaEsperaResponse(BaseModel):
     turnos: List[TurnoConListaEsperaResponse]
