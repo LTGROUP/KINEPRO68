@@ -399,6 +399,7 @@ function PatientsPage({ user, onSectionChange, onNavegarATurnos }) {
             <SolicitarTurnoView
               user={user}
               targetPatient={patientForTurno}
+              isSecretariaMode
               onSuccess={(msg, tabDestino, seccionDestino) => {
                 setMessage(msg)
                 setPatientForTurno(null)

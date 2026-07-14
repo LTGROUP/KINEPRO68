@@ -20,6 +20,15 @@ export function solicitarTurno(actor, payload) {
   })
 }
 
+// Registro manual de turno por la secretaria a nombre de un paciente
+export function registrarTurnoManual(actor, payload) {
+  return request('/api/v1/turnos/registrar-manual', {
+    method: 'POST',
+    headers: buildActorHeaders(actor),
+    body: payload,
+  })
+}
+
 export function getMisTurnos(actor) {
   return request('/api/v1/turnos/mis-turnos', {
     method: 'GET',
@@ -78,6 +87,37 @@ export function bloquearDia(actor, payload) {
     method: 'PATCH',
     headers: buildActorHeaders(actor),
     body: payload,
+  })
+}
+
+// Calendario de días cerrados/feriados de la grilla
+export function getDiasCerrados(actor, mes, anio) {
+  return request(`/api/v1/grilla/dias-cerrados?mes=${mes}&anio=${anio}`, {
+    method: 'GET',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+export function crearDiaCerrado(actor, fecha, motivo, horario_inicio = null, horario_fin = null) {
+  return request('/api/v1/grilla/dias-cerrados', {
+    method: 'POST',
+    headers: buildActorHeaders(actor),
+    body: { fecha, motivo, horario_inicio, horario_fin },
+  })
+}
+
+export function eliminarDiaCerrado(actor, fecha) {
+  return request(`/api/v1/grilla/dias-cerrados/${fecha}`, {
+    method: 'DELETE',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+export function editarHorarioDia(actor, fecha, hora_inicio, hora_fin) {
+  return request(`/api/v1/grilla/dias/${fecha}/horario`, {
+    method: 'PATCH',
+    headers: buildActorHeaders(actor),
+    body: { hora_inicio, hora_fin },
   })
 }
 

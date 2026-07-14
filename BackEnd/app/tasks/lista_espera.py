@@ -11,7 +11,6 @@ from sqlalchemy.orm import sessionmaker
 
 from app.celery_app import celery_app
 from app.config import settings
-from app.integrations.email.email_service import send_oferta_turno_lista_espera
 from app.models.turno import Turno, EstadoTurno, ListaEspera
 from app.integrations.email import send_cupo_liberado_email
 
@@ -96,12 +95,17 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
                 )
                 return False
 
+            area_tratamiento_str = (
+                inscripcion.area_tratamiento.value if inscripcion.area_tratamiento else None
+            )
+
             # Generar token JWT con expiración de 4hs
             expiry = datetime.utcnow() + timedelta(hours=TOKEN_EXPIRY_HOURS)
             payload = {
                 "turno_id": turno_id,
                 "inscripcion_id": inscripcion_id_str,
                 "paciente_id": paciente_id_str,
+                "area_tratamiento": area_tratamiento_str,
                 "exp": expiry,
             }
             token = jwt.encode(payload, settings.supabase_jwt_secret, algorithm=TOKEN_ALGORITHM)
@@ -113,7 +117,7 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
             enviado = send_cupo_liberado_email(
                 email=paciente.email,
                 nombre=nombre_completo,
-                area_tratamiento=turno.area_tratamiento.value if turno.area_tratamiento else "",
+                area_tratamiento=area_tratamiento_str or "",
                 fecha=turno.fecha.strftime("%d/%m/%Y"),
                 hora_inicio=turno.hora_inicio.strftime("%H:%M"),
                 hora_fin=turno.hora_fin.strftime("%H:%M"),
@@ -134,13 +138,32 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
                 )
 
         # Programar verificación de vencimiento fuera del bloque de DB
-        verificar_vencimiento_oferta.apply_async(
-            args=[turno_id, inscripcion_id_str],
-            countdown=TOKEN_EXPIRY_HOURS * 3600,
-        )
+        try:
+            verificar_vencimiento_oferta.apply_async(
+                args=[turno_id, inscripcion_id_str],
+                countdown=TOKEN_EXPIRY_HOURS * 3600,
+            )
+        except Exception:
+            logger.warning(
+                "[lista_espera] No se pudo programar la verificación de vencimiento para turno %s "
+                "(Celery/Redis no disponible). El mail de oferta se envió igual.",
+                turno_id,
+            )
         return True
     finally:
         await engine.dispose()
+
+
+async def despachar_oferta_turno(turno_id: str) -> None:
+    """Encola la oferta por Celery; si no hay broker disponible, la ejecuta en el momento."""
+    try:
+        ofertar_turno_lista_espera.delay(turno_id)
+    except Exception:
+        logger.warning(
+            "[lista_espera] Celery/Redis no disponible, enviando oferta en línea para turno %s",
+            turno_id,
+        )
+        await _ofertar_turno_lista_espera(turno_id)
 
 
 @celery_app.task(name="tasks.ofertar_turno_lista_espera")
@@ -172,7 +195,7 @@ async def _verificar_vencimiento_oferta(turno_id: str, inscripcion_id: str) -> N
                 inscripcion_id,
             )
 
-        ofertar_turno_lista_espera.delay(turno_id)
+        await despachar_oferta_turno(turno_id)
     finally:
         await engine.dispose()
 

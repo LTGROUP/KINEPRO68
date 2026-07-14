@@ -78,17 +78,19 @@ class DiasCerrados(Base):
     """
     __tablename__ = "dias_cerrados"
 
-    id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    fecha       = Column(Date, nullable=False, unique=True)
-    motivo      = Column(String, nullable=True)              # "Feriado nacional", "Mantenimiento", etc.
-    creado_por  = Column(UUID(as_uuid=True), nullable=False)
-    creado_en   = Column(DateTime, default=datetime.utcnow)
+    id              = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    fecha           = Column(Date, nullable=False, unique=True)
+    motivo          = Column(String, nullable=True)              # "Feriado nacional", "Mantenimiento", etc.
+    creado_por      = Column(UUID(as_uuid=True), nullable=False)
+    creado_en       = Column(DateTime, default=datetime.utcnow)
+    horario_inicio  = Column(Time, nullable=True)   # si viene junto con horario_fin: día con horario reducido
+    horario_fin     = Column(Time, nullable=True)
 
 class ListaEspera(Base):
     __tablename__ = "lista_espera"
 
     id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    turno_id    = Column(UUID(as_uuid=True), ForeignKey("turnos.id"), nullable=False)
+    turno_id    = Column(UUID(as_uuid=True), ForeignKey("turnos.id"), nullable=False, index=True)
     paciente_id = Column(UUID(as_uuid=True), nullable=False)
     area_tratamiento = Column(SAEnum(AreaTratamiento, name="area_tratamiento", values_callable=lambda x: [e.value for e in x]), nullable=False)  # ← agregar
     fecha_inscripcion = Column(DateTime, default=datetime.utcnow, nullable=False)

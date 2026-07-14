@@ -322,11 +322,19 @@ async def obtener_inscripciones_lista_espera_por_paciente(db: AsyncSession, paci
     return result.all()
 
 async def obtener_turnos_con_lista_espera_activa(db: AsyncSession):
-    result = await db.execute(
-        select(Turno)
-        .join(ListaEspera, ListaEspera.turno_id == Turno.id)
+    conteo_subq = (
+        select(
+            ListaEspera.turno_id.label("turno_id"),
+            func.count(ListaEspera.id).label("cantidad"),
+        )
         .where(ListaEspera.activo == True)
-        .distinct()
+        .group_by(ListaEspera.turno_id)
+        .subquery()
+    )
+
+    result = await db.execute(
+        select(Turno, conteo_subq.c.cantidad)
+        .join(conteo_subq, conteo_subq.c.turno_id == Turno.id)
         .order_by(Turno.fecha, Turno.hora_inicio)
     )
-    return result.scalars().all()
+    return result.all()  # lista de tuplas (Turno, cantidad)

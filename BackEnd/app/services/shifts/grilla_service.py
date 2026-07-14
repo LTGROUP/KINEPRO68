@@ -11,6 +11,7 @@ from app.schemas.shifts.turno import (
     GrillaGeneradaResponse,
     BloquearDiaResponse,
     ModificarCuposResponse,
+    EditarHorarioDiaResponse,
 )
 from app.repositories.shifts.grilla import (
     eliminar_turnos_disponibles_del_mes,
@@ -19,6 +20,9 @@ from app.repositories.shifts.grilla import (
     obtener_turnos_del_rango,
     obtener_todos_professional_profiles,
     obtener_conteo_turnos_por_profesional_mes,
+    eliminar_turnos_disponibles_del_dia,
+    obtener_turnos_reservados_del_dia,
+    obtener_dia_cerrado_por_fecha,
 )
 import calendar
 
@@ -118,10 +122,16 @@ async def generar_grilla(
 
     dias_cerrados_set = set(request.dias_cerrados or [])
 
-    
-    dias_cerrados_bd =  await obtener_dias_cerrados_del_mes(db, primer_dia_mes, ultimo_dia_mes)
+    dias_cerrados_bd = await obtener_dias_cerrados_del_mes(db, primer_dia_mes, ultimo_dia_mes)
+    dias_horario_reducido: dict[date, list[Tuple[time, time]]] = {}
     for dc in dias_cerrados_bd:
-        dias_cerrados_set.add(dc.fecha)
+        if dc.horario_inicio and dc.horario_fin:
+            # Día con horario reducido: no se omite, pero usa su propia franja en vez de las generales.
+            dias_horario_reducido[dc.fecha] = _generar_slots(
+                [FranjaHoraria(hora_inicio=dc.horario_inicio, hora_fin=dc.horario_fin)]
+            )
+        else:
+            dias_cerrados_set.add(dc.fecha)
 
     total_creados = 0
     dias_omitidos = []
@@ -142,7 +152,9 @@ async def generar_grilla(
             fecha_actual += timedelta(days=1)
             continue
 
-        for hora_ini, hora_fin_slot in slots:
+        slots_del_dia = dias_horario_reducido.get(fecha_actual, slots)
+
+        for hora_ini, hora_fin_slot in slots_del_dia:
             for _ in range(request.turnos_por_slot):
                 prof_id = _elegir_profesional(profesionales, hora_ini, hora_fin_slot, conteo, fecha_actual)
                 turno = Turno(
@@ -160,11 +172,14 @@ async def generar_grilla(
 
     await db.commit()
 
+    mes_nombre = MESES_ES[request.mes]
     if dias_omitidos:
-        mensaje = "Agenda generada, omitiendo fechas cerradas"
+        mensaje = (
+            f"Agenda generada con éxito para {mes_nombre} {request.anio}, "
+            f"{total_creados} turnos creados (omitiendo fechas cerradas)"
+        )
     else:
-        mes_nombre = f"{MESES_ES[request.mes]} {request.anio}"
-        mensaje = f"Agenda generada con éxito para {mes_nombre}"
+        mensaje = f"Agenda generada con éxito para {mes_nombre} {request.anio}, {total_creados} turnos creados"
 
     return GrillaGeneradaResponse(
         mensaje=mensaje,
@@ -265,4 +280,67 @@ async def reducir_cupos_rango(
         fecha_hasta=fecha_hasta,
         turnos_reducidos=turnos_reducidos,
         pacientes_a_contactar=pacientes_a_contactar,
+    )
+
+
+async def editar_horario_dia(
+    db: AsyncSession,
+    fecha: date,
+    hora_inicio: time,
+    hora_fin: time,
+    secretaria_id: UUID,
+) -> EditarHorarioDiaResponse:
+
+    turnos_existentes = await obtener_turnos_del_dia(db, fecha)
+    if not turnos_existentes:
+        raise ValueError(f"La fecha {fecha} no tiene turnos generados")
+
+    configuracion_id = next(
+        (t.configuracion_id for t in turnos_existentes if t.configuracion_id), None
+    )
+    turnos_por_slot = 1
+    if configuracion_id:
+        config = await db.get(ConfiguracionGrilla, configuracion_id)
+        if config:
+            turnos_por_slot = config.turnos_por_slot
+
+    await eliminar_turnos_disponibles_del_dia(db, fecha)
+
+    turnos_reservados = await obtener_turnos_reservados_del_dia(db, fecha)
+
+    profesionales = obtener_todos_professional_profiles()
+    conteo: defaultdict = defaultdict(int)
+    for t in turnos_reservados:
+        if t.profesional_id:
+            conteo[(str(t.profesional_id), fecha)] += 1
+
+    slots = _generar_slots([FranjaHoraria(hora_inicio=hora_inicio, hora_fin=hora_fin)])
+
+    turnos_creados = 0
+    for hora_ini, hora_fin_slot in slots:
+        for _ in range(turnos_por_slot):
+            prof_id = _elegir_profesional(profesionales, hora_ini, hora_fin_slot, conteo, fecha)
+            turno = Turno(
+                configuracion_id=configuracion_id,
+                fecha=fecha,
+                hora_inicio=hora_ini,
+                hora_fin=hora_fin_slot,
+                estado=EstadoTurno.DISPONIBLE,
+                profesional_id=prof_id,
+            )
+            db.add(turno)
+            turnos_creados += 1
+
+    dia_cerrado = await obtener_dia_cerrado_por_fecha(db, fecha)
+    if dia_cerrado and dia_cerrado.horario_inicio and dia_cerrado.horario_fin:
+        dia_cerrado.horario_inicio = hora_inicio
+        dia_cerrado.horario_fin = hora_fin
+        db.add(dia_cerrado)
+
+    await db.commit()
+
+    return EditarHorarioDiaResponse(
+        mensaje=f"Horario del día {fecha} actualizado correctamente",
+        turnos_creados=turnos_creados,
+        turnos_reservados_conservados=len(turnos_reservados),
     )

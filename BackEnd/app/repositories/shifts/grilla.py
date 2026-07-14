@@ -110,6 +110,78 @@ async def obtener_conteo_turnos_por_profesional_mes(
     for row in result.all():
         conteo[(str(row.profesional_id), row.fecha)] = row.n
     return conteo
+async def obtener_dia_cerrado_por_fecha(
+    db: AsyncSession,
+    fecha: date,
+) -> Optional[DiasCerrados]:
+    result = await db.execute(
+        select(DiasCerrados).where(DiasCerrados.fecha == fecha)
+    )
+    return result.scalar_one_or_none()
+
+
+async def crear_dia_cerrado(
+    db: AsyncSession,
+    fecha: date,
+    motivo: Optional[str],
+    creado_por,
+    horario_inicio=None,
+    horario_fin=None,
+) -> DiasCerrados:
+    dia_cerrado = DiasCerrados(
+        fecha=fecha,
+        motivo=motivo,
+        creado_por=creado_por,
+        horario_inicio=horario_inicio,
+        horario_fin=horario_fin,
+    )
+    db.add(dia_cerrado)
+    await db.commit()
+    await db.refresh(dia_cerrado)
+    return dia_cerrado
+
+
+async def eliminar_dia_cerrado(
+    db: AsyncSession,
+    fecha: date,
+) -> int:
+    result = await db.execute(
+        delete(DiasCerrados).where(DiasCerrados.fecha == fecha)
+    )
+    await db.commit()
+    return result.rowcount
+
+
+async def eliminar_turnos_disponibles_del_dia(
+    db: AsyncSession,
+    fecha: date,
+) -> int:
+    result = await db.execute(
+        delete(Turno).where(
+            and_(
+                Turno.fecha == fecha,
+                Turno.estado == EstadoTurno.DISPONIBLE,
+            )
+        )
+    )
+    return result.rowcount
+
+
+async def obtener_turnos_reservados_del_dia(
+    db: AsyncSession,
+    fecha: date,
+) -> list[Turno]:
+    result = await db.execute(
+        select(Turno).where(
+            and_(
+                Turno.fecha == fecha,
+                Turno.estado != EstadoTurno.DISPONIBLE,
+            )
+        )
+    )
+    return result.scalars().all()
+
+
 async def obtener_configuracion_por_mes(
     db: AsyncSession,
     mes: int,

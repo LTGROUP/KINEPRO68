@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, extract
 from datetime import date
@@ -32,6 +32,7 @@ from app.schemas.shifts.turno import (
     InscribirPacienteListaEsperaRequest,
     ReporteAusentismoResponse,
     TurnoInfoTokenResponse,
+    RegistrarTurnoManualRequest,
     MisInscripcionesListaEsperaResponse,
     TurnoConListaEsperaResponse,
     TurnosConListaEsperaResponse
@@ -40,6 +41,7 @@ from app.models.turno import EstadoTurno
 from app.services.shifts.turnos_service import (
     consultar_turnos_disponibles,
     solicitar_turno,
+    registrar_turno_manual_secretaria,
     ver_mis_turnos,
     consultar_lista_espera,
     cancelar_turno,
@@ -177,14 +179,33 @@ async def solicitar_turno_endpoint(
     db: AsyncSession = Depends(get_db),
     paciente=Depends(get_current_user),
 ):
-    if paciente.get("rol") == "profesional":
+    actor_role = paciente.get("rol")
+
+    if actor_role == "profesional":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Los profesionales no pueden solicitar turnos como pacientes",
         )
     try:
         from uuid import UUID
+
         id_paciente = UUID(str(paciente["id"])) if isinstance(paciente["id"], str) else paciente["id"]
+
+        if request.paciente_id:
+            if actor_role not in ["secretaria", "administrativo"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="No tenes permisos para asignar turnos a otro paciente",
+                )
+
+            from app.repositories.patients.patient_repository import get_patient_by_id
+            if not get_patient_by_id(str(request.paciente_id)):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El paciente indicado no existe",
+                )
+
+            id_paciente = request.paciente_id
 
         return await solicitar_turno(
             db=db,
@@ -196,6 +217,35 @@ async def solicitar_turno_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+@router.post(
+    "/registrar-manual",
+    response_model=TurnoSolicitadoResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Registrar turno manual para un paciente (secretaria)",
+    description="La secretaria reserva un turno disponible a nombre de un paciente puntual.",
+)
+async def registrar_turno_manual_endpoint(
+    request: RegistrarTurnoManualRequest,
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    try:
+        id_secretaria = UUID(str(secretaria["id"])) if isinstance(secretaria["id"], str) else secretaria["id"]
+
+        return await registrar_turno_manual_secretaria(
+            db=db,
+            turno_id=request.turno_id,
+            paciente_id=request.paciente_id,
+            area_tratamiento=request.area_tratamiento,
+            secretaria_id=id_secretaria,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
 
 @router.get(
     "/mis-turnos",
@@ -258,9 +308,15 @@ async def obtener_turnos_lista_espera_activa(
     secretaria=Depends(get_current_secretaria),
 ):
     turnos = await consultar_turnos_con_lista_espera_activa(db)
+    turnos_response = []
+    for turno, cantidad in turnos:
+        turno_resp = TurnoConListaEsperaResponse.model_validate(turno)
+        turno_resp.cantidad_en_espera = cantidad
+        turnos_response.append(turno_resp)
+
     return TurnosConListaEsperaResponse(
-        turnos=[TurnoConListaEsperaResponse.model_validate(t) for t in turnos],
-        total=len(turnos),
+        turnos=turnos_response,
+        total=len(turnos_response),
     )
 
 # ── HU: Cancelar inscripción propia en lista de espera (paciente) ─────────────
@@ -410,9 +466,7 @@ async def marcar_asistencia_endpoint(
             turno_id=turno_id,
             nuevo_estado=request.nuevo_estado
         )
-        if resultado.estado == EstadoTurno.AUSENTE:
-            return {"mensaje": "Ausencia registrada con éxito"}
-        return {"mensaje": f"Turno marcado como {resultado.estado}"}
+        return {"mensaje": "Ausencia registrada con éxito"}
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -552,11 +606,17 @@ async def cancelar_inscripcion_lista_espera_secretaria_endpoint(
     description="Valida el token JWT y devuelve los datos del turno para mostrar en la pantalla pública.",
 )
 async def obtener_info_turno_token_endpoint(
+    response: Response,
     token: str = Query(..., description="Token JWT recibido por email"),
     db: AsyncSession = Depends(get_db),
 ):
+    # El token es de un solo uso: evitamos que el browser lo sirva desde caché
+    # en una recarga o navegación hacia atrás.
+    response.headers["Cache-Control"] = "no-store"
     try:
         return await obtener_info_turno_por_token(db=db, token=token)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
