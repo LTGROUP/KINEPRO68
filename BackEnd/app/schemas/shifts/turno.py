@@ -299,7 +299,7 @@ class MiInscripcionListaEsperaResponse(BaseModel):
     fecha: date
     hora_inicio: time
     hora_fin: time
-    area_tratamiento: str
+    area_tratamiento: Optional[str] = None
     fecha_inscripcion: datetime
     posicion: int
     
