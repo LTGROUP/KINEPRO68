@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { ExternalLink, Plus, Trash2 } from 'lucide-react'
 
 function createEmptyStudy() {
   return {
@@ -18,19 +18,37 @@ function getTodayInputValue() {
   return `${year}-${month}-${day}`
 }
 
-function MedicalRecordForm({ loading, onSubmit, initialData = null, mode = 'create' }) {
+function buildAntecedentsText(initialData) {
+  if (!initialData) {
+    return ''
+  }
+
+  const parts = [
+    initialData.cirugias_relevantes,
+    initialData.enfermedades_relevantes,
+    initialData.medicacion_actual,
+    initialData.alergias,
+  ]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+
+  return parts.join('\n')
+}
+
+function MedicalRecordForm({
+  actor,
+  loading,
+  onSubmit,
+  onUploadStudyPdf,
+  initialData = null,
+  mode = 'create',
+}) {
   const todayInputValue = getTodayInputValue()
+  const [uploadingStudyIndex, setUploadingStudyIndex] = useState(null)
+  const [uploadError, setUploadError] = useState('')
   const [form, setForm] = useState(() => ({
-    motivo_consulta: initialData?.motivo_consulta || '',
     diagnostico_medico: initialData?.diagnostico_medico || '',
-    zona_afectada: initialData?.zona_afectada || '',
-    fecha_inicio_lesion: initialData?.fecha_inicio_lesion || '',
-    cirugias_relevantes: initialData?.cirugias_relevantes || '',
-    enfermedades_relevantes: initialData?.enfermedades_relevantes || '',
-    medicacion_actual: initialData?.medicacion_actual || '',
-    alergias: initialData?.alergias || '',
-    ocupacion: initialData?.ocupacion || '',
-    actividad_fisica: initialData?.actividad_fisica || '',
+    antecedentes: buildAntecedentsText(initialData),
   }))
 
   const [studies, setStudies] = useState(() => {
@@ -76,11 +94,38 @@ function MedicalRecordForm({ loading, onSubmit, initialData = null, mode = 'crea
     setStudies((current) => current.filter((_, currentIndex) => currentIndex !== index))
   }
 
+  async function handleStudyPdfChange(index, file) {
+    if (!file || !onUploadStudyPdf) {
+      return
+    }
+
+    setUploadError('')
+    setUploadingStudyIndex(index)
+
+    try {
+      const response = await onUploadStudyPdf(actor, file)
+      handleStudyChange(index, 'archivo_url', response.archivo_url)
+    } catch (error) {
+      setUploadError(error.message)
+    } finally {
+      setUploadingStudyIndex(null)
+    }
+  }
+
   function handleSubmit(event) {
     event.preventDefault()
 
     const payload = {
-      ...form,
+      motivo_consulta: null,
+      diagnostico_medico: form.diagnostico_medico,
+      zona_afectada: null,
+      fecha_inicio_lesion: null,
+      cirugias_relevantes: form.antecedentes,
+      enfermedades_relevantes: null,
+      medicacion_actual: null,
+      alergias: null,
+      ocupacion: null,
+      actividad_fisica: null,
       estudios: studies
         .filter((study) => study.tipo_estudio.trim())
         .map((study) => ({
@@ -100,46 +145,13 @@ function MedicalRecordForm({ loading, onSubmit, initialData = null, mode = 'crea
         <p className="staff-eyebrow">Información médica</p>
 
         <label className="auth-field">
-          <span>Motivo de consulta</span>
-          <textarea
-            name="motivo_consulta"
-            value={form.motivo_consulta}
-            onChange={handleInputChange}
-            placeholder="Ej: dolor lumbar persistente al realizar actividad física"
-            rows="3"
-          />
-        </label>
-
-        <label className="auth-field">
           <span>Diagnóstico médico</span>
-          <input
-            type="text"
+          <textarea
             name="diagnostico_medico"
             value={form.diagnostico_medico}
             onChange={handleInputChange}
-            placeholder="Ej: lumbalgia mecánica"
-          />
-        </label>
-
-        <label className="auth-field">
-          <span>Zona afectada</span>
-          <input
-            type="text"
-            name="zona_afectada"
-            value={form.zona_afectada}
-            onChange={handleInputChange}
-            placeholder="Ej: columna lumbar"
-          />
-        </label>
-
-        <label className="auth-field">
-          <span>Inicio de lesión o dolor</span>
-          <input
-            type="text"
-            name="fecha_inicio_lesion"
-            value={form.fecha_inicio_lesion}
-            onChange={handleInputChange}
-            placeholder="Ej: hace 3 meses / desde 2024 / el año pasado"
+            placeholder="Ej: lumbalgia mecánica, tendinitis, esguince..."
+            rows="4"
           />
         </label>
       </div>
@@ -148,72 +160,13 @@ function MedicalRecordForm({ loading, onSubmit, initialData = null, mode = 'crea
         <p className="staff-eyebrow">Antecedentes</p>
 
         <label className="auth-field">
-          <span>Cirugías relevantes</span>
+          <span>Antecedentes</span>
           <textarea
-            name="cirugias_relevantes"
-            value={form.cirugias_relevantes}
+            name="antecedentes"
+            value={form.antecedentes}
             onChange={handleInputChange}
-            placeholder="Ej: cirugía de meniscos en 2022"
-            rows="2"
-          />
-        </label>
-
-        <label className="auth-field">
-          <span>Enfermedades relevantes</span>
-          <textarea
-            name="enfermedades_relevantes"
-            value={form.enfermedades_relevantes}
-            onChange={handleInputChange}
-            placeholder="Ej: hipertensión, diabetes, asma..."
-            rows="2"
-          />
-        </label>
-
-        <label className="auth-field">
-          <span>Medicación actual</span>
-          <textarea
-            name="medicacion_actual"
-            value={form.medicacion_actual}
-            onChange={handleInputChange}
-            placeholder="Ej: ibuprofeno 400mg ocasional"
-            rows="2"
-          />
-        </label>
-
-        <label className="auth-field">
-          <span>Alergias</span>
-          <textarea
-            name="alergias"
-            value={form.alergias}
-            onChange={handleInputChange}
-            placeholder="Ej: penicilina"
-            rows="2"
-          />
-        </label>
-      </div>
-
-      <div>
-        <p className="staff-eyebrow">Información adicional</p>
-
-        <label className="auth-field">
-          <span>Ocupación</span>
-          <input
-            type="text"
-            name="ocupacion"
-            value={form.ocupacion}
-            onChange={handleInputChange}
-            placeholder="Ej: programador, docente, comerciante..."
-          />
-        </label>
-
-        <label className="auth-field">
-          <span>Actividad física</span>
-          <input
-            type="text"
-            name="actividad_fisica"
-            value={form.actividad_fisica}
-            onChange={handleInputChange}
-            placeholder="Ej: gimnasio 3 veces por semana"
+            placeholder="Ej: cirugías, enfermedades relevantes, medicación actual, alergias u otros datos importantes"
+            rows="5"
           />
         </label>
       </div>
@@ -291,12 +244,40 @@ function MedicalRecordForm({ loading, onSubmit, initialData = null, mode = 'crea
                 />
               </label>
 
+              <div className="medical-study-file-row">
+                <label className="medical-study-file-button">
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(event) =>
+                      handleStudyPdfChange(index, event.target.files?.[0])
+                    }
+                    disabled={uploadingStudyIndex === index}
+                  />
+                  {uploadingStudyIndex === index ? 'Subiendo PDF...' : 'Adjuntar PDF'}
+                </label>
+
+                {study.archivo_url && (
+                  <a
+                    className="medical-study-file-link"
+                    href={study.archivo_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Ver PDF
+                    <ExternalLink size={15} strokeWidth={2.7} aria-hidden="true" />
+                  </a>
+                )}
+              </div>
+
             </div>
           ))}
         </div>
+
+        {uploadError && <p className="staff-inline-error">{uploadError}</p>}
       </div>
 
-      <button className="auth-submit" type="submit" disabled={loading}>
+      <button className="auth-submit" type="submit" disabled={loading || uploadingStudyIndex !== null}>
         {loading
           ? mode === 'edit'
             ? 'Actualizando historia clínica...'

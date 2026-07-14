@@ -1,68 +1,37 @@
+import { ExternalLink } from 'lucide-react'
+
+function buildAntecedentsText(record) {
+  const parts = [
+    record.cirugias_relevantes,
+    record.enfermedades_relevantes,
+    record.medicacion_actual,
+    record.alergias,
+  ]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+
+  return parts.join('\n')
+}
+
 function MedicalRecordDetail({ record }) {
+  const antecedentes = buildAntecedentsText(record)
+
   return (
     <div className="space-y-5">
       <section>
         <div className="space-y-3">
           <div>
-            <strong>Motivo de consulta</strong>
-            <p>{record.motivo_consulta || '-'}</p>
-          </div>
-
-          <div>
             <strong>Diagnóstico médico</strong>
-            <p>{record.diagnostico_medico || '-'}</p>
-          </div>
-
-          <div>
-            <strong>Zona afectada</strong>
-            <p>{record.zona_afectada || '-'}</p>
-          </div>
-
-          <div>
-            <strong>Inicio lesión o dolor</strong>
-            <p>{record.fecha_inicio_lesion || '-'}</p>
+            <p className="whitespace-pre-line">{record.diagnostico_medico || '-'}</p>
           </div>
         </div>
       </section>
 
       <section>
-        <p className="staff-eyebrow">Antecedentes</p>
-
         <div className="space-y-3">
           <div>
-            <strong>Cirugías relevantes</strong>
-            <p>{record.cirugias_relevantes || '-'}</p>
-          </div>
-
-          <div>
-            <strong>Enfermedades relevantes</strong>
-            <p>{record.enfermedades_relevantes || '-'}</p>
-          </div>
-
-          <div>
-            <strong>Medicación actual</strong>
-            <p>{record.medicacion_actual || '-'}</p>
-          </div>
-
-          <div>
-            <strong>Alergias</strong>
-            <p>{record.alergias || '-'}</p>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <p className="staff-eyebrow">Información adicional</p>
-
-        <div className="space-y-3">
-          <div>
-            <strong>Ocupación</strong>
-            <p>{record.ocupacion || '-'}</p>
-          </div>
-
-          <div>
-            <strong>Actividad física</strong>
-            <p>{record.actividad_fisica || '-'}</p>
+            <strong>Antecedentes</strong>
+            <p className="whitespace-pre-line">{antecedentes || '-'}</p>
           </div>
         </div>
       </section>
@@ -86,6 +55,17 @@ function MedicalRecordDetail({ record }) {
                 <p>
                   <strong>Observaciones:</strong> {study.observaciones || '-'}
                 </p>
+                {study.archivo_url && (
+                  <a
+                    className="medical-study-file-link mt-3"
+                    href={study.archivo_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Ver PDF
+                    <ExternalLink size={15} strokeWidth={2.7} aria-hidden="true" />
+                  </a>
+                )}
               </div>
             ))}
           </div>

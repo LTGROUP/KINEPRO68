@@ -658,6 +658,111 @@
   opacity: 0.5;
 }
 
+.patient-actions-row td {
+  padding: 0 18px 4px;
+  background: #ffffff;
+  border-bottom: 1px solid #e3ede9;
+}
+
+.patient-actions-panel {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: patient-actions-expand 160ms ease;
+}
+
+.patient-actions-panel button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 14px;
+  color: #ffffff;
+  background: #176b5b;
+  cursor: pointer;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: background 160ms ease;
+}
+
+.patient-actions-panel button:hover:not(:disabled) {
+  background: #207c6a;
+}
+
+.medical-study-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.medical-study-file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 16px;
+  color: #ffffff;
+  background: #176b5b;
+  cursor: pointer;
+  font-weight: 800;
+  transition: background 160ms ease;
+}
+
+.medical-study-file-button:hover {
+  background: #207c6a;
+}
+
+.medical-study-file-button input {
+  display: none;
+}
+
+.medical-study-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  border: 1px solid #c8d9d4;
+  border-radius: 999px;
+  padding: 0 14px;
+  color: #176b5b;
+  background: #ffffff;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.medical-study-file-link:hover {
+  border-color: #176b5b;
+  background: #edf5f2;
+}
+
+.staff-inline-error {
+  margin: 12px 0 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #9b2c2c;
+  background: #ffe2e2;
+  font-weight: 800;
+}
+
+@keyframes patient-actions-expand {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes staff-actions-in {
   from {
     opacity: 0;

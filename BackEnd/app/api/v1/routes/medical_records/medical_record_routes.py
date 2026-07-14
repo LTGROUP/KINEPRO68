@@ -1,6 +1,6 @@
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 
 from app.api.dependencies.auth import get_current_professional_profile
 from app.schemas.medical_records.medical_record_schema import (
@@ -21,8 +21,31 @@ from app.repositories.medical_records.medical_record_repository import (
 )
 
 from app.services.medical_records.pdf_service import generate_medical_record_pdf
+from app.services.medical_records.study_file_service import upload_study_pdf
 
 router = APIRouter(prefix="/medical-records", tags=["medical-records"])
+
+
+@router.post("/studies/upload-pdf")
+def post_study_pdf(
+    file: UploadFile = File(...),
+    current_profile: dict = Depends(get_current_professional_profile),
+) -> dict:
+    try:
+        if current_profile["rol"].strip().lower() != "profesional":
+            raise ValueError("Solo los profesionales pueden adjuntar estudios")
+
+        return {"archivo_url": upload_study_pdf(file)}
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No se pudo adjuntar el PDF del estudio.",
+        ) from error
 
 
 @router.post("", response_model=MedicalRecordResponse, status_code=status.HTTP_201_CREATED)

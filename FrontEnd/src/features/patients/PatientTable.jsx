@@ -1,14 +1,6 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
-function getActionsTrackClass(isOpen) {
-  if (isOpen) {
-    return 'staff-actions-track open'
-  }
-
-  return 'staff-actions-track'
-}
-
 function getArrowClass(isOpen) {
   if (isOpen) {
     return 'staff-action-arrow open'
@@ -27,6 +19,7 @@ function PatientTable({
   onAssignTurno,
   onRoutine,
   onMedicalRecord,
+  onSessionRecord,
 }) {
   const [openPatientId, setOpenPatientId] = useState(null)
 
@@ -59,6 +52,10 @@ function PatientTable({
             Historia clínica
           </button>
 
+          <button type="button" onClick={() => onSessionRecord(patient)}>
+            Registro de sesiones
+          </button>
+
           <button type="button" onClick={() => onView(patient)}>
             Ver datos
           </button>
@@ -86,7 +83,6 @@ function PatientTable({
 
     for (const patient of items) {
       const isOpen = openPatientId === patient.id
-      const actionsTrackClass = getActionsTrackClass(isOpen)
       const arrowClass = getArrowClass(isOpen)
       let rowClass = ''
 
@@ -95,7 +91,7 @@ function PatientTable({
       }
 
       rows.push(
-        <tr key={patient.id} className={rowClass}>
+        <tr key={`patient-${patient.id}`} className={rowClass}>
           <td className="staff-name-cell" data-label="Nombre">
             <strong>
               {patient.nombre} {patient.apellido}
@@ -109,13 +105,7 @@ function PatientTable({
             <span className="staff-email-value">{patient.email}</span>
           </td>
           <td className="staff-actions-cell" data-label="Acciones">
-            <div className={actionsTrackClass}>
-              {isOpen && (
-                <div className="staff-actions-overlay">
-                  {renderPatientActions(patient)}
-                </div>
-              )}
-
+            <div className="staff-actions-track">
               <button
                 type="button"
                 className={arrowClass}
@@ -133,6 +123,18 @@ function PatientTable({
           </td>
         </tr>,
       )
+
+      if (isOpen) {
+        rows.push(
+          <tr key={`patient-actions-${patient.id}`} className="patient-actions-row">
+            <td colSpan={4}>
+              <div className="patient-actions-panel">
+                {renderPatientActions(patient)}
+              </div>
+            </td>
+          </tr>,
+        )
+      }
     }
 
     return rows

@@ -135,21 +135,24 @@ def generate_medical_record_pdf(record: dict, patient: dict | None = None) -> by
       )
       story.append(table)
 
+    antecedents = "\n".join(
+        [
+            value.strip()
+            for value in [
+                record.get("cirugias_relevantes"),
+                record.get("enfermedades_relevantes"),
+                record.get("medicacion_actual"),
+                record.get("alergias"),
+            ]
+            if isinstance(value, str) and value.strip()
+        ]
+    )
+
     add_section(story, "Información médica", styles)
-    story.extend(build_field("Motivo de consulta", record.get("motivo_consulta")))
     story.extend(build_field("Diagnóstico médico", record.get("diagnostico_medico")))
-    story.extend(build_field("Zona afectada", record.get("zona_afectada")))
-    story.extend(build_field("Inicio de lesión o dolor", record.get("fecha_inicio_lesion")))
 
     add_section(story, "Antecedentes", styles)
-    story.extend(build_field("Cirugías relevantes", record.get("cirugias_relevantes")))
-    story.extend(build_field("Enfermedades relevantes", record.get("enfermedades_relevantes")))
-    story.extend(build_field("Medicación actual", record.get("medicacion_actual")))
-    story.extend(build_field("Alergias", record.get("alergias")))
-
-    add_section(story, "Información adicional", styles)
-    story.extend(build_field("Ocupación", record.get("ocupacion")))
-    story.extend(build_field("Actividad física", record.get("actividad_fisica")))
+    story.extend(build_field("Antecedentes", antecedents))
 
     add_section(story, "Estudios complementarios", styles)
     studies = record.get("estudios", [])

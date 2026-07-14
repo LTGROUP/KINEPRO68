@@ -23,6 +23,17 @@ export async function updateMedicalRecord(actor, recordId, payload) {
   })
 }
 
+export async function uploadStudyPdf(actor, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return request('/api/v1/medical-records/studies/upload-pdf', {
+    method: 'POST',
+    headers: buildActorHeaders(actor),
+    body: formData,
+  })
+}
+
 export async function downloadMedicalRecordPdf(actor, recordId) {
   const response = await request(`/api/v1/medical-records/${recordId}/pdf`, {
     method: 'GET',

@@ -25,6 +25,7 @@ import {
   getMedicalRecord,
   updateMedicalRecord,
   downloadMedicalRecordPdf,
+  uploadStudyPdf,
 } from '../../services/medicalRecordService'
 import {
   createSessionNote,
@@ -96,6 +97,7 @@ function PatientsPage({ user }) {
   const [patientForMedicalRecord, setPatientForMedicalRecord] = useState(null)
   const [selectedMedicalRecord, setSelectedMedicalRecord] = useState(null)
   const [showMedicalRecordActions, setShowMedicalRecordActions] = useState(false)
+  const [patientForSessionNotes, setPatientForSessionNotes] = useState(null)
   const [clinicalHistoryNotes, setClinicalHistoryNotes] = useState([])
   const [loadingClinicalHistory, setLoadingClinicalHistory] = useState(false)
   const [savingSessionNote, setSavingSessionNote] = useState(false)
@@ -218,13 +220,11 @@ function PatientsPage({ user }) {
   async function handleMedicalRecordAction(patient) {
     setError('')
     setMessage('')
-    setClinicalHistoryNotes([])
 
     try {
       const record = await getMedicalRecord(user, patient.id)
       setSelectedMedicalRecord(record)
       setShowMedicalRecordActions(false)
-      await loadClinicalHistory(record.paciente_id)
     } catch (requestError) {
       if (requestError.status === 404) {
         setPatientWithoutMedicalRecord(patient)
@@ -232,6 +232,14 @@ function PatientsPage({ user }) {
         setError(requestError.message)
       }
     }
+  }
+
+  async function handleSessionRecordAction(patient) {
+    setError('')
+    setMessage('')
+    setPatientForSessionNotes(patient)
+    setClinicalHistoryNotes([])
+    await loadClinicalHistory(patient.id)
   }
 
   async function handleCreateMedicalRecord(payload) {
@@ -301,7 +309,7 @@ function PatientsPage({ user }) {
     try {
       const createdNote = await createSessionNote(user, {
         ...payload,
-        paciente_id: selectedMedicalRecord.paciente_id,
+        paciente_id: patientForSessionNotes.id,
       })
 
       setClinicalHistoryNotes((currentNotes) => [createdNote, ...currentNotes])
@@ -506,6 +514,7 @@ function PatientsPage({ user }) {
             onAssignTurno={handleAssignTurno}
             onRoutine={handleRoutine}
             onMedicalRecord={handleMedicalRecordAction}
+            onSessionRecord={handleSessionRecordAction}
           />
         </section>
       </section>
@@ -718,8 +727,10 @@ function PatientsPage({ user }) {
             </h2>
 
             <MedicalRecordForm
+              actor={user}
               loading={savingMedicalRecord}
               onSubmit={handleCreateMedicalRecord}
+              onUploadStudyPdf={uploadStudyPdf}
             />
           </div>
         </aside>
@@ -734,7 +745,6 @@ function PatientsPage({ user }) {
               onClick={() => {
                 setSelectedMedicalRecord(null)
                 setShowMedicalRecordActions(false)
-                setClinicalHistoryNotes([])
               }}
               aria-label="Cerrar historia clínica"
             >
@@ -790,6 +800,29 @@ function PatientsPage({ user }) {
             <MedicalRecordDetail
               record={selectedMedicalRecord}
             />
+          </div>
+        </aside>
+      )}
+
+      {patientForSessionNotes && (
+        <aside className="staff-detail" aria-label="Registro de sesiones">
+          <div className="staff-detail-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => {
+                setPatientForSessionNotes(null)
+                setClinicalHistoryNotes([])
+              }}
+              aria-label="Cerrar registro de sesiones"
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+
+            <h2 className="clinical-history-title">Registro de sesiones</h2>
+            <p className="staff-confirm-copy">
+              {patientForSessionNotes.nombre} {patientForSessionNotes.apellido}
+            </p>
 
             <ClinicalHistoryPanel
               notes={clinicalHistoryNotes}
@@ -817,10 +850,12 @@ function PatientsPage({ user }) {
             <h2>Historia clínica</h2>
 
             <MedicalRecordForm
+              actor={user}
               initialData={editingMedicalRecord}
               loading={savingMedicalRecord}
               mode="edit"
               onSubmit={handleUpdateMedicalRecord}
+              onUploadStudyPdf={uploadStudyPdf}
             />
           </div>
         </aside>
