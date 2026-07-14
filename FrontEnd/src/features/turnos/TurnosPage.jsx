@@ -1,25 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import SolicitarTurnoView from './paciente/SolicitarTurnoView'
+import VerListaDeEspera from './paciente/ListasDeEspera'
 import MisTurnosView from './paciente/MisTurnosView'
 import ConfigurarGrillaView from './secretaria/ConfigurarGrillaView'
 import ListaEsperaView from './secretaria/ListaEsperaView'
+import AgendaProfesionalView from './profesional/AgendaProfesionalView'
 import '../../styles/turnos.css'
 
-function TurnosPage({ user }) {
+function TurnosPage({ user, onSectionChange, tabInicial, onTabInicialConsumido }) {
   const rol = user?.rol
-  const [activeTab, setActiveTab] = useState(() => {
-    if (rol === 'paciente') {
-      return 'mis-turnos'
-    }
-
-    if (rol === 'secretaria' || rol === 'administrativo') {
-      return 'grilla'
-    }
-
-    return 'solicitar'
-  })
+  const [activeTab, setActiveTab] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const [preseleccion, setPreseleccion] = useState(null)
+  const tabInicialConsumidoRef = useRef(false)
+  const onTabInicialConsumidoRef = useRef(onTabInicialConsumido)
+
+  useEffect(() => {
+    onTabInicialConsumidoRef.current = onTabInicialConsumido
+  }, [onTabInicialConsumido])
+
+  useEffect(() => {
+    // Si nos pidieron abrir un tab específico (ej: desde Pacientes), respetalo una sola vez
+    if (tabInicial && !tabInicialConsumidoRef.current) {
+      tabInicialConsumidoRef.current = true
+      setActiveTab(tabInicial)
+      if (onTabInicialConsumidoRef.current) onTabInicialConsumidoRef.current()
+      return
+    }
+
+    if (tabInicialConsumidoRef.current) return
+
+    if (rol === 'paciente') {
+      setActiveTab('mis-turnos')
+    } else if (rol === 'secretaria' || rol === 'administrative' || rol === 'administrativo') {
+      setActiveTab('grilla')
+    } else if (rol === 'profesional') {
+      setActiveTab('agenda-profesional')
+    } else {
+      setActiveTab('solicitar')
+    }
+  }, [rol, tabInicial])
 
   useEffect(() => {
     if (!successMessage) return undefined
@@ -28,15 +49,27 @@ function TurnosPage({ user }) {
     return () => window.clearTimeout(id)
   }, [successMessage])
 
-  function handleSuccess(msg) {
+  function handleSuccess(msg, tabDestino, seccionDestino) {
     setSuccessMessage(msg)
-    if (rol === 'paciente') {
+    if (seccionDestino && onSectionChange) {
+      onSectionChange(seccionDestino)  // navega a otra página
+    } else if (tabDestino) {
+      setActiveTab(tabDestino)  // cambia tab dentro de turnos
+    } else if (rol === 'paciente') {
       setActiveTab('mis-turnos')
     }
   }
 
+  function handleTurnoLleno(fecha, turnoId) {
+    setPreseleccion({ fecha, turnoId })
+    setActiveTab('lista-espera')
+  }
+
+  if (!activeTab) return null
+
   const esPaciente = rol === 'paciente'
   const esSecretaria = rol === 'secretaria' || rol === 'administrativo'
+  const esProfesional = rol === 'profesional'
 
   return (
     <main className="staff-page">
@@ -48,7 +81,8 @@ function TurnosPage({ user }) {
               <p>
                 {esPaciente && 'Reservá y consultá tus turnos'}
                 {esSecretaria && 'Configurá la grilla y gestioná la lista de espera'}
-                {!esPaciente && !esSecretaria && 'Consultá los turnos disponibles'}
+                {esProfesional && 'Tu agenda de turnos asignados'}
+                {!esPaciente && !esSecretaria && !esProfesional && 'Consultá los turnos disponibles'}
               </p>
             </div>
           </div>
@@ -63,8 +97,8 @@ function TurnosPage({ user }) {
                 onClick={() => setActiveTab('mis-turnos')}
               >
                 Mis turnos
-                
               </button>
+
               <button
                 type="button"
                 role="tab"
@@ -73,6 +107,16 @@ function TurnosPage({ user }) {
                 onClick={() => setActiveTab('solicitar')}
               >
                 Solicitar turno
+              </button>
+
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'lista-espera-paciente'}
+                className={activeTab === 'lista-espera-paciente' ? 'active' : ''}
+                onClick={() => setActiveTab('lista-espera-paciente')}
+              >
+                Turnos en lista de espera
               </button>
             </div>
           )}
@@ -106,15 +150,19 @@ function TurnosPage({ user }) {
           {activeTab === 'mis-turnos' && (
             <MisTurnosView user={user} />
           )}
+
+          {activeTab === 'lista-espera-paciente' && (
+            <VerListaDeEspera user={user} />
+          )}
+
           {activeTab === 'grilla' && (
             <ConfigurarGrillaView user={user} onSuccess={handleSuccess} />
           )}
           {activeTab === 'lista-espera' && (
             <ListaEsperaView user={user} />
           )}
-
-          {!esPaciente && !esSecretaria && (
-            <MisTurnosView user={user} />
+          {activeTab === 'agenda-profesional' && (
+            <AgendaProfesionalView user={user} />
           )}
         </section>
       </section>

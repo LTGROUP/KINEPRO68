@@ -20,6 +20,15 @@ export function solicitarTurno(actor, payload) {
   })
 }
 
+// Registro manual de turno por la secretaria a nombre de un paciente
+export function registrarTurnoManual(actor, payload) {
+  return request('/api/v1/turnos/registrar-manual', {
+    method: 'POST',
+    headers: buildActorHeaders(actor),
+    body: payload,
+  })
+}
+
 export function getMisTurnos(actor) {
   return request('/api/v1/turnos/mis-turnos', {
     method: 'GET',
@@ -34,15 +43,36 @@ export function getListaEspera(actor, turnoId) {
   })
 }
 
-export async function inscribirseListaEspera(user, turnoId, areaTratamiento) {
-  return request(`/api/v1/turnos/${turnoId}/lista-espera`, {
+export const inscribirseListaEspera = async (user, turno_id, area_tratamiento) => {
+  const token = user?.access_token || user?.token;
+
+  console.log('🔍 Debug Token:', {
+    access_token: !!user?.access_token,
+    token: !!user?.token,
+    tokenUsado: token ? 'SÍ' : 'NO'
+  });
+
+  const response = await fetch(`/api/v1/turnos/${turno_id}/lista-espera`, {
     method: 'POST',
-    headers: buildActorHeaders(user),
-    body: {
-      area_tratamiento: areaTratamiento,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
     },
-  })
-}
+    body: JSON.stringify({
+      area_tratamiento: area_tratamiento
+    }),
+  });
+
+  const errorData = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    console.error('❌ Error backend:', errorData);
+    throw new Error(errorData.detail || 'Error al inscribirse en lista de espera');
+  }
+
+  console.log('✅ Éxito en lista de espera:', errorData);
+  return errorData;
+};
 
 export function generarGrilla(actor, payload) {
   return request('/api/v1/grilla/generar', {
@@ -57,6 +87,37 @@ export function bloquearDia(actor, payload) {
     method: 'PATCH',
     headers: buildActorHeaders(actor),
     body: payload,
+  })
+}
+
+// Calendario de días cerrados/feriados de la grilla
+export function getDiasCerrados(actor, mes, anio) {
+  return request(`/api/v1/grilla/dias-cerrados?mes=${mes}&anio=${anio}`, {
+    method: 'GET',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+export function crearDiaCerrado(actor, fecha, motivo, horario_inicio = null, horario_fin = null) {
+  return request('/api/v1/grilla/dias-cerrados', {
+    method: 'POST',
+    headers: buildActorHeaders(actor),
+    body: { fecha, motivo, horario_inicio, horario_fin },
+  })
+}
+
+export function eliminarDiaCerrado(actor, fecha) {
+  return request(`/api/v1/grilla/dias-cerrados/${fecha}`, {
+    method: 'DELETE',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+export function editarHorarioDia(actor, fecha, hora_inicio, hora_fin) {
+  return request(`/api/v1/grilla/dias/${fecha}/horario`, {
+    method: 'PATCH',
+    headers: buildActorHeaders(actor),
+    body: { hora_inicio, hora_fin },
   })
 }
 
@@ -85,21 +146,33 @@ export function getTurnosParaPaciente(fecha) {
   })
 }
 
-export function getAuthHeader(user) {
-  const token = user?.access_token || user?.token
-
+export const getAuthHeader = (user) => {
+  const token = user?.access_token || user?.token;
   return {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
-  }
-}
+  };
+};
 
 // ---> FUNCIONES AGREGADAS PARA REPROGRAMAR Y CANCELAR <---
-export function cancelarTurno(actor, turnoId) {
-  return request(`/api/v1/turnos/${turnoId}/cancelar`, {
+export async function cancelarTurno(actor, turnoId) {
+  const token = actor?.access_token || actor?.token
+  
+  const response = await fetch(`/api/v1/turnos/${turnoId}/cancelar`, {
     method: 'PATCH',
-    headers: buildActorHeaders(actor),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
   })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Error al cancelar el turno')
+  }
+
+  return data
 }
 
 export function reprogramarTurno(actor, turnoId, payload) {
@@ -112,6 +185,81 @@ export function reprogramarTurno(actor, turnoId, payload) {
 
 export function getTodosLosTurnos(actor, fecha) {
   return request(`/api/v1/turnos/todos?fecha=${fecha}`, {
+    method: 'GET',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+// HU-15: Pantalla pública de aceptar/rechazar turno
+export function getTurnoInfoPorToken(token) {
+  return fetch(`/api/v1/turnos/lista-espera/info?token=${encodeURIComponent(token)}`)
+    .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) throw new Error(data.detail || 'Error al obtener info del turno')
+      return data
+    })
+}
+
+export function aceptarTurnoPorToken(token) {
+  return fetch(`/api/v1/turnos/lista-espera/aceptar?token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+  })
+    .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) throw new Error(data.detail || 'Error al aceptar el turno')
+      return data
+    })
+}
+
+export function rechazarTurnoPorToken(token) {
+  return fetch(`/api/v1/turnos/lista-espera/rechazar?token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+  })
+    .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) throw new Error(data.detail || 'Error al rechazar el turno')
+      return data
+    })
+}
+
+// HU-14: Secretaria cancela turno de un paciente
+export function cancelarTurnoSecretaria(actor, turnoId) {
+  return request(`/api/v1/turnos/${turnoId}/cancelar-secretaria`, {
+    method: 'PATCH',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+// HU-12: Secretaria inscribe paciente en lista de espera
+export function inscribirPacienteListaEsperaSecretaria(actor, turnoId, payload) {
+  return request(`/api/v1/turnos/${turnoId}/lista-espera/secretaria`, {
+    method: 'POST',
+    headers: buildActorHeaders(actor),
+    body: payload,
+  })
+}
+
+// HU-13: Secretaria cancela inscripción en lista de espera
+export function cancelarInscripcionListaEsperaSecretaria(actor, inscripcionId) {
+  return request(`/api/v1/turnos/lista-espera/${inscripcionId}/cancelar-secretaria`, {
+    method: 'PATCH',
+    headers: buildActorHeaders(actor),
+  })
+}
+
+// HU-5: Reporte de ausentismo
+export function getReporteAusentismo(actor, fechaDesde, fechaHasta) {
+  return request(
+    `/api/v1/turnos/reportes/ausentismo?fecha_desde=${fechaDesde}&fecha_hasta=${fechaHasta}`,
+    {
+      method: 'GET',
+      headers: buildActorHeaders(actor),
+    }
+  )
+}
+
+export function getListaEsperaActivas(actor) {
+  return request('/api/v1/turnos/lista-espera/activas', {
     method: 'GET',
     headers: buildActorHeaders(actor),
   })

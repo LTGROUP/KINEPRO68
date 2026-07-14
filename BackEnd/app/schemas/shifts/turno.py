@@ -64,6 +64,46 @@ class BloquearDiaRequest(BaseModel):
     motivo: Optional[str] = "Bloqueado por administración"
 
 
+# ── Request/Response: Día cerrado (calendario de grilla) ──────────
+class DiaCerradoRequest(BaseModel):
+    fecha: date
+    motivo: Optional[str] = None
+    horario_inicio: Optional[time] = None
+    horario_fin: Optional[time] = None
+
+    @model_validator(mode="after")
+    def validar_horario_reducido(self):
+        if (self.horario_inicio is None) != (self.horario_fin is None):
+            raise ValueError("horario_inicio y horario_fin deben venir juntos o ambos vacíos")
+        if self.horario_inicio is not None and self.horario_fin <= self.horario_inicio:
+            raise ValueError("horario_fin debe ser posterior a horario_inicio")
+        return self
+
+
+class DiaCerradoResponse(BaseModel):
+    mensaje: str
+    fecha: date
+    horario_inicio: Optional[time] = None
+    horario_fin: Optional[time] = None
+
+
+class EliminarDiaCerradoResponse(BaseModel):
+    mensaje: str
+
+
+class DiaCerradoItem(BaseModel):
+    fecha: date
+    motivo: Optional[str] = None
+    horario_inicio: Optional[time] = None
+    horario_fin: Optional[time] = None
+
+    model_config = {"from_attributes": True}
+
+
+class DiasCerradosListResponse(BaseModel):
+    dias_cerrados: List[DiaCerradoItem]
+
+
 # ── Request: Modificar cantidad de turnos por rango (Escenario 5) ─
 class ModificarCuposRangoRequest(BaseModel):
     fecha_desde: date
@@ -138,6 +178,14 @@ class TurnosDisponiblesResponse(BaseModel):
 class SolicitarTurnoRequest(BaseModel):
     turno_id: UUID
     area_tratamiento: AreaTratamiento
+    paciente_id: Optional[UUID] = None
+
+
+# ── Request: Registro manual de turno por secretaria ──────────────
+class RegistrarTurnoManualRequest(BaseModel):
+    turno_id: UUID
+    paciente_id: UUID
+    area_tratamiento: AreaTratamiento
 
 
 # ── Response: Turno solicitado ────────────────────────────────────
@@ -152,11 +200,11 @@ class TurnoSolicitadoResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 class MiTurnoResponse(BaseModel):
-    id:UUID
+    id: UUID
     fecha: date
     hora_inicio: time
     hora_fin: time
-    area_tratamiento:Optional[AreaTratamiento]
+    area_tratamiento: Optional[AreaTratamiento]
     estado: EstadoTurno
 
     model_config = {"from_attributes": True}
@@ -204,6 +252,7 @@ class TurnosFechaResponse(BaseModel):
     fecha: date
     turnos: List[TurnoFechaResponse]
     total: int
+    turnos_por_slot: int
 
 class CancelarTurnoResponse(BaseModel):
     mensaje: Optional[str] = None
@@ -249,3 +298,108 @@ class ActualizarEstadoRequest(BaseModel):
 class ReprogramarTurnoRequest(BaseModel):
     nuevo_turno_id: UUID
     area_tratamiento: str
+
+
+# ── HU-14: Cancelar turno (secretaria) ───────────────────────────
+class CancelarTurnoSecretariaResponse(BaseModel):
+    mensaje: str
+    turno_id: UUID
+    fecha: date
+    hora_inicio: time
+    notificacion_enviada: bool
+
+
+# ── HU-12: Inscribir paciente en lista de espera (secretaria) ────
+class InscribirPacienteListaEsperaRequest(BaseModel):
+    paciente_id: UUID
+    area_tratamiento: AreaTratamiento
+
+
+# ── HU-5: Reporte de ausentismo ───────────────────────────────────
+class AusentismoResponse(BaseModel):
+    paciente_id: UUID
+    total_ausencias: int
+    fechas: List[date]
+
+
+class ReporteAusentismoResponse(BaseModel):
+    fecha_desde: date
+    fecha_hasta: date
+    total_pacientes_ausentes: int
+    ausencias: List[AusentismoResponse]
+    mensaje: Optional[str] = None
+
+
+# ── HU-13: Cancelar inscripción en lista de espera (paciente) ────
+class CancelarInscripcionResponse(BaseModel):
+    mensaje: str
+
+
+# ── HU-15: Info de turno por token ───────────────────────────────
+class TurnoInfoTokenResponse(BaseModel):
+    turno_id: UUID
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    area_tratamiento: Optional[str] = None
+
+
+# ── Agenda del profesional ────────────────────────────────────────
+class AgendaProfesionalTurnoResponse(BaseModel):
+    pass  # Añade los campos necesarios para esta respuesta cuando los tengas
+
+# Ver turnos en lista de espera (paciente)
+class MiInscripcionListaEsperaResponse(BaseModel):
+    inscripcion_id: UUID
+    turno_id: UUID
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    area_tratamiento: Optional[str] = None
+    fecha_inscripcion: datetime
+    posicion: int
+
+    model_config = {"from_attributes": True}
+
+class MisInscripcionesListaEsperaResponse(BaseModel):
+    inscripciones: List[MiInscripcionListaEsperaResponse]
+    total: int
+
+# Esquema correcto para la secretaria consultar la lista de espera de un turno
+class TurnoConListaEsperaResponse(BaseModel):
+    id: UUID
+    fecha: date
+    hora_inicio: time
+    hora_fin: time
+    area_tratamiento: Optional[AreaTratamiento] = None
+    estado: EstadoTurno
+    paciente: Optional[PacienteAgendaInfo] = None
+    cantidad_en_espera: int = 0
+
+    model_config = {"from_attributes": True}
+
+class AgendaProfesionalResponse(BaseModel):
+    fecha: date
+    turnos: List[AgendaProfesionalTurnoResponse]
+
+class TurnosConListaEsperaResponse(BaseModel):
+    turnos: List[TurnoConListaEsperaResponse]
+    total: int
+
+
+# ── Editar horario de un día ya generado ──────────────────────────
+class EditarHorarioDiaRequest(BaseModel):
+    hora_inicio: time
+    hora_fin: time
+
+    @model_validator(mode="after")
+    def validar_horario(self):
+        if self.hora_fin <= self.hora_inicio:
+            raise ValueError("La hora de fin debe ser posterior a la hora de inicio")
+        return self
+
+
+class EditarHorarioDiaResponse(BaseModel):
+    mensaje: str
+    turnos_creados: int
+    turnos_reservados_conservados: int

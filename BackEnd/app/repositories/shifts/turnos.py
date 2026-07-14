@@ -199,6 +199,17 @@ async def obtener_agenda_diaria_pura(db: AsyncSession, fecha_buscada: date, area
     result = await db.execute(query)
     return result.scalars().all()
 
+#Grafico metricas
+#obtener rango de años en la base de datos
+async def obtener_rango_anios(db: AsyncSession):
+    result = await db.execute(
+        select(
+            func.min(extract('year', Turno.fecha)).label("anio_min"),
+            func.max(extract('year', Turno.fecha)).label("anio_max"),
+        )
+    )
+    return result.one()
+#obtener datos de ausentes, presentes y cancelados
 async def obtener_metricas_cancelaciones(db: AsyncSession):
     result = await db.execute(
         select(Turno.estado, func.count(Turno.id).label("total"))
@@ -218,8 +229,12 @@ async def obtener_primer_paciente_en_espera(db: AsyncSession, turno_id: UUID) ->
     return result.scalar_one_or_none()
 
 
-async def obtener_cancelaciones_por_mes(db: AsyncSession):
-    result = await db.execute(
+async def obtener_cancelaciones_por_mes(
+    db: AsyncSession,
+    fecha_desde: date = None,
+    fecha_hasta: date = None,
+):
+    query = (
         select(
             extract('month', Turno.fecha).label("mes"),
             extract('year', Turno.fecha).label("anio"),
@@ -231,7 +246,95 @@ async def obtener_cancelaciones_por_mes(db: AsyncSession):
             EstadoTurno.RESERVADO,
             EstadoTurno.PRESENTE,
         ]))
-        .group_by("anio", "mes", Turno.estado)
-        .order_by("anio", "mes")
     )
+    
+    if fecha_desde:
+        query = query.where(Turno.fecha >= fecha_desde)
+    if fecha_hasta:
+        query = query.where(Turno.fecha < fecha_hasta)
+    
+    query = query.group_by("anio", "mes", Turno.estado).order_by("anio", "mes")
+    
+    result = await db.execute(query)
     return result.all()
+
+
+async def obtener_turno_por_id_simple(db: AsyncSession, turno_id: UUID) -> Turno | None:
+    result = await db.execute(select(Turno).where(Turno.id == turno_id))
+    return result.scalar_one_or_none()
+
+
+async def obtener_inscripcion_por_id(db: AsyncSession, inscripcion_id: UUID) -> ListaEspera | None:
+    result = await db.execute(
+        select(ListaEspera).where(ListaEspera.id == inscripcion_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def obtener_turnos_por_profesional_y_fecha(
+    db: AsyncSession,
+    profesional_id: UUID,
+    fecha: date,
+) -> list[Turno]:
+    result = await db.execute(
+        select(Turno)
+        .where(
+            and_(
+                Turno.profesional_id == profesional_id,
+                Turno.fecha == fecha,
+                Turno.estado != EstadoTurno.DISPONIBLE,
+            )
+        )
+        .order_by(Turno.hora_inicio)
+    )
+    return result.scalars().all()
+
+
+async def obtener_ausencias_por_rango(
+    db: AsyncSession,
+    fecha_desde: date,
+    fecha_hasta: date,
+) -> list[Turno]:
+    result = await db.execute(
+        select(Turno).where(
+            and_(
+                Turno.estado == EstadoTurno.AUSENTE,
+                Turno.fecha >= fecha_desde,
+                Turno.fecha <= fecha_hasta,
+            )
+        ).order_by(Turno.paciente_id, Turno.fecha)
+    )
+    return result.scalars().all()
+
+#ver lista de espera (paciente)
+
+async def obtener_inscripciones_lista_espera_por_paciente(db: AsyncSession, paciente_id: UUID):
+    # En SQLAlchemy asíncrono/2.0 armamos el select primero
+    query = (
+        select(ListaEspera, Turno)
+        .join(Turno, ListaEspera.turno_id == Turno.id)
+        .where(ListaEspera.paciente_id == paciente_id, ListaEspera.activo == True)
+    )
+    # Ejecutamos con await
+    result = await db.execute(query)
+    
+    # Extraemos todas las filas (retorna una lista de tuplas: [(lista_obj, turno_obj), ...])
+    return result.all()
+
+async def obtener_turnos_con_lista_espera_activa(db: AsyncSession):
+    conteo_subq = (
+        select(
+            ListaEspera.turno_id.label("turno_id"),
+            func.count(ListaEspera.id).label("cantidad"),
+        )
+        .where(ListaEspera.activo == True)
+        .group_by(ListaEspera.turno_id)
+        .subquery()
+    )
+
+    result = await db.execute(
+        select(Turno, conteo_subq.c.cantidad)
+        .join(conteo_subq, conteo_subq.c.turno_id == Turno.id)
+        .order_by(Turno.fecha, Turno.hora_inicio)
+    )
+    return result.all()  # lista de tuplas (Turno, cantidad)

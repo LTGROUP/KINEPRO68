@@ -1,5 +1,8 @@
 # app/api/v1/shifts/grilla.py
-from fastapi import APIRouter, Depends, HTTPException, status
+import calendar
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.schemas.shifts.turno import (
@@ -9,11 +12,25 @@ from app.schemas.shifts.turno import (
     BloquearDiaResponse,
     ModificarCuposRangoRequest,
     ModificarCuposResponse,
+    DiaCerradoRequest,
+    DiaCerradoResponse,
+    EliminarDiaCerradoResponse,
+    DiasCerradosListResponse,
+    DiaCerradoItem,
+    EditarHorarioDiaRequest,
+    EditarHorarioDiaResponse,
 )
 from app.services.shifts.grilla_service import (
     generar_grilla,
     bloquear_dia,
     reducir_cupos_rango,
+    editar_horario_dia,
+)
+from app.repositories.shifts.grilla import (
+    obtener_dia_cerrado_por_fecha,
+    crear_dia_cerrado,
+    eliminar_dia_cerrado,
+    obtener_dias_cerrados_del_mes,
 )
 from app.api.dependencies.auth import get_current_staff_manager_profile as get_current_secretaria
 
@@ -108,3 +125,124 @@ async def reducir_cupos_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+
+@router.post(
+    "/dias-cerrados",
+    response_model=DiaCerradoResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Registrar un día cerrado",
+    description="Marca una fecha como feriado/cerrada para que el generador de grilla la omita.",
+)
+async def crear_dia_cerrado_endpoint(
+    request: DiaCerradoRequest,
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    existente = await obtener_dia_cerrado_por_fecha(db, request.fecha)
+    if existente:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ya existe un día cerrado para esa fecha",
+        )
+
+    await crear_dia_cerrado(
+        db=db,
+        fecha=request.fecha,
+        motivo=request.motivo,
+        creado_por=secretaria["id"],
+        horario_inicio=request.horario_inicio,
+        horario_fin=request.horario_fin,
+    )
+
+    mensaje = (
+        "Horario reducido registrado correctamente"
+        if request.horario_inicio and request.horario_fin
+        else "Día cerrado registrado correctamente"
+    )
+
+    return DiaCerradoResponse(
+        mensaje=mensaje,
+        fecha=request.fecha,
+        horario_inicio=request.horario_inicio,
+        horario_fin=request.horario_fin,
+    )
+
+
+@router.delete(
+    "/dias-cerrados/{fecha}",
+    response_model=EliminarDiaCerradoResponse,
+    summary="Eliminar un día cerrado",
+    description="Reabre una fecha previamente marcada como feriado/cerrada.",
+)
+async def eliminar_dia_cerrado_endpoint(
+    fecha: date,
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    filas_eliminadas = await eliminar_dia_cerrado(db, fecha)
+    if not filas_eliminadas:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No existe un día cerrado para esa fecha",
+        )
+
+    return EliminarDiaCerradoResponse(mensaje="Día cerrado eliminado correctamente")
+
+
+@router.patch(
+    "/dias/{fecha}/horario",
+    response_model=EditarHorarioDiaResponse,
+    summary="Editar el horario de un día ya generado",
+    description="Reemplaza los turnos disponibles de una fecha con un nuevo horario, sin afectar los turnos ya reservados.",
+)
+async def editar_horario_dia_endpoint(
+    fecha: date,
+    request: EditarHorarioDiaRequest,
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    try:
+        resultado = await editar_horario_dia(
+            db=db,
+            fecha=fecha,
+            hora_inicio=request.hora_inicio,
+            hora_fin=request.hora_fin,
+            secretaria_id=secretaria["id"],
+        )
+        return resultado
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.get(
+    "/dias-cerrados",
+    response_model=DiasCerradosListResponse,
+    summary="Listar días cerrados de un mes",
+    description="Devuelve las fechas marcadas como feriado/cerradas para el mes y año indicados.",
+)
+async def listar_dias_cerrados_endpoint(
+    mes: int = Query(..., ge=1, le=12),
+    anio: int = Query(...),
+    db: AsyncSession = Depends(get_db),
+    secretaria=Depends(get_current_secretaria),
+):
+    primer_dia_mes = date(anio, mes, 1)
+    ultimo_dia_mes = date(anio, mes, calendar.monthrange(anio, mes)[1])
+
+    dias_cerrados = await obtener_dias_cerrados_del_mes(db, primer_dia_mes, ultimo_dia_mes)
+
+    return DiasCerradosListResponse(
+        dias_cerrados=[
+            DiaCerradoItem(
+                fecha=dc.fecha,
+                motivo=dc.motivo,
+                horario_inicio=dc.horario_inicio,
+                horario_fin=dc.horario_fin,
+            )
+            for dc in dias_cerrados
+        ]
+    )
