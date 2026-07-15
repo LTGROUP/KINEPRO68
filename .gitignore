@@ -27,3 +27,7 @@ __pycache__/
 .vscode/
 .agents/
 skills-lock.json
+.claude/
+
+# Docs generados
+Docs/CONTEXTO_TECNICO.md

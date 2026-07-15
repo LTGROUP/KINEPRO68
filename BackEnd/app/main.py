@@ -14,6 +14,7 @@ from app.api.v1.routes.check_in.check_in_routes import router as check_in_router
 from app.api.v1.routes.patients.patient_routes import router as patients_router
 from app.api.v1.routes.staff_management.staff_routes import router as staff_router
 from app.api.v1.routes.profesional.agenda_router import router as profesional_router
+from app.api.v1.routes.admin.admin_router import router as admin_router
 
 app = FastAPI(
     title="KinePro API",
@@ -67,3 +68,4 @@ app.include_router(check_in_router, prefix="/api/v1")
 app.include_router(patients_router, prefix="/api/v1")
 app.include_router(staff_router, prefix="/api/v1")
 app.include_router(profesional_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { getReporteAusentismo } from '../../services/turnosService'
 import { getPatientDetail } from '../../services/patientService'
+import '../../styles/staff-management.css'
 
 const VERDE = '#0D4A3A'
 
@@ -43,18 +44,22 @@ export function MetricasPage({ user }) {
                     </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                <div className="personal-desktop-tabs" role="tablist" aria-label="Secciones de métricas">
                     <button
                         type="button"
+                        role="tab"
+                        aria-selected={tab === 'cancelaciones'}
+                        className={tab === 'cancelaciones' ? 'active' : ''}
                         onClick={() => setTab('cancelaciones')}
-                        style={tabButtonStyle(tab === 'cancelaciones')}
                     >
                         Cancelaciones
                     </button>
                     <button
                         type="button"
+                        role="tab"
+                        aria-selected={tab === 'ausentismo'}
+                        className={tab === 'ausentismo' ? 'active' : ''}
                         onClick={() => setTab('ausentismo')}
-                        style={tabButtonStyle(tab === 'ausentismo')}
                     >
                         Reporte de ausentismo
                     </button>
@@ -65,18 +70,6 @@ export function MetricasPage({ user }) {
             </div>
         </section>
     )
-}
-
-function tabButtonStyle(active) {
-    return {
-        padding: '0.6rem 1.2rem',
-        borderRadius: '8px',
-        border: active ? `1px solid ${VERDE}` : '1px solid #ddd',
-        background: active ? VERDE : 'white',
-        color: active ? 'white' : '#333',
-        fontWeight: 600,
-        cursor: 'pointer',
-    }
 }
 
 // ── Íconos SVG (outline, 24x24, color verde institucional) ────────
