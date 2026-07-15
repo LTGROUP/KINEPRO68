@@ -1089,7 +1089,10 @@ async def ver_mis_inscripciones_lista_espera(db: AsyncSession, paciente_id: UUID
             "fecha": turno_obj.fecha,
             "hora_inicio": turno_obj.hora_inicio,
             "hora_fin": turno_obj.hora_fin,
-            "area_tratamiento": turno_obj.area_tratamiento,
+            # area_tratamiento sale de la inscripción (lista_obj), no del turno: turno.area_tratamiento
+            # es nullable y puede venir vacío si el turno está disponible/pendiente; el área con la que
+            # el paciente se anotó en la lista de espera es la de lista_obj (NOT NULL en el modelo).
+            "area_tratamiento": lista_obj.area_tratamiento,
             "fecha_inscripcion": lista_obj.fecha_inscripcion,
             "posicion": posicion
         })
