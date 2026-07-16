@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock, X } from 'lucide-react'
 
 import { getAgendaHoy, getAgendaPorFecha } from '../../../services/profesionalService'
+import { getMedicalRecord } from '../../../services/medicalRecordService'
 import {
   createSessionNote,
   getPatientSessionNotes,
 } from '../../../services/sessionNoteService'
 import ClinicalHistoryPanel from '../../professionals/ClinicalHistoryPanel'
+import MedicalRecordDetail from '../../professionals/MedicalRecordDetail'
 import { getEstadoClass } from '../../../utils/estadoColors'
 
 function formatTime(timeStr) {
@@ -26,6 +28,10 @@ function getNombreArea(area) {
   return area.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+function getDateOnly(value) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate())
+}
+
 export function AgendaProfesionalView({ user }) {
   const [fecha, setFecha] = useState(new Date())
   const [turnos, setTurnos] = useState([])
@@ -36,6 +42,10 @@ export function AgendaProfesionalView({ user }) {
   const [sessionNotes, setSessionNotes] = useState([])
   const [loadingSessionNotes, setLoadingSessionNotes] = useState(false)
   const [savingSessionNote, setSavingSessionNote] = useState(false)
+  const [patientForMedicalRecord, setPatientForMedicalRecord] = useState(null)
+  const [selectedMedicalRecord, setSelectedMedicalRecord] = useState(null)
+  const [loadingMedicalRecord, setLoadingMedicalRecord] = useState(false)
+  const [medicalRecordError, setMedicalRecordError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -118,6 +128,26 @@ export function AgendaProfesionalView({ user }) {
     }
   }
 
+  async function handleOpenMedicalRecord(turno) {
+    if (!turno.paciente?.id) {
+      return
+    }
+
+    setPatientForMedicalRecord(turno.paciente)
+    setSelectedMedicalRecord(null)
+    setMedicalRecordError('')
+    setLoadingMedicalRecord(true)
+
+    try {
+      const record = await getMedicalRecord(user, turno.paciente.id)
+      setSelectedMedicalRecord(record)
+    } catch (err) {
+      setMedicalRecordError(err.message || 'No se pudo obtener la historia clínica.')
+    } finally {
+      setLoadingMedicalRecord(false)
+    }
+  }
+
   async function handleRegisterSessionNote(values) {
     if (!patientForSessionNotes?.id) {
       return
@@ -145,6 +175,7 @@ export function AgendaProfesionalView({ user }) {
   })
 
   const fechaFormateada = esHoyFlag ? `HOY - ${textoFecha}` : textoFecha
+  const puedeRegistrarSesion = getDateOnly(fecha) <= getDateOnly(new Date())
 
   return (
     <div className="turnos-solicitar">
@@ -242,14 +273,26 @@ export function AgendaProfesionalView({ user }) {
                   {turno.estado.charAt(0).toUpperCase() + turno.estado.slice(1)}
                 </span>
 
-                {esHoyFlag && turno.paciente?.id && (
-                  <button
-                    type="button"
-                    className="staff-register-button agenda-session-button"
-                    onClick={() => handleOpenSessionRecord(turno)}
-                  >
-                    Registrar sesión
-                  </button>
+                {turno.paciente?.id && (
+                  <div className="agenda-action-buttons">
+                    <button
+                      type="button"
+                      className="staff-register-button agenda-session-button"
+                      onClick={() => handleOpenMedicalRecord(turno)}
+                    >
+                      Historia clínica
+                    </button>
+
+                    {puedeRegistrarSesion && (
+                      <button
+                        type="button"
+                        className="staff-register-button agenda-session-button"
+                        onClick={() => handleOpenSessionRecord(turno)}
+                      >
+                        Registrar sesión
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             ))}
@@ -283,6 +326,42 @@ export function AgendaProfesionalView({ user }) {
               saving={savingSessionNote}
               onRegister={handleRegisterSessionNote}
             />
+          </div>
+        </aside>
+      )}
+
+      {patientForMedicalRecord && (
+        <aside className="staff-detail" aria-label="Historia clínica">
+          <div className="staff-detail-card">
+            <button
+              type="button"
+              className="staff-detail-close"
+              onClick={() => {
+                setPatientForMedicalRecord(null)
+                setSelectedMedicalRecord(null)
+                setMedicalRecordError('')
+              }}
+              aria-label="Cerrar historia clínica"
+            >
+              <X size={18} strokeWidth={3} aria-hidden="true" />
+            </button>
+
+            <h2 className="clinical-history-title">Historia clínica</h2>
+            <p className="staff-confirm-copy">
+              {patientForMedicalRecord.nombre} {patientForMedicalRecord.apellido}
+            </p>
+
+            {loadingMedicalRecord && (
+              <p className="staff-empty">Cargando historia clínica...</p>
+            )}
+
+            {!loadingMedicalRecord && medicalRecordError && (
+              <p className="staff-empty">{medicalRecordError}</p>
+            )}
+
+            {!loadingMedicalRecord && selectedMedicalRecord && (
+              <MedicalRecordDetail record={selectedMedicalRecord} />
+            )}
           </div>
         </aside>
       )}

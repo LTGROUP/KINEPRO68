@@ -173,10 +173,30 @@
   color: #9ab8b0;
 }
 
+.agenda-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .agenda-session-button {
-  min-height: 38px;
-  padding: 0 14px;
+  min-height: 30px;
+  border: 1px solid #176b5b;
+  border-radius: 999px;
+  padding: 0 12px;
+  color: #176b5b;
+  background: #edf5f2;
+  box-shadow: none;
+  font-size: 0.82rem;
+  font-weight: 800;
   white-space: nowrap;
+}
+
+.agenda-session-button:hover {
+  color: #ffffff;
+  background: #176b5b;
+  transform: none;
 }
 
 .turnos-agenda-duration {
