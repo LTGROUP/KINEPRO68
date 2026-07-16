@@ -24,7 +24,6 @@ import {
   createMedicalRecord,
   getMedicalRecord,
   updateMedicalRecord,
-  downloadMedicalRecordPdf,
   uploadStudyPdf,
 } from '../../services/medicalRecordService'
 import {
@@ -276,14 +275,6 @@ function PatientsPage({ user, onSectionChange, onNavegarATurnos }) {
       setError(requestError.message)
     } finally {
       setSavingMedicalRecord(false)
-    }
-  }
-
-  async function handleDownloadMedicalRecordPdf(record) {
-    try {
-      await downloadMedicalRecordPdf(user, record.id)
-    } catch (requestError) {
-      setError(requestError.message)
     }
   }
 
@@ -766,16 +757,6 @@ function PatientsPage({ user, onSectionChange, onNavegarATurnos }) {
                       }}
                     >
                       Editar
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleDownloadMedicalRecordPdf(selectedMedicalRecord)
-                        setShowMedicalRecordActions(false)
-                      }}
-                    >
-                      Exportar PDF
                     </button>
                   </div>
                 )}

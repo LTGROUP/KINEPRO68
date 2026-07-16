@@ -91,6 +91,7 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
   const [loadingMedicalRecord, setLoadingMedicalRecord] = useState(false)
   const [savingMedicalRecord, setSavingMedicalRecord] = useState(false)
   const [medicalRecordError, setMedicalRecordError] = useState('')
+  const [medicalRecordMessage, setMedicalRecordMessage] = useState('')
   const [showCreateMedicalRecordForm, setShowCreateMedicalRecordForm] = useState(false)
   const [showEditMedicalRecordForm, setShowEditMedicalRecordForm] = useState(false)
 
@@ -187,6 +188,7 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
     setPatientForMedicalRecord(turno.paciente)
     setSelectedMedicalRecord(null)
     setMedicalRecordError('')
+    setMedicalRecordMessage('')
     setShowEditMedicalRecordForm(false)
     setLoadingMedicalRecord(true)
 
@@ -208,6 +210,7 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
 
     setSavingMedicalRecord(true)
     setMedicalRecordError('')
+    setMedicalRecordMessage('')
 
     try {
       const createdRecord = await createMedicalRecord(user, {
@@ -216,6 +219,7 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
       })
 
       setSelectedMedicalRecord(createdRecord)
+      setMedicalRecordMessage('Historia clínica cargada correctamente')
       setShowCreateMedicalRecordForm(false)
       setShowEditMedicalRecordForm(false)
     } catch (err) {
@@ -232,6 +236,7 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
 
     setSavingMedicalRecord(true)
     setMedicalRecordError('')
+    setMedicalRecordMessage('')
 
     try {
       const updatedRecord = await updateMedicalRecord(
@@ -241,6 +246,7 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
       )
 
       setSelectedMedicalRecord(updatedRecord)
+      setMedicalRecordMessage('Historia clínica actualizada correctamente')
       setShowEditMedicalRecordForm(false)
     } catch (err) {
       setMedicalRecordError(err.message || 'No se pudo actualizar la historia clínica.')
@@ -616,6 +622,7 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
                 setPatientForMedicalRecord(null)
                 setSelectedMedicalRecord(null)
                 setMedicalRecordError('')
+                setMedicalRecordMessage('')
                 setShowCreateMedicalRecordForm(false)
                 setShowEditMedicalRecordForm(false)
               }}
@@ -630,6 +637,11 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
             </p>
 
             {loadingMedicalRecord && <p className="staff-empty">Cargando historia clínica...</p>}
+            {!loadingMedicalRecord && medicalRecordMessage && (
+              <p className="staff-message success mb-4" role="status">
+                {medicalRecordMessage}
+              </p>
+            )}
             {!loadingMedicalRecord && medicalRecordError && !showCreateMedicalRecordForm && (
               <div>
                 <p className="staff-empty">El paciente no tiene una ficha médica cargada.</p>
@@ -638,6 +650,7 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
                   className="staff-register-button"
                   onClick={() => {
                     setMedicalRecordError('')
+                    setMedicalRecordMessage('')
                     setShowCreateMedicalRecordForm(true)
                   }}
                 >
@@ -659,7 +672,10 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
                   <button
                     type="button"
                     className="staff-register-button"
-                    onClick={() => setShowEditMedicalRecordForm(true)}
+                    onClick={() => {
+                      setMedicalRecordMessage('')
+                      setShowEditMedicalRecordForm(true)
+                    }}
                   >
                     Editar historia clínica
                   </button>
