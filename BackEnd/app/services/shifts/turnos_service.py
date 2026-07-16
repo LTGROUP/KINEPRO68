@@ -122,12 +122,15 @@ async def consultar_turnos_para_paciente(
 async def _enviar_confirmacion_turno_email(db: AsyncSession, paciente_id: UUID, turno) -> None:
     """Despacha el envío del email de confirmación sin bloquear al llamador.
 
-    Se intenta encolar como tarea Celery; si Celery/Redis no está disponible
-    (por ejemplo en desarrollo local), se ejecuta en segundo plano dentro del
-    mismo proceso vía asyncio.create_task, sin esperar el resultado.
+    Antes de intentar `.delay()` se chequea la conectividad a Redis (ver
+    app.celery_app.redis_disponible): si no responde, se salta directo al
+    fallback en vez de invocar Celery y esperar su backoff de reconexión,
+    que puede tardar 100+ segundos y bloquear la respuesta HTTP del llamador
+    (por ejemplo registrar_turno_manual_secretaria).
     """
     import asyncio
     from sqlalchemy import text as sa_text
+    from app.celery_app import redis_disponible
     from app.tasks.recordatorios import enviar_confirmacion_turno_task, _enviar_confirmacion
     from app.repositories.patients.patient_repository import get_patient_by_id
 
@@ -163,18 +166,27 @@ async def _enviar_confirmacion_turno_email(db: AsyncSession, paciente_id: UUID, 
     hora_inicio_str = turno.hora_inicio.strftime("%H:%M")
     hora_fin_str = turno.hora_fin.strftime("%H:%M")
 
-    try:
-        enviar_confirmacion_turno_task.delay(
-            email_paciente, nombre_paciente, fecha_str, hora_inicio_str, hora_fin_str, area_str,
-        )
-    except Exception:
+    if redis_disponible():
+        try:
+            enviar_confirmacion_turno_task.delay(
+                email_paciente, nombre_paciente, fecha_str, hora_inicio_str, hora_fin_str, area_str,
+            )
+            return
+        except Exception:
+            logger.warning(
+                "Confirmación de turno: Redis respondía pero falló el encolado (paciente %s), "
+                "enviando en segundo plano en el mismo proceso",
+                paciente_id,
+            )
+    else:
         logger.warning(
-            "Confirmación de turno: Celery/Redis no disponible, enviando en segundo plano en el mismo proceso (paciente %s)",
+            "Confirmación de turno: Redis no disponible, enviando en segundo plano en el mismo proceso (paciente %s)",
             paciente_id,
         )
-        asyncio.create_task(
-            _enviar_confirmacion(email_paciente, nombre_paciente, fecha_str, hora_inicio_str, hora_fin_str, area_str)
-        )
+
+    asyncio.create_task(
+        _enviar_confirmacion(email_paciente, nombre_paciente, fecha_str, hora_inicio_str, hora_fin_str, area_str)
+    )
 
 
 async def _enviar_confirmacion_reprogramacion_email(
@@ -889,6 +901,8 @@ async def consultar_reporte_ausentismo(
 
     agrupado: dict[str, dict] = {}
     for turno in ausencias:
+        if turno.paciente_id is None:
+            continue
         pid = str(turno.paciente_id)
         if pid not in agrupado:
             agrupado[pid] = {"paciente_id": turno.paciente_id, "fechas": []}

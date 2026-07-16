@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { changePassword, getMyProfile, updateMyProfile } from '../../services/authService'
 import '../../styles/check-in.css'
 
-function ProfilePage({ user }) {
+function ProfilePage({ user, onBack }) {
   const [profile, setProfile] = useState(user)
   const [error, setError] = useState('')
   const [passwordMessage, setPasswordMessage] = useState('')
@@ -184,6 +184,16 @@ function ProfilePage({ user }) {
         <section className="staff-panel profile-panel" aria-label="Perfil">
           <div className="profile-header-card">
             <h1 id="profile-title">Mi cuenta</h1>
+            {onBack && (
+              <button
+                type="button"
+                className="staff-register-button"
+                style={{ marginLeft: 'auto' }}
+                onClick={onBack}
+              >
+                Volver
+              </button>
+            )}
           </div>
 
           <div className="profile-sections-layout">

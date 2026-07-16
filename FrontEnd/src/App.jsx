@@ -179,7 +179,12 @@ function App() {
     }
 
     if (activeSection === 'perfil') {
-      return <ProfilePage user={user} />
+      return (
+        <ProfilePage
+          user={user}
+          onBack={() => setActiveSection(getInitialSectionForUser(user))}
+        />
+      )
     }
 
     if (activeSection === 'metricas' && canUserManage(user)) {
