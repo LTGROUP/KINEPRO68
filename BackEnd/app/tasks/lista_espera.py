@@ -154,16 +154,38 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
         await engine.dispose()
 
 
-async def despachar_oferta_turno(turno_id: str) -> None:
-    """Encola la oferta por Celery; si no hay broker disponible, la ejecuta en el momento."""
+def _encolar_celery_sync(turno_id: str) -> bool:
+    """Intenta encolar en Celery. Corre en un hilo aparte (ver más abajo):
+    `.delay()` es una llamada síncrona y, cuando Redis no responde, Celery
+    reintenta reconectar al result backend con backoff — puede tardar 100+
+    segundos antes de lanzar la excepción. Si esto corriera en el event loop
+    (aunque fuera dentro de un asyncio.Task), bloquearía todo el servidor por
+    ese mismo tiempo, incluida la respuesta HTTP de quien rechaza/cancela.
+    """
     try:
         ofertar_turno_lista_espera.delay(turno_id)
+        return True
     except Exception:
-        logger.warning(
-            "[lista_espera] Celery/Redis no disponible, enviando oferta en línea para turno %s",
-            turno_id,
-        )
-        await _ofertar_turno_lista_espera(turno_id)
+        return False
+
+
+async def despachar_oferta_turno(turno_id: str) -> None:
+    """Encola la oferta por Celery, o la despacha en background si no hay broker.
+
+    No bloquea al llamador: el intento de Celery corre en un hilo separado
+    (asyncio.to_thread) para no congelar el event loop, y el fallback por
+    SMTP se dispara en un task aparte.
+    """
+    async def _intentar_despacho():
+        encolado = await asyncio.to_thread(_encolar_celery_sync, turno_id)
+        if not encolado:
+            logger.warning(
+                "[lista_espera] Celery/Redis no disponible, despachando oferta en línea para turno %s",
+                turno_id,
+            )
+            await _ofertar_turno_lista_espera(turno_id)
+
+    asyncio.create_task(_intentar_despacho())
 
 
 @celery_app.task(name="tasks.ofertar_turno_lista_espera")

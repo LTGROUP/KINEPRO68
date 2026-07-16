@@ -56,7 +56,7 @@ async def _run_actualizar_ausentes() -> int:
 
             for turno in turnos:
                 turno.estado = EstadoTurno.AUSENTE
-                print(f"[TASK] Turno {turno.id} — {turno.fecha} {turno.hora_fin} → AUSENTE")
+                print(f"[TASK] Turno {turno.id} - {turno.fecha} {turno.hora_fin} -> AUSENTE")
 
             if turnos:
                 await db.commit()

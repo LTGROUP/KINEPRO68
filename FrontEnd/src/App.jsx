@@ -11,6 +11,7 @@ import { AppLayout } from './layouts'
 import { AgendaProfesional } from './features/turnos/secretaria/AgendaProfesional'
 import AgendaProfesionalView from './features/turnos/profesional/AgendaProfesionalView'
 import { MetricasPage } from './features/metricas'
+import AdminHomePage from './features/AdminHomePage'
 
 import { clearPasswordRecoveryFlow, hasPasswordRecoveryFlow, supabase } from './lib/supabase/client'
 import {
@@ -141,6 +142,10 @@ function App() {
 
     if (activeSection === 'inicio' && user.rol === 'profesional') {
       return <AgendaProfesionalView user={user} />
+    }
+
+    if (activeSection === 'inicio' && user.rol === 'administrativo') {
+      return <AdminHomePage user={user} setActiveSection={setActiveSection} />
     }
 
     // Si es un paciente y por algún motivo llegó a inicio, le mostramos el home base

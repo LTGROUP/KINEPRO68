@@ -136,7 +136,7 @@ export default function VerListaDeEspera() {
                                     display: 'inline-block',
                                     marginBottom: '0.5rem'
                                 }}>
-                                    {item.area_treatment || item.area_tratamiento}
+                                    {(item.area_treatment || item.area_tratamiento || '').replace(/_/g, ' ') || 'Sin área'}
                                 </span>
                                 <h3 style={{ margin: '0 0 0.4rem 0', color: '#1a3c2e', fontSize: '1.1rem' }}>
                                     Fecha: {new Date(item.fecha).toLocaleDateString('es-AR', { timeZone: 'UTC' })}
