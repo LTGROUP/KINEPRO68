@@ -35,7 +35,7 @@ function TurnosPage({ user, onSectionChange, tabInicial, onTabInicialConsumido }
     if (rol === 'paciente') {
       setActiveTab('mis-turnos')
     } else if (rol === 'secretaria' || rol === 'administrative' || rol === 'administrativo') {
-      setActiveTab('grilla')
+      setActiveTab('agenda-dia')
     } else if (rol === 'profesional') {
       setActiveTab('agenda-profesional')
     } else {

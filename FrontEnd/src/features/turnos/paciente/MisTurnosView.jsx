@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { CalendarDays, Clock, X } from 'lucide-react'
+import { CalendarDays, Clock, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { getMisTurnos, cancelarTurno } from '../../../services/turnosService'
 import SolicitarTurnoView from './SolicitarTurnoView'
 import { getEstadoClass } from '../../../utils/estadoColors'
@@ -18,57 +18,38 @@ const ESTADO_LABELS = {
   ausente: 'Ausente'
 }
 
-const MESES_LARGO = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-]
-
-function formatFecha(dateStr) {
-  if (!dateStr) return ''
-  const [y, m, d] = dateStr.split('-')
-  return `${d}/${m}/${y}`
-}
-
 function formatTime(timeStr) {
   if (!timeStr) return ''
   return timeStr.slice(0, 5)
 }
 
-function mesKey(fechaStr) {
-  return fechaStr.slice(0, 7) // "YYYY-MM"
+function formatDiaLargo(fechaStr) {
+  const [anio, mes, dia] = fechaStr.split('-').map(Number)
+  const fecha = new Date(anio, mes - 1, dia)
+  const texto = fecha.toLocaleDateString('es-AR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
-function mesLabel(key) {
-  const [anio, mes] = key.split('-').map(Number)
-  const nombre = MESES_LARGO[mes - 1] || ''
-  return `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)} ${anio}`
-}
-
-// Agrupa los turnos primero por mes y, dentro de cada mes, por franja horaria
-// (misma lógica de agrupación que usa la agenda de secretaria/profesional).
-function agruparPorMesYFranja(turnos) {
+// Agrupa los turnos por día; dentro de cada día quedan ordenados por horario
+// (misma lógica visual que usa la agenda de secretaria/profesional).
+function agruparPorDia(turnos) {
   const turnosOrdenados = [...turnos].sort((a, b) =>
     `${a.fecha}${a.hora_inicio}`.localeCompare(`${b.fecha}${b.hora_inicio}`)
   )
 
-  const mapaMeses = new Map()
+  const mapaDias = new Map()
   for (const turno of turnosOrdenados) {
-    const mKey = mesKey(turno.fecha)
-    if (!mapaMeses.has(mKey)) mapaMeses.set(mKey, new Map())
-    const mapaSlots = mapaMeses.get(mKey)
-
-    const slotKey = `${turno.hora_inicio}-${turno.hora_fin}`
-    if (!mapaSlots.has(slotKey)) {
-      mapaSlots.set(slotKey, { hora_inicio: turno.hora_inicio, hora_fin: turno.hora_fin, turnos: [] })
+    if (!mapaDias.has(turno.fecha)) {
+      mapaDias.set(turno.fecha, { key: turno.fecha, label: formatDiaLargo(turno.fecha), turnos: [] })
     }
-    mapaSlots.get(slotKey).turnos.push(turno)
+    mapaDias.get(turno.fecha).turnos.push(turno)
   }
 
-  return Array.from(mapaMeses.entries()).map(([mKey, mapaSlots]) => ({
-    key: mKey,
-    label: mesLabel(mKey),
-    franjas: Array.from(mapaSlots.values()).sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio)),
-  }))
+  return Array.from(mapaDias.values())
 }
 
 
@@ -99,7 +80,22 @@ function MisTurnosView({ user }) {
     cargarMisTurnos()
   }, [cargarMisTurnos])
 
-  const gruposPorMes = useMemo(() => agruparPorMesYFranja(turnos), [turnos])
+  const gruposPorDia = useMemo(() => agruparPorDia(turnos), [turnos])
+
+  // Días colapsados manualmente (por defecto todos los días se muestran expandidos)
+  const [diasColapsados, setDiasColapsados] = useState(new Set())
+
+  function toggleDia(key) {
+    setDiasColapsados((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
 
   const [modalCancelar, setModalCancelar] = useState(null) // guarda el turno a cancelar
   
@@ -154,111 +150,127 @@ function MisTurnosView({ user }) {
 
   return (
     <>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {gruposPorMes.map((grupoMes) => (
-          <div key={grupoMes.key}>
-            <h2 style={{ margin: '0 0 0.75rem', color: '#12241f', fontSize: '1.15rem', fontWeight: 700 }}>
-              {grupoMes.label}
-            </h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {gruposPorDia.map((grupoDia) => {
+          const expandido = !diasColapsados.has(grupoDia.key)
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {grupoMes.franjas.map((franja) => (
-                <div
-                  key={`${franja.hora_inicio}-${franja.hora_fin}`}
-                  style={{ border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', background: '#fff' }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '10px 18px',
-                      background: '#f9fafb',
-                      borderBottom: '1px solid #f1f5f9',
-                    }}
-                  >
-                    <Clock size={16} aria-hidden="true" />
-                    <span style={{ fontWeight: 600, color: '#111827' }}>
-                      {formatTime(franja.hora_inicio)} - {formatTime(franja.hora_fin)}
-                    </span>
-                  </div>
-
-                  <div className="turnos-list" style={{ gap: 0 }}>
-                    {franja.turnos.map((turno, idx) => (
-                      <div
-                        key={turno.id}
-                        className="turnos-list-item"
-                        style={{
-                          border: 'none',
-                          borderRadius: 0,
-                          borderTop: idx === 0 ? 'none' : '1px solid #f1f5f9',
-                        }}
-                      >
-                        <div className="turnos-list-date">
-                          <strong>{formatFecha(turno.fecha)}</strong>
-                          <span>{formatTime(turno.hora_inicio)} – {formatTime(turno.hora_fin)}</span>
-                        </div>
-                        <div className="turnos-list-info">
-                          {turno.area_tratamiento && (
-                            <span className="turnos-list-area">
-                              {AREA_LABELS[turno.area_tratamiento] || turno.area_tratamiento}
-                            </span>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <span className={getEstadoClass(turno.estado)}>
-                            {ESTADO_LABELS[turno.estado] || turno.estado}
-                          </span>
-
-                          {turno.estado === 'reservado' && (
-                            <>
-                              {/* BOTÓN REPROGRAMAR */}
-                              <button
-                                type="button"
-                                onClick={() => setTurnoEditando(turno)}
-                                style={{
-                                  backgroundColor: '#FEF3C7',
-                                  color: '#D97706',
-                                  border: '1px solid #D97706',
-                                  padding: '6px 12px',
-                                  borderRadius: '6px',
-                                  cursor: 'pointer',
-                                  fontWeight: 'bold',
-                                  fontSize: '0.85rem'
-                                }}
-                              >
-                                Reprogramar
-                              </button>
-
-                              {/* BOTÓN CANCELAR */}
-                              <button
-                                type="button"
-                                onClick={() => abrirModalCancelar(turno)}
-                                style={{
-                                  backgroundColor: '#fee2e2',
-                                  color: '#b91c1c',
-                                  border: '1px solid #f87171',
-                                  padding: '6px 12px',
-                                  borderRadius: '6px',
-                                  cursor: 'pointer',
-                                  fontWeight: 'bold',
-                                  fontSize: '0.85rem'
-                                }}
-                              >
-                                Cancelar
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+          return (
+            <div
+              key={grupoDia.key}
+              style={{ border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', background: '#fff' }}
+            >
+              <button
+                type="button"
+                onClick={() => toggleDia(grupoDia.key)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 18px',
+                  background: '#f9fafb',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <CalendarDays size={16} aria-hidden="true" />
+                  <span style={{ fontWeight: 600, color: '#111827' }}>
+                    {grupoDia.label}
+                  </span>
+                  <span style={{
+                    background: '#0D4A3A',
+                    color: '#fff',
+                    borderRadius: '999px',
+                    padding: '2px 10px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                  }}>
+                    {grupoDia.turnos.length} {grupoDia.turnos.length === 1 ? 'turno' : 'turnos'}
+                  </span>
                 </div>
-              ))}
+                {expandido ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
+
+              {expandido && (
+                <div className="turnos-list" style={{ gap: 0 }}>
+                  {grupoDia.turnos.map((turno, idx) => (
+                    <div
+                      key={turno.id}
+                      className="turnos-list-item"
+                      style={{
+                        border: 'none',
+                        borderRadius: 0,
+                        borderTop: idx === 0 ? 'none' : '1px solid #f1f5f9',
+                      }}
+                    >
+                      <div className="turnos-list-date">
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Clock size={14} aria-hidden="true" />
+                          {formatTime(turno.hora_inicio)} – {formatTime(turno.hora_fin)}
+                        </span>
+                      </div>
+                      <div className="turnos-list-info">
+                        {turno.area_tratamiento && (
+                          <span className="turnos-list-area">
+                            {AREA_LABELS[turno.area_tratamiento] || turno.area_tratamiento}
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span className={getEstadoClass(turno.estado)}>
+                          {ESTADO_LABELS[turno.estado] || turno.estado}
+                        </span>
+
+                        {turno.estado === 'reservado' && (
+                          <>
+                            {/* BOTÓN REPROGRAMAR */}
+                            <button
+                              type="button"
+                              onClick={() => setTurnoEditando(turno)}
+                              style={{
+                                backgroundColor: '#FEF3C7',
+                                color: '#D97706',
+                                border: '1px solid #D97706',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Reprogramar
+                            </button>
+
+                            {/* BOTÓN CANCELAR */}
+                            <button
+                              type="button"
+                              onClick={() => abrirModalCancelar(turno)}
+                              style={{
+                                backgroundColor: '#fee2e2',
+                                color: '#b91c1c',
+                                border: '1px solid #f87171',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Cancelar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* TOAST FLOTANTE PARA MENSAJES DE ÉXITO */}
