@@ -35,15 +35,21 @@ function capitalizar(texto) {
   return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
-function formatearFechaHoy() {
+function formatearDiaHoy() {
   const hoy = new Date()
   const texto = hoy.toLocaleDateString('es-AR', {
     weekday: 'long',
+  })
+  return capitalizar(texto)
+}
+
+function formatearDetalleFechaHoy() {
+  const hoy = new Date()
+  return hoy.toLocaleDateString('es-AR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   })
-  return capitalizar(texto)
 }
 
 function AdminHomePage({ user, setActiveSection }) {
@@ -87,10 +93,14 @@ function AdminHomePage({ user, setActiveSection }) {
     <main className="staff-page">
       <section className="staff-shell" aria-labelledby="admin-home-title">
         <section className="staff-panel" aria-label="Inicio administrativo">
-          <div className="staff-panel-header">
+          <div className="staff-panel-header justify-center text-center">
             <div>
-              <h1 id="admin-home-title">Bienvenido, {user?.nombre}</h1>
-              <p>{formatearFechaHoy()}</p>
+              <h1 id="admin-home-title" className="text-2xl font-black md:text-3xl">
+                {formatearDiaHoy()}
+              </h1>
+              <p className="mt-1 text-base font-semibold text-[#61746f]">
+                {formatearDetalleFechaHoy()}
+              </p>
             </div>
           </div>
 
