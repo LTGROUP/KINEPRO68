@@ -41,16 +41,9 @@ function canUserManage(currentUser) {
   return false
 }
 
-// Logica unificada: inicializamos segun el rol del usuario
-function getInitialSectionForUser(currentUser) {
-  if (!currentUser) return 'inicio'
-
-  if (currentUser.rol === 'secretaria' || currentUser.rol === 'profesional') {
-    return 'inicio'
-  }
-
-  // Pacientes van a turnos por defecto
-  return 'turnos'
+// Logica unificada: todos los roles inician en Inicio
+function getInitialSectionForUser() {
+  return 'inicio'
 }
 
 function getIsRecoveryFlow() {
