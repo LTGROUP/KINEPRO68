@@ -1,7 +1,7 @@
 # app/services/grilla_service.py
 from collections import defaultdict
 from datetime import date, time, datetime, timedelta
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.turno import Turno, ConfiguracionGrilla, EstadoTurno , DiasCerrados
@@ -23,6 +23,7 @@ from app.repositories.shifts.grilla import (
     eliminar_turnos_disponibles_del_dia,
     obtener_turnos_reservados_del_dia,
     obtener_dia_cerrado_por_fecha,
+    crear_dia_cerrado as crear_dia_cerrado_repo,
 )
 import calendar
 
@@ -232,6 +233,33 @@ async def bloquear_dia(
         turnos_eliminados=turnos_eliminados,
         pacientes_a_contactar=pacientes_a_contactar,
     )
+
+
+async def registrar_dia_cerrado(
+    db: AsyncSession,
+    fecha: date,
+    motivo: Optional[str],
+    creado_por: UUID,
+    horario_inicio: Optional[time] = None,
+    horario_fin: Optional[time] = None,
+) -> DiasCerrados:
+    dia_cerrado = await crear_dia_cerrado_repo(
+        db=db,
+        fecha=fecha,
+        motivo=motivo,
+        creado_por=creado_por,
+        horario_inicio=horario_inicio,
+        horario_fin=horario_fin,
+    )
+
+    # Un día completamente cerrado no debe conservar cupos DISPONIBLES viejos
+    # (igual que bloquear_dia). Si es un horario reducido, los turnos existentes
+    # se ajustan aparte vía editar_horario_dia, así que acá no se tocan.
+    if not (horario_inicio and horario_fin):
+        await eliminar_turnos_disponibles_del_dia(db, fecha)
+        await db.commit()
+
+    return dia_cerrado
 
 
 async def reducir_cupos_rango(
