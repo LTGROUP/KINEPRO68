@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.routes.admin.admin_router import router as admin_router
 from app.api.v1.routes.audit.audit_routes import router as audit_router
 from app.api.v1.routes.auth.auth_routes import router as auth_router
 from app.api.v1.routes.check_in.check_in_routes import router as check_in_router
@@ -70,3 +71,4 @@ app.include_router(staff_router, prefix="/api/v1")
 app.include_router(medical_records_router, prefix="/api/v1")
 app.include_router(session_notes_router, prefix="/api/v1")
 app.include_router(profesional_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")

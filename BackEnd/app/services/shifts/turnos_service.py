@@ -122,12 +122,15 @@ async def consultar_turnos_para_paciente(
 async def _enviar_confirmacion_turno_email(db: AsyncSession, paciente_id: UUID, turno) -> None:
     """Despacha el envío del email de confirmación sin bloquear al llamador.
 
-    Se intenta encolar como tarea Celery; si Celery/Redis no está disponible
-    (por ejemplo en desarrollo local), se ejecuta en segundo plano dentro del
-    mismo proceso vía asyncio.create_task, sin esperar el resultado.
+    Antes de intentar `.delay()` se chequea la conectividad a Redis (ver
+    app.celery_app.redis_disponible): si no responde, se salta directo al
+    fallback en vez de invocar Celery y esperar su backoff de reconexión,
+    que puede tardar 100+ segundos y bloquear la respuesta HTTP del llamador
+    (por ejemplo registrar_turno_manual_secretaria).
     """
     import asyncio
     from sqlalchemy import text as sa_text
+    from app.celery_app import redis_disponible
     from app.tasks.recordatorios import enviar_confirmacion_turno_task, _enviar_confirmacion
     from app.repositories.patients.patient_repository import get_patient_by_id
 
@@ -163,18 +166,27 @@ async def _enviar_confirmacion_turno_email(db: AsyncSession, paciente_id: UUID, 
     hora_inicio_str = turno.hora_inicio.strftime("%H:%M")
     hora_fin_str = turno.hora_fin.strftime("%H:%M")
 
-    try:
-        enviar_confirmacion_turno_task.delay(
-            email_paciente, nombre_paciente, fecha_str, hora_inicio_str, hora_fin_str, area_str,
-        )
-    except Exception:
+    if redis_disponible():
+        try:
+            enviar_confirmacion_turno_task.delay(
+                email_paciente, nombre_paciente, fecha_str, hora_inicio_str, hora_fin_str, area_str,
+            )
+            return
+        except Exception:
+            logger.warning(
+                "Confirmación de turno: Redis respondía pero falló el encolado (paciente %s), "
+                "enviando en segundo plano en el mismo proceso",
+                paciente_id,
+            )
+    else:
         logger.warning(
-            "Confirmación de turno: Celery/Redis no disponible, enviando en segundo plano en el mismo proceso (paciente %s)",
+            "Confirmación de turno: Redis no disponible, enviando en segundo plano en el mismo proceso (paciente %s)",
             paciente_id,
         )
-        asyncio.create_task(
-            _enviar_confirmacion(email_paciente, nombre_paciente, fecha_str, hora_inicio_str, hora_fin_str, area_str)
-        )
+
+    asyncio.create_task(
+        _enviar_confirmacion(email_paciente, nombre_paciente, fecha_str, hora_inicio_str, hora_fin_str, area_str)
+    )
 
 
 async def _enviar_confirmacion_reprogramacion_email(
@@ -572,31 +584,18 @@ MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"
 # Grafico de metricas
 
 async def consultar_metricas_cancelaciones(db: AsyncSession, mes: Optional[int] = None, anio: Optional[int] = None, rango: Optional[str] = None):
-    
-    filas = await obtener_metricas_cancelaciones(db)
-    datos = {estado.value if hasattr(estado, 'value') else str(estado): total for estado, total in filas}
-    
-    total_turnos = sum(datos.values())
-    cancelados = datos.get("cancelado", 0)
-    reservados = datos.get("reservado", 0)
-    presentes = datos.get("presente", 0)
 
-    #Calcular la fecha
     hoy = date.today()
-
     rango_anios = await obtener_rango_anios(db)
     anio_min = int(rango_anios.anio_min) if rango_anios.anio_min else 2025
     anio_max = int(rango_anios.anio_max) if rango_anios.anio_max else 2025
-    
+
+    fecha_desde = fecha_hasta = None
+
     if mes and anio:
-        # Filtrar por mes y año específico
         fecha_desde = date(anio, mes, 1)
-        if mes == 12:
-            fecha_hasta = date(anio + 1, 1, 1)
-        else:
-            fecha_hasta = date(anio, mes + 1, 1)
-    elif rango == "ultimos_6_meses" or (not mes and not anio):
-        # Default: últimos 6 meses
+        fecha_hasta = date(anio + 1, 1, 1) if mes == 12 else date(anio, mes + 1, 1)
+    elif not mes and not anio and (rango == "ultimos_6_meses" or not rango):
         mes_inicio = hoy.month - 5
         anio_inicio = hoy.year
         if mes_inicio <= 0:
@@ -604,16 +603,20 @@ async def consultar_metricas_cancelaciones(db: AsyncSession, mes: Optional[int] 
             anio_inicio -= 1
         fecha_desde = date(anio_inicio, mes_inicio, 1)
         fecha_hasta = date(hoy.year, hoy.month + 1, 1) if hoy.month < 12 else date(hoy.year + 1, 1, 1)
-    else:
-        fecha_desde = None
-        fecha_hasta = None
+    # si es solo mes o solo año, fecha_desde/fecha_hasta quedan None
+    # y se filtra directamente con mes= / anio= más abajo
 
-    filas_mes = await obtener_cancelaciones_por_mes(db, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
+    filas = await obtener_metricas_cancelaciones(db, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, mes=mes, anio=anio)
+    datos = {estado.value if hasattr(estado, 'value') else str(estado): total for estado, total in filas}
 
-    # Gráfico por mes
-    filas_mes = await obtener_cancelaciones_por_mes(db)
+    total_turnos = sum(datos.values())
+    cancelados = datos.get("cancelado", 0)
+    reservados = datos.get("reservado", 0)
+    presentes = datos.get("presente", 0)
+
+    filas_mes = await obtener_cancelaciones_por_mes(db, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, mes=mes, anio=anio)
+
     agrupado = defaultdict(lambda: {"cancelados": 0, "reservados": 0, "presentes": 0})
-    
     for mes_n, anio_n, estado, total in filas_mes:
         clave = (int(anio_n), int(mes_n))
         estado_str = estado.value if hasattr(estado, 'value') else str(estado)
@@ -625,24 +628,18 @@ async def consultar_metricas_cancelaciones(db: AsyncSession, mes: Optional[int] 
             agrupado[clave]["presentes"] = total
 
     grafico = [
-        {
-            "mes": f"{MESES[m - 1]} {a}",
-            "cancelados": vals["cancelados"],
-            "reservados": vals["reservados"],
-            "presentes": vals["presentes"],
-        }
+        {"mes": f"{MESES[m - 1]} {a}", **vals}
         for (a, m), vals in sorted(agrupado.items())
     ]
 
-    if total_turnos == 0:
-        return {"mensaje": "No hay datos disponibles"}
-
+    # Antes esto cortaba acá con {"mensaje": "No hay datos disponibles"}.
+    # Ahora devolvemos siempre la forma completa, con ceros si no hay nada.
     return {
         "total_turnos": total_turnos,
         "cancelados": cancelados,
         "reservados": reservados,
         "presentes": presentes,
-        "tasa_cancelacion": round((cancelados / total_turnos) * 100, 1),
+        "tasa_cancelacion": round((cancelados / total_turnos) * 100, 1) if total_turnos else 0,
         "anios_disponibles": list(range(anio_min, anio_max + 1)),
         "grafico_por_mes": grafico,
     }
@@ -904,6 +901,8 @@ async def consultar_reporte_ausentismo(
 
     agrupado: dict[str, dict] = {}
     for turno in ausencias:
+        if turno.paciente_id is None:
+            continue
         pid = str(turno.paciente_id)
         if pid not in agrupado:
             agrupado[pid] = {"paciente_id": turno.paciente_id, "fechas": []}
@@ -1089,7 +1088,10 @@ async def ver_mis_inscripciones_lista_espera(db: AsyncSession, paciente_id: UUID
             "fecha": turno_obj.fecha,
             "hora_inicio": turno_obj.hora_inicio,
             "hora_fin": turno_obj.hora_fin,
-            "area_tratamiento": turno_obj.area_tratamiento,
+            # area_tratamiento sale de la inscripción (lista_obj), no del turno: turno.area_tratamiento
+            # es nullable y puede venir vacío si el turno está disponible/pendiente; el área con la que
+            # el paciente se anotó en la lista de espera es la de lista_obj (NOT NULL en el modelo).
+            "area_tratamiento": lista_obj.area_tratamiento,
             "fecha_inscripcion": lista_obj.fecha_inscripcion,
             "posicion": posicion
         })

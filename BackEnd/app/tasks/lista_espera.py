@@ -9,7 +9,7 @@ from sqlalchemy import select, and_, text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from app.celery_app import celery_app
+from app.celery_app import celery_app, redis_disponible
 from app.config import settings
 from app.models.turno import Turno, EstadoTurno, ListaEspera
 from app.integrations.email import send_cupo_liberado_email
@@ -155,15 +155,32 @@ async def _ofertar_turno_lista_espera(turno_id: str) -> bool:
 
 
 async def despachar_oferta_turno(turno_id: str) -> None:
-    """Encola la oferta por Celery; si no hay broker disponible, la ejecuta en el momento."""
-    try:
-        ofertar_turno_lista_espera.delay(turno_id)
-    except Exception:
+    """Encola la oferta por Celery, o la despacha en background si Redis no
+    está disponible.
+
+    Antes que nada se chequea la conectividad a Redis (ver
+    app.celery_app.redis_disponible): si no responde, se salta directo al
+    fallback en vez de invocar `.delay()` y esperar el backoff de
+    reconexión de Celery, que puede tardar 100+ segundos y bloquear la
+    respuesta HTTP de quien rechaza/cancela.
+    """
+    if redis_disponible():
+        try:
+            ofertar_turno_lista_espera.delay(turno_id)
+            return
+        except Exception:
+            logger.warning(
+                "[lista_espera] Redis respondía pero falló el encolado para turno %s, "
+                "despachando oferta en línea",
+                turno_id,
+            )
+    else:
         logger.warning(
-            "[lista_espera] Celery/Redis no disponible, enviando oferta en línea para turno %s",
+            "[lista_espera] Redis no disponible, despachando oferta en línea para turno %s",
             turno_id,
         )
-        await _ofertar_turno_lista_espera(turno_id)
+
+    asyncio.create_task(_ofertar_turno_lista_espera(turno_id))
 
 
 @celery_app.task(name="tasks.ofertar_turno_lista_espera")

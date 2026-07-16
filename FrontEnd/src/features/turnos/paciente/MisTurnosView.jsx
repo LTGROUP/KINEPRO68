@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { CalendarDays, X } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { CalendarDays, Clock, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { getMisTurnos, cancelarTurno } from '../../../services/turnosService'
 import SolicitarTurnoView from './SolicitarTurnoView'
 import { getEstadoClass } from '../../../utils/estadoColors'
@@ -18,15 +18,38 @@ const ESTADO_LABELS = {
   ausente: 'Ausente'
 }
 
-function formatFecha(dateStr) {
-  if (!dateStr) return ''
-  const [y, m, d] = dateStr.split('-')
-  return `${d}/${m}/${y}`
-}
-
 function formatTime(timeStr) {
   if (!timeStr) return ''
   return timeStr.slice(0, 5)
+}
+
+function formatDiaLargo(fechaStr) {
+  const [anio, mes, dia] = fechaStr.split('-').map(Number)
+  const fecha = new Date(anio, mes - 1, dia)
+  const texto = fecha.toLocaleDateString('es-AR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
+
+// Agrupa los turnos por día; dentro de cada día quedan ordenados por horario
+// (misma lógica visual que usa la agenda de secretaria/profesional).
+function agruparPorDia(turnos) {
+  const turnosOrdenados = [...turnos].sort((a, b) =>
+    `${a.fecha}${a.hora_inicio}`.localeCompare(`${b.fecha}${b.hora_inicio}`)
+  )
+
+  const mapaDias = new Map()
+  for (const turno of turnosOrdenados) {
+    if (!mapaDias.has(turno.fecha)) {
+      mapaDias.set(turno.fecha, { key: turno.fecha, label: formatDiaLargo(turno.fecha), turnos: [] })
+    }
+    mapaDias.get(turno.fecha).turnos.push(turno)
+  }
+
+  return Array.from(mapaDias.values())
 }
 
 
@@ -56,6 +79,23 @@ function MisTurnosView({ user }) {
   useEffect(() => {
     Promise.resolve().then(cargarMisTurnos)
   }, [cargarMisTurnos])
+
+  const gruposPorDia = useMemo(() => agruparPorDia(turnos), [turnos])
+
+  // Días colapsados manualmente (por defecto todos los días se muestran expandidos)
+  const [diasColapsados, setDiasColapsados] = useState(new Set())
+
+  function toggleDia(key) {
+    setDiasColapsados((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
 
   const [modalCancelar, setModalCancelar] = useState(null) // guarda el turno a cancelar
   
@@ -110,68 +150,127 @@ function MisTurnosView({ user }) {
 
   return (
     <>
-      <div className="turnos-list">
-        {turnos.map((turno) => (
-          <div key={turno.id} className="turnos-list-item">
-            <div className="turnos-list-date">
-              <strong>{formatFecha(turno.fecha)}</strong>
-              <span>{formatTime(turno.hora_inicio)} – {formatTime(turno.hora_fin)}</span>
-            </div>
-            <div className="turnos-list-info">
-              {turno.area_tratamiento && (
-                <span className="turnos-list-area">
-                  {AREA_LABELS[turno.area_tratamiento] || turno.area_tratamiento}
-                </span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {gruposPorDia.map((grupoDia) => {
+          const expandido = !diasColapsados.has(grupoDia.key)
+
+          return (
+            <div
+              key={grupoDia.key}
+              style={{ border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', background: '#fff' }}
+            >
+              <button
+                type="button"
+                onClick={() => toggleDia(grupoDia.key)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 18px',
+                  background: '#f9fafb',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <CalendarDays size={16} aria-hidden="true" />
+                  <span style={{ fontWeight: 600, color: '#111827' }}>
+                    {grupoDia.label}
+                  </span>
+                  <span style={{
+                    background: '#0D4A3A',
+                    color: '#fff',
+                    borderRadius: '999px',
+                    padding: '2px 10px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                  }}>
+                    {grupoDia.turnos.length} {grupoDia.turnos.length === 1 ? 'turno' : 'turnos'}
+                  </span>
+                </div>
+                {expandido ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
+
+              {expandido && (
+                <div className="turnos-list" style={{ gap: 0 }}>
+                  {grupoDia.turnos.map((turno, idx) => (
+                    <div
+                      key={turno.id}
+                      className="turnos-list-item"
+                      style={{
+                        border: 'none',
+                        borderRadius: 0,
+                        borderTop: idx === 0 ? 'none' : '1px solid #f1f5f9',
+                      }}
+                    >
+                      <div className="turnos-list-date">
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Clock size={14} aria-hidden="true" />
+                          {formatTime(turno.hora_inicio)} – {formatTime(turno.hora_fin)}
+                        </span>
+                      </div>
+                      <div className="turnos-list-info">
+                        {turno.area_tratamiento && (
+                          <span className="turnos-list-area">
+                            {AREA_LABELS[turno.area_tratamiento] || turno.area_tratamiento}
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span className={getEstadoClass(turno.estado)}>
+                          {ESTADO_LABELS[turno.estado] || turno.estado}
+                        </span>
+
+                        {turno.estado === 'reservado' && (
+                          <>
+                            {/* BOTÓN REPROGRAMAR */}
+                            <button
+                              type="button"
+                              onClick={() => setTurnoEditando(turno)}
+                              style={{
+                                backgroundColor: '#FEF3C7',
+                                color: '#D97706',
+                                border: '1px solid #D97706',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Reprogramar
+                            </button>
+
+                            {/* BOTÓN CANCELAR */}
+                            <button
+                              type="button"
+                              onClick={() => abrirModalCancelar(turno)}
+                              style={{
+                                backgroundColor: '#fee2e2',
+                                color: '#b91c1c',
+                                border: '1px solid #f87171',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Cancelar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span className={getEstadoClass(turno.estado)}>
-                {ESTADO_LABELS[turno.estado] || turno.estado}
-              </span>
-
-              {turno.estado === 'reservado' && (
-                <>
-                  {/* BOTÓN REPROGRAMAR */}
-                  <button
-                    type="button"
-                    onClick={() => setTurnoEditando(turno)}
-                    style={{
-                      backgroundColor: '#FEF3C7',
-                      color: '#D97706',
-                      border: '1px solid #D97706',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                      fontSize: '0.85rem'
-                    }}
-                  >
-                    Reprogramar
-                  </button>
-
-                  {/* BOTÓN CANCELAR */}
-                  <button
-                    type="button"
-                    onClick={() => abrirModalCancelar(turno)}
-                    style={{
-                      backgroundColor: '#fee2e2',
-                      color: '#b91c1c',
-                      border: '1px solid #f87171',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                      fontSize: '0.85rem'
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* TOAST FLOTANTE PARA MENSAJES DE ÉXITO */}

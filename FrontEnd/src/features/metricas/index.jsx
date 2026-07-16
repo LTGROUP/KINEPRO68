@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { FileBarChart2 } from 'lucide-react'
 import { getReporteAusentismo } from '../../services/turnosService'
 import { getPatientDetail } from '../../services/patientService'
+import '../../styles/staff-management.css'
 
 const VERDE = '#0D4A3A'
+const BRAND_GREEN = '#176b5b'
 
 const MESES = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -43,18 +46,22 @@ export function MetricasPage({ user }) {
                     </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                <div className="personal-desktop-tabs" role="tablist" aria-label="Secciones de métricas" style={{ marginBottom: '2.5rem' }}>
                     <button
                         type="button"
+                        role="tab"
+                        aria-selected={tab === 'cancelaciones'}
+                        className={tab === 'cancelaciones' ? 'active' : ''}
                         onClick={() => setTab('cancelaciones')}
-                        style={tabButtonStyle(tab === 'cancelaciones')}
                     >
                         Cancelaciones
                     </button>
                     <button
                         type="button"
+                        role="tab"
+                        aria-selected={tab === 'ausentismo'}
+                        className={tab === 'ausentismo' ? 'active' : ''}
                         onClick={() => setTab('ausentismo')}
-                        style={tabButtonStyle(tab === 'ausentismo')}
                     >
                         Reporte de ausentismo
                     </button>
@@ -65,18 +72,6 @@ export function MetricasPage({ user }) {
             </div>
         </section>
     )
-}
-
-function tabButtonStyle(active) {
-    return {
-        padding: '0.6rem 1.2rem',
-        borderRadius: '8px',
-        border: active ? `1px solid ${VERDE}` : '1px solid #ddd',
-        background: active ? VERDE : 'white',
-        color: active ? 'white' : '#333',
-        fontWeight: 600,
-        cursor: 'pointer',
-    }
 }
 
 // ── Íconos SVG (outline, 24x24, color verde institucional) ────────
@@ -241,7 +236,6 @@ function CancelacionesReporte({ user }) {
     }
 
     if (cargando) return <SkeletonMetricas />
-    if (datos?.mensaje) return <p style={{ padding: '2rem' }}>{datos.mensaje}</p>
     if (!datos) return <p style={{ padding: '2rem' }}>No se pudieron cargar las métricas.</p>
 
     const ANIOS_OPTIONS = datos?.anios_disponibles || []
@@ -405,103 +399,150 @@ function AusentismoReporte({ user }) {
         }
     }
 
-    const estiloFiltroBlanco = { padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc', backgroundColor: 'white' }
+    const estiloFiltroBlanco = {
+        padding: '0.65rem 0.85rem',
+        borderRadius: '10px',
+        border: '1px solid #d7e3df',
+        backgroundColor: 'white',
+        fontSize: '0.95rem',
+        color: '#1a3c2e',
+        minWidth: '160px',
+    }
 
     return (
         <div>
-            {/* Tabs de modo de filtro */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                <button
-                    type="button"
-                    onClick={() => setModoFiltro('mes')}
-                    style={modoTabStyle(modoFiltro === 'mes')}
-                >
-                    Por mes
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setModoFiltro('rango')}
-                    style={modoTabStyle(modoFiltro === 'rango')}
-                >
-                    Rango personalizado
-                </button>
+            {/* Card de filtros del reporte */}
+            <div style={{
+                background: '#fbfdfc',
+                border: '1px solid #d7e3df',
+                borderRadius: '16px',
+                padding: '1.75rem',
+                marginBottom: '2rem',
+            }}>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '1rem',
+                    marginBottom: '1.5rem',
+                }}>
+                    <div>
+                        <h3 style={{ margin: 0, color: '#12241f', fontSize: '1.05rem', fontWeight: 700 }}>Filtros del reporte</h3>
+                        <p style={{ margin: '0.3rem 0 0', color: '#718096', fontSize: '0.85rem' }}>
+                            Elegí el período que querés analizar
+                        </p>
+                    </div>
+
+                    <div className="personal-desktop-tabs" role="tablist" aria-label="Modo de filtro" style={{ margin: 0 }}>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={modoFiltro === 'mes'}
+                            className={modoFiltro === 'mes' ? 'active' : ''}
+                            onClick={() => setModoFiltro('mes')}
+                        >
+                            Por mes
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={modoFiltro === 'rango'}
+                            className={modoFiltro === 'rango' ? 'active' : ''}
+                            onClick={() => setModoFiltro('rango')}
+                        >
+                            Rango personalizado
+                        </button>
+                    </div>
+                </div>
+
+                <div style={{
+                    background: 'white',
+                    border: '1px solid #edf2f0',
+                    borderRadius: '12px',
+                    padding: '1.5rem',
+                }}>
+                    {modoFiltro === 'mes' ? (
+                        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', color: '#555', marginBottom: '6px', fontWeight: '500' }}>Mes</label>
+                                <select
+                                    value={mesSeleccionado}
+                                    onChange={(e) => setMesSeleccionado(Number(e.target.value))}
+                                    style={estiloFiltroBlanco}
+                                >
+                                    {MESES.map((nombre, idx) => (
+                                        <option key={idx + 1} value={idx + 1}>{nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', color: '#555', marginBottom: '6px', fontWeight: '500' }}>Año</label>
+                                <select
+                                    value={anioSeleccionado}
+                                    onChange={(e) => setAnioSeleccionado(Number(e.target.value))}
+                                    style={estiloFiltroBlanco}
+                                >
+                                    {ANIOS_AUSENTISMO.map((a) => (
+                                        <option key={a} value={a}>{a}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', color: '#555', marginBottom: '6px', fontWeight: '500' }}>Desde</label>
+                                <input
+                                    type="date"
+                                    value={fechaDesde}
+                                    onChange={(e) => setFechaDesde(e.target.value)}
+                                    style={estiloFiltroBlanco}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', color: '#555', marginBottom: '6px', fontWeight: '500' }}>Hasta</label>
+                                <input
+                                    type="date"
+                                    value={fechaHasta}
+                                    onChange={(e) => setFechaHasta(e.target.value)}
+                                    style={estiloFiltroBlanco}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {error && (
+                        <p style={{ color: '#e63946', fontSize: '0.85rem', margin: '1rem 0 0' }}>{error}</p>
+                    )}
+
+                    <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                            type="button"
+                            onClick={handleGenerar}
+                            disabled={cargando}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '0.85rem 1.75rem',
+                                borderRadius: '12px',
+                                border: 'none',
+                                background: BRAND_GREEN,
+                                color: 'white',
+                                fontWeight: 700,
+                                fontSize: '0.95rem',
+                                boxShadow: '0 6px 14px rgba(23, 107, 91, 0.25)',
+                                cursor: cargando ? 'default' : 'pointer',
+                                opacity: cargando ? 0.7 : 1,
+                            }}
+                        >
+                            <FileBarChart2 size={18} aria-hidden="true" />
+                            {cargando ? 'Generando...' : 'Generar reporte'}
+                        </button>
+                    </div>
+                </div>
             </div>
-
-            {modoFiltro === 'mes' ? (
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#555', marginBottom: '6px', fontWeight: '500' }}>Mes</label>
-                        <select
-                            value={mesSeleccionado}
-                            onChange={(e) => setMesSeleccionado(Number(e.target.value))}
-                            style={estiloFiltroBlanco}
-                        >
-                            {MESES.map((nombre, idx) => (
-                                <option key={idx + 1} value={idx + 1}>{nombre}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', color: '#555', marginBottom: '6px', fontWeight: '500' }}>Año</label>
-                        <select
-                            value={anioSeleccionado}
-                            onChange={(e) => setAnioSeleccionado(Number(e.target.value))}
-                            style={estiloFiltroBlanco}
-                        >
-                            {ANIOS_AUSENTISMO.map((a) => (
-                                <option key={a} value={a}>{a}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={handleGenerar}
-                        disabled={cargando}
-                        style={{
-                            padding: '0.6rem 1.2rem', borderRadius: '8px', border: 'none',
-                            background: VERDE, color: 'white', fontWeight: 600,
-                            cursor: cargando ? 'default' : 'pointer', opacity: cargando ? 0.7 : 1,
-                        }}
-                    >
-                        {cargando ? 'Generando...' : 'Generar reporte'}
-                    </button>
-                </div>
-            ) : (
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '0.85rem', color: '#333' }}>
-                        Desde
-                        <input
-                            type="date"
-                            value={fechaDesde}
-                            onChange={(e) => setFechaDesde(e.target.value)}
-                            style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc' }}
-                        />
-                    </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', fontSize: '0.85rem', color: '#333' }}>
-                        Hasta
-                        <input
-                            type="date"
-                            value={fechaHasta}
-                            onChange={(e) => setFechaHasta(e.target.value)}
-                            style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc' }}
-                        />
-                    </label>
-                    <button
-                        type="button"
-                        onClick={handleGenerar}
-                        disabled={cargando}
-                        style={{
-                            padding: '0.6rem 1.2rem', borderRadius: '8px', border: 'none',
-                            background: VERDE, color: 'white', fontWeight: 600,
-                            cursor: cargando ? 'default' : 'pointer', opacity: cargando ? 0.7 : 1,
-                        }}
-                    >
-                        {cargando ? 'Generando...' : 'Generar reporte'}
-                    </button>
-                </div>
-            )}
-
-            {error && <p style={{ color: '#e63946', fontSize: '0.85rem', margin: '0 0 1rem' }}>{error}</p>}
 
             <div style={{ marginTop: '1.5rem' }}>
                 {cargando && <SkeletonAusenciaCards />}
@@ -526,19 +567,6 @@ function AusentismoReporte({ user }) {
             </div>
         </div>
     )
-}
-
-function modoTabStyle(active) {
-    return {
-        padding: '0.4rem 0.9rem',
-        borderRadius: '6px',
-        border: active ? `1px solid ${VERDE}` : '1px solid #ccc',
-        background: active ? VERDE : 'white',
-        color: active ? 'white' : '#555',
-        fontWeight: 600,
-        fontSize: '0.85rem',
-        cursor: 'pointer',
-    }
 }
 
 function EstadoVacioAusencias() {

@@ -415,9 +415,9 @@ function ConfigurarGrillaView({ user, onSuccess }) {
   }
 
   return (
-    <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start max-w-[1200px] mx-auto w-full">
       {/* COLUMNA IZQUIERDA: configuración */}
-      <div style={{ flex: '1 1 380px', minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
         {/* SECCIÓN 1: configuración básica */}
         <div style={panelStyle}>
@@ -644,7 +644,7 @@ function ConfigurarGrillaView({ user, onSuccess }) {
       </div>
 
       {/* COLUMNA DERECHA: calendario + excepciones */}
-      <div style={{ flex: '1 1 380px', minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
         {/* SECCIÓN 3: calendario del mes */}
         <div style={panelStyle}>

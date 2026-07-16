@@ -5,6 +5,7 @@ import VerListaDeEspera from './paciente/ListasDeEspera'
 import MisTurnosView from './paciente/MisTurnosView'
 import ConfigurarGrillaView from './secretaria/ConfigurarGrillaView'
 import ListaEsperaView from './secretaria/ListaEsperaView'
+import { AgendaProfesional } from './secretaria/AgendaProfesional'
 import AgendaProfesionalView from './profesional/AgendaProfesionalView'
 import '../../styles/turnos.css'
 
@@ -34,7 +35,7 @@ function TurnosPage({ user, onSectionChange, tabInicial, onTabInicialConsumido }
     if (rol === 'paciente') {
       setActiveTab('mis-turnos')
     } else if (rol === 'secretaria' || rol === 'administrative' || rol === 'administrativo') {
-      setActiveTab('grilla')
+      setActiveTab('agenda-dia')
     } else if (rol === 'profesional') {
       setActiveTab('agenda-profesional')
     } else {
@@ -126,6 +127,15 @@ function TurnosPage({ user, onSectionChange, tabInicial, onTabInicialConsumido }
               <button
                 type="button"
                 role="tab"
+                aria-selected={activeTab === 'agenda-dia'}
+                className={activeTab === 'agenda-dia' ? 'active' : ''}
+                onClick={() => setActiveTab('agenda-dia')}
+              >
+                Agenda del día
+              </button>
+              <button
+                type="button"
+                role="tab"
                 aria-selected={activeTab === 'grilla'}
                 className={activeTab === 'grilla' ? 'active' : ''}
                 onClick={() => setActiveTab('grilla')}
@@ -155,6 +165,9 @@ function TurnosPage({ user, onSectionChange, tabInicial, onTabInicialConsumido }
             <VerListaDeEspera user={user} />
           )}
 
+          {activeTab === 'agenda-dia' && (
+            <AgendaProfesional user={user} />
+          )}
           {activeTab === 'grilla' && (
             <ConfigurarGrillaView user={user} onSuccess={handleSuccess} />
           )}
@@ -162,7 +175,7 @@ function TurnosPage({ user, onSectionChange, tabInicial, onTabInicialConsumido }
             <ListaEsperaView user={user} />
           )}
           {activeTab === 'agenda-profesional' && (
-            <AgendaProfesionalView user={user} />
+            <AgendaProfesionalView user={user} modo="historial" />
           )}
         </section>
       </section>

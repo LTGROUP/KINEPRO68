@@ -12,6 +12,7 @@ import { AppLayout } from './layouts'
 import { AgendaProfesional } from './features/turnos/secretaria/AgendaProfesional'
 import AgendaProfesionalView from './features/turnos/profesional/AgendaProfesionalView'
 import { MetricasPage } from './features/metricas'
+import AdminHomePage from './features/AdminHomePage'
 
 import { clearPasswordRecoveryFlow, hasPasswordRecoveryFlow, supabase } from './lib/supabase/client'
 import {
@@ -61,16 +62,9 @@ function canUserAccessPatients(currentUser) {
   return false
 }
 
-// Logica unificada: inicializamos segun el rol del usuario
-function getInitialSectionForUser(currentUser) {
-  if (!currentUser) return 'inicio'
-
-  if (currentUser.rol === 'secretaria' || currentUser.rol === 'profesional') {
-    return 'inicio'
-  }
-
-  // Pacientes van a turnos por defecto
-  return 'turnos'
+// Logica unificada: todos los roles inician en Inicio
+function getInitialSectionForUser() {
+  return 'inicio'
 }
 
 function getIsRecoveryFlow() {
@@ -165,6 +159,10 @@ function App() {
       return <AgendaProfesionalView user={user} />
     }
 
+    if (activeSection === 'inicio' && user.rol === 'administrativo') {
+      return <AdminHomePage user={user} setActiveSection={setActiveSection} />
+    }
+
     // Si es un paciente y por algún motivo llegó a inicio, le mostramos el home base
     if (activeSection === 'inicio') {
       return <HomePage user={user} />
@@ -200,7 +198,12 @@ function App() {
     }
 
     if (activeSection === 'perfil') {
-      return <ProfilePage user={user} />
+      return (
+        <ProfilePage
+          user={user}
+          onBack={() => setActiveSection(getInitialSectionForUser(user))}
+        />
+      )
     }
 
     if (activeSection === 'metricas' && canUserManage(user)) {

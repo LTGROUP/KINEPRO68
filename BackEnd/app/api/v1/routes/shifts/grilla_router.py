@@ -25,10 +25,10 @@ from app.services.shifts.grilla_service import (
     bloquear_dia,
     reducir_cupos_rango,
     editar_horario_dia,
+    registrar_dia_cerrado,
 )
 from app.repositories.shifts.grilla import (
     obtener_dia_cerrado_por_fecha,
-    crear_dia_cerrado,
     eliminar_dia_cerrado,
     obtener_dias_cerrados_del_mes,
 )
@@ -146,7 +146,7 @@ async def crear_dia_cerrado_endpoint(
             detail="Ya existe un día cerrado para esa fecha",
         )
 
-    await crear_dia_cerrado(
+    await registrar_dia_cerrado(
         db=db,
         fecha=request.fecha,
         motivo=request.motivo,
