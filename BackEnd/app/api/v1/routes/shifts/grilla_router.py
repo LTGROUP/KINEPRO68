@@ -33,6 +33,7 @@ from app.repositories.shifts.grilla import (
     obtener_dias_cerrados_del_mes,
 )
 from app.api.dependencies.auth import get_current_staff_manager_profile as get_current_secretaria
+from app.services.audit import register_audit_log
 
 router = APIRouter(prefix="/grilla", tags=["Grilla de turnos"])
 
@@ -60,6 +61,8 @@ async def generar_grilla_endpoint(
             db=db,
             request=request,
             secretaria_id=secretaria["id"],
+            actor_role=secretaria["rol"],
+            actor_dni=secretaria.get("dni"),
         )
         return resultado
     except ValueError as e:
@@ -89,6 +92,8 @@ async def bloquear_dia_endpoint(
             fecha=request.fecha,
             motivo=request.motivo or "Bloqueado por administración",
             secretaria_id=secretaria["id"],
+            actor_role=secretaria["rol"],
+            actor_dni=secretaria.get("dni"),
         )
         return resultado
     except ValueError as e:
@@ -118,6 +123,8 @@ async def reducir_cupos_endpoint(
             fecha_desde=request.fecha_desde,
             fecha_hasta=request.fecha_hasta,
             secretaria_id=secretaria["id"],
+            actor_role=secretaria["rol"],
+            actor_dni=secretaria.get("dni"),
         )
         return resultado
     except ValueError as e:
@@ -153,6 +160,8 @@ async def crear_dia_cerrado_endpoint(
         creado_por=secretaria["id"],
         horario_inicio=request.horario_inicio,
         horario_fin=request.horario_fin,
+        actor_role=secretaria["rol"],
+        actor_dni=secretaria.get("dni"),
     )
 
     mensaje = (
@@ -180,12 +189,38 @@ async def eliminar_dia_cerrado_endpoint(
     db: AsyncSession = Depends(get_db),
     secretaria=Depends(get_current_secretaria),
 ):
+    existente = await obtener_dia_cerrado_por_fecha(db, fecha)
+    if not existente:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No existe un día cerrado para esa fecha",
+        )
+
+    audit_entity_id = str(existente.id)
+    audit_metadata = {
+        "date": fecha.isoformat(),
+        "previous_reason": existente.motivo,
+        "previous_start_time": existente.horario_inicio.isoformat() if existente.horario_inicio else None,
+        "previous_end_time": existente.horario_fin.isoformat() if existente.horario_fin else None,
+    }
+
     filas_eliminadas = await eliminar_dia_cerrado(db, fecha)
     if not filas_eliminadas:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No existe un día cerrado para esa fecha",
         )
+
+    register_audit_log(
+        actor_id=str(secretaria["id"]),
+        actor_role=secretaria["rol"],
+        action="REOPEN_SCHEDULE_DAY",
+        entity_type="schedule_grid",
+        entity_id=audit_entity_id,
+        description=f"Reabrió el día {fecha.isoformat()} en la grilla",
+        actor_dni=secretaria.get("dni"),
+        metadata=audit_metadata,
+    )
 
     return EliminarDiaCerradoResponse(mensaje="Día cerrado eliminado correctamente")
 
@@ -209,6 +244,8 @@ async def editar_horario_dia_endpoint(
             hora_inicio=request.hora_inicio,
             hora_fin=request.hora_fin,
             secretaria_id=secretaria["id"],
+            actor_role=secretaria["rol"],
+            actor_dni=secretaria.get("dni"),
         )
         return resultado
     except ValueError as e:

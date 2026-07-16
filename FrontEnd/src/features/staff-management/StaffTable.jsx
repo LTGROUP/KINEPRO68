@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 
 function formatRole(role) {
   const labels = {
@@ -138,11 +138,7 @@ function StaffTable({
                 aria-expanded={isOpen}
                 aria-label={`Abrir acciones de ${staff.nombre} ${staff.apellido}`}
               >
-                {isOpen ? (
-                  <ChevronUp size={20} strokeWidth={3} aria-hidden="true" />
-                ) : (
-                  <ChevronDown size={20} strokeWidth={3} aria-hidden="true" />
-                )}
+                <ChevronDown size={20} strokeWidth={3} aria-hidden="true" />
               </button>
             </div>
           </td>
@@ -154,7 +150,7 @@ function StaffTable({
   }
 
   return (
-    <div className="staff-table-wrap">
+    <div className="staff-table-wrap staff-management-table-wrap">
       <table className="staff-table">
         <thead>
           <tr>

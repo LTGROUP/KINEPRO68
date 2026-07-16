@@ -25,6 +25,7 @@ from app.repositories.shifts.grilla import (
     obtener_dia_cerrado_por_fecha,
     crear_dia_cerrado as crear_dia_cerrado_repo,
 )
+from app.services.audit import register_audit_log
 import calendar
 
 DURACION_SESION_MINUTOS = 60
@@ -91,6 +92,8 @@ async def generar_grilla(
     db: AsyncSession,
     request: GenerarGrillaRequest,
     secretaria_id: UUID,
+    actor_role: str = "secretaria",
+    actor_dni: str | None = None,
 ) -> GrillaGeneradaResponse:
 
     hoy = date.today()
@@ -173,6 +176,24 @@ async def generar_grilla(
 
     await db.commit()
 
+    register_audit_log(
+        actor_id=str(secretaria_id),
+        actor_role=actor_role,
+        action="CREATE_SCHEDULE_GRID",
+        entity_type="schedule_grid",
+        entity_id=str(config.id),
+        description=f"Generó la grilla de {MESES_ES[request.mes]} {request.anio}",
+        actor_dni=actor_dni,
+        metadata={
+            "month": request.mes,
+            "year": request.anio,
+            "working_days": request.dias_habiles,
+            "slots_per_time": request.turnos_por_slot,
+            "total_slots_created": total_creados,
+            "omitted_days": [item.isoformat() for item in dias_omitidos],
+        },
+    )
+
     mes_nombre = MESES_ES[request.mes]
     if dias_omitidos:
         mensaje = (
@@ -196,6 +217,8 @@ async def bloquear_dia(
     fecha: date,
     motivo: str,
     secretaria_id: UUID,
+    actor_role: str = "secretaria",
+    actor_dni: str | None = None,
 ) -> BloquearDiaResponse:
 
     
@@ -218,6 +241,22 @@ async def bloquear_dia(
     )
     db.add(dia_cerrado)
     await db.commit()
+
+    register_audit_log(
+        actor_id=str(secretaria_id),
+        actor_role=actor_role,
+        action="BLOCK_SCHEDULE_DAY",
+        entity_type="schedule_grid",
+        entity_id=str(dia_cerrado.id),
+        description=f"Bloqueó el día {fecha.isoformat()} en la grilla",
+        actor_dni=actor_dni,
+        metadata={
+            "date": fecha.isoformat(),
+            "reason": motivo,
+            "available_slots_deleted": turnos_eliminados,
+            "reserved_patients_affected": len(pacientes_a_contactar),
+        },
+    )
 
     if pacientes_a_contactar:
         mensaje = (
@@ -242,6 +281,8 @@ async def registrar_dia_cerrado(
     creado_por: UUID,
     horario_inicio: Optional[time] = None,
     horario_fin: Optional[time] = None,
+    actor_role: str = "secretaria",
+    actor_dni: str | None = None,
 ) -> DiasCerrados:
     dia_cerrado = await crear_dia_cerrado_repo(
         db=db,
@@ -259,6 +300,28 @@ async def registrar_dia_cerrado(
         await eliminar_turnos_disponibles_del_dia(db, fecha)
         await db.commit()
 
+    action = "CREATE_REDUCED_SCHEDULE_DAY" if horario_inicio and horario_fin else "CREATE_CLOSED_SCHEDULE_DAY"
+    description = (
+        f"Configuró horario reducido para el día {fecha.isoformat()}"
+        if horario_inicio and horario_fin
+        else f"Registró el día {fecha.isoformat()} como cerrado"
+    )
+    register_audit_log(
+        actor_id=str(creado_por),
+        actor_role=actor_role,
+        action=action,
+        entity_type="schedule_grid",
+        entity_id=str(dia_cerrado.id),
+        description=description,
+        actor_dni=actor_dni,
+        metadata={
+            "date": fecha.isoformat(),
+            "reason": motivo,
+            "start_time": horario_inicio.isoformat() if horario_inicio else None,
+            "end_time": horario_fin.isoformat() if horario_fin else None,
+        },
+    )
+
     return dia_cerrado
 
 
@@ -267,6 +330,8 @@ async def reducir_cupos_rango(
     fecha_desde: date,
     fecha_hasta: date,
     secretaria_id: UUID,
+    actor_role: str = "secretaria",
+    actor_dni: str | None = None,
 ) -> ModificarCuposResponse:
 
     
@@ -294,6 +359,21 @@ async def reducir_cupos_rango(
 
     await db.commit()
 
+    register_audit_log(
+        actor_id=str(secretaria_id),
+        actor_role=actor_role,
+        action="REDUCE_SCHEDULE_CAPACITY",
+        entity_type="schedule_grid",
+        description=f"Redujo cupos del {fecha_desde.isoformat()} al {fecha_hasta.isoformat()}",
+        actor_dni=actor_dni,
+        metadata={
+            "date_from": fecha_desde.isoformat(),
+            "date_to": fecha_hasta.isoformat(),
+            "slots_removed": turnos_reducidos,
+            "reserved_patients_affected": len(pacientes_a_contactar),
+        },
+    )
+
     if pacientes_a_contactar:
         mensaje = (
             f"Cupos reducidos en el rango {fecha_desde} al {fecha_hasta}. "
@@ -317,6 +397,8 @@ async def editar_horario_dia(
     hora_inicio: time,
     hora_fin: time,
     secretaria_id: UUID,
+    actor_role: str = "secretaria",
+    actor_dni: str | None = None,
 ) -> EditarHorarioDiaResponse:
 
     turnos_existentes = await obtener_turnos_del_dia(db, fecha)
@@ -366,6 +448,23 @@ async def editar_horario_dia(
         db.add(dia_cerrado)
 
     await db.commit()
+
+    register_audit_log(
+        actor_id=str(secretaria_id),
+        actor_role=actor_role,
+        action="UPDATE_SCHEDULE_DAY",
+        entity_type="schedule_grid",
+        entity_id=str(configuracion_id) if configuracion_id else None,
+        description=f"Actualizó el horario del día {fecha.isoformat()}",
+        actor_dni=actor_dni,
+        metadata={
+            "date": fecha.isoformat(),
+            "start_time": hora_inicio.isoformat(),
+            "end_time": hora_fin.isoformat(),
+            "slots_created": turnos_creados,
+            "reserved_slots_preserved": len(turnos_reservados),
+        },
+    )
 
     return EditarHorarioDiaResponse(
         mensaje=f"Horario del día {fecha} actualizado correctamente",

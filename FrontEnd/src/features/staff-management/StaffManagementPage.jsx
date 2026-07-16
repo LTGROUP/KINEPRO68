@@ -36,6 +36,13 @@ const AUDIT_ACTION_LABELS = {
   DELETE_ROUTINE: 'Eliminó rutina',
   CREATE_MEDICAL_RECORD: 'Creó ficha médica',
   UPDATE_MEDICAL_RECORD: 'Editó ficha médica',
+  CREATE_SCHEDULE_GRID: 'Generó grilla mensual',
+  BLOCK_SCHEDULE_DAY: 'Bloqueó día de la grilla',
+  REDUCE_SCHEDULE_CAPACITY: 'Redujo cupos de la grilla',
+  CREATE_CLOSED_SCHEDULE_DAY: 'Registró día cerrado',
+  CREATE_REDUCED_SCHEDULE_DAY: 'Configuró horario reducido',
+  REOPEN_SCHEDULE_DAY: 'Reabrió día de la grilla',
+  UPDATE_SCHEDULE_DAY: 'Editó horario de la grilla',
 }
 
 const AUDIT_ACTION_FILTER_OPTIONS = [
@@ -50,6 +57,13 @@ const AUDIT_ACTION_FILTER_OPTIONS = [
   { label: 'Eliminar rutina', value: 'DELETE_ROUTINE' },
   { label: 'Crear ficha médica', value: 'CREATE_MEDICAL_RECORD' },
   { label: 'Editar ficha médica', value: 'UPDATE_MEDICAL_RECORD' },
+  { label: 'Generar grilla', value: 'CREATE_SCHEDULE_GRID' },
+  { label: 'Bloquear día', value: 'BLOCK_SCHEDULE_DAY' },
+  { label: 'Reducir cupos', value: 'REDUCE_SCHEDULE_CAPACITY' },
+  { label: 'Registrar día cerrado', value: 'CREATE_CLOSED_SCHEDULE_DAY' },
+  { label: 'Configurar horario reducido', value: 'CREATE_REDUCED_SCHEDULE_DAY' },
+  { label: 'Reabrir día', value: 'REOPEN_SCHEDULE_DAY' },
+  { label: 'Editar horario diario', value: 'UPDATE_SCHEDULE_DAY' },
 ]
 
 const AUDIT_DATE_FILTER_OPTIONS = [
@@ -623,13 +637,27 @@ function StaffManagementPage({ user }) {
 
       articles.push(
         <article className="audit-item" key={log.id}>
-          <span>{new Date(log.created_at).toLocaleString('es-AR')}</span>
-          <strong>{log.description}</strong>
-          <p>
-            {log.actor_role} · {actorDni}
-          </p>
-          {targetDni && <p>DNI afectado: {targetDni}</p>}
-          <p>{getAuditLabel(log.action)}</p>
+          <div className="audit-item-icon" aria-hidden="true">
+            <ScrollText size={19} strokeWidth={2.5} />
+          </div>
+
+          <div className="audit-item-content">
+            <div className="audit-item-header">
+              <span className="audit-action-badge">{getAuditLabel(log.action)}</span>
+              <time dateTime={log.created_at}>
+                {new Date(log.created_at).toLocaleString('es-AR')}
+              </time>
+            </div>
+
+            <strong>{log.description}</strong>
+
+            <div className="audit-item-meta">
+              <span>
+                Actor: {formatRole(log.actor_role)} · {actorDni}
+              </span>
+              {targetDni && <span>DNI afectado: {targetDni}</span>}
+            </div>
+          </div>
         </article>,
       )
     }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 
 function getArrowClass(isOpen) {
   if (isOpen) {
@@ -56,7 +56,11 @@ function PatientTable({
             Registro de sesiones
           </button>
 
-          <button type="button" onClick={() => onView(patient)}>
+          <button
+            type="button"
+            className="patient-action-secondary"
+            onClick={() => onView(patient)}
+          >
             Ver datos
           </button>
         </>
@@ -71,7 +75,11 @@ function PatientTable({
         <button type="button" onClick={() => onEdit(patient)}>
           Editar
         </button>
-        <button type="button" onClick={() => onView(patient)}>
+        <button
+          type="button"
+          className="patient-action-secondary"
+          onClick={() => onView(patient)}
+        >
           Ver datos
         </button>
       </>
@@ -113,11 +121,7 @@ function PatientTable({
                 aria-expanded={isOpen}
                 aria-label={`Abrir acciones de ${patient.nombre} ${patient.apellido}`}
               >
-                {isOpen ? (
-                  <ChevronUp size={20} strokeWidth={3} aria-hidden="true" />
-                ) : (
-                  <ChevronDown size={20} strokeWidth={3} aria-hidden="true" />
-                )}
+                <ChevronDown size={20} strokeWidth={3} aria-hidden="true" />
               </button>
             </div>
           </td>
@@ -141,8 +145,8 @@ function PatientTable({
   }
 
   return (
-    <div className="staff-table-wrap">
-      <table className="staff-table">
+    <div className="staff-table-wrap patient-table-wrap">
+      <table className="staff-table patient-table">
         <thead>
           <tr>
             <th>Nombre</th>
