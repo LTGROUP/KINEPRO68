@@ -11,13 +11,19 @@ import {
 } from 'lucide-react'
 
 import { getAgendaHoy, getAgendaPorFecha } from '../../../services/profesionalService'
-import { getMedicalRecord } from '../../../services/medicalRecordService'
+import {
+  createMedicalRecord,
+  getMedicalRecord,
+  uploadStudyPdf,
+  updateMedicalRecord,
+} from '../../../services/medicalRecordService'
 import {
   createSessionNote,
   getPatientSessionNotes,
 } from '../../../services/sessionNoteService'
 import ClinicalHistoryPanel from '../../professionals/ClinicalHistoryPanel'
 import MedicalRecordDetail from '../../professionals/MedicalRecordDetail'
+import MedicalRecordForm from '../../professionals/MedicalRecordForm'
 import { getEstadoClass } from '../../../utils/estadoColors'
 
 function formatTime(timeStr) {
@@ -83,7 +89,10 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
   const [patientForMedicalRecord, setPatientForMedicalRecord] = useState(null)
   const [selectedMedicalRecord, setSelectedMedicalRecord] = useState(null)
   const [loadingMedicalRecord, setLoadingMedicalRecord] = useState(false)
+  const [savingMedicalRecord, setSavingMedicalRecord] = useState(false)
   const [medicalRecordError, setMedicalRecordError] = useState('')
+  const [showCreateMedicalRecordForm, setShowCreateMedicalRecordForm] = useState(false)
+  const [showEditMedicalRecordForm, setShowEditMedicalRecordForm] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -178,6 +187,7 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
     setPatientForMedicalRecord(turno.paciente)
     setSelectedMedicalRecord(null)
     setMedicalRecordError('')
+    setShowEditMedicalRecordForm(false)
     setLoadingMedicalRecord(true)
 
     try {
@@ -185,8 +195,57 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
       setSelectedMedicalRecord(record)
     } catch (err) {
       setMedicalRecordError(err.message || 'No se pudo obtener la historia clínica.')
+      setShowCreateMedicalRecordForm(false)
     } finally {
       setLoadingMedicalRecord(false)
+    }
+  }
+
+  async function handleCreateMedicalRecord(payload) {
+    if (!patientForMedicalRecord?.id) {
+      return
+    }
+
+    setSavingMedicalRecord(true)
+    setMedicalRecordError('')
+
+    try {
+      const createdRecord = await createMedicalRecord(user, {
+        ...payload,
+        paciente_id: patientForMedicalRecord.id,
+      })
+
+      setSelectedMedicalRecord(createdRecord)
+      setShowCreateMedicalRecordForm(false)
+      setShowEditMedicalRecordForm(false)
+    } catch (err) {
+      setMedicalRecordError(err.message || 'No se pudo cargar la historia clínica.')
+    } finally {
+      setSavingMedicalRecord(false)
+    }
+  }
+
+  async function handleUpdateMedicalRecord(payload) {
+    if (!selectedMedicalRecord?.id) {
+      return
+    }
+
+    setSavingMedicalRecord(true)
+    setMedicalRecordError('')
+
+    try {
+      const updatedRecord = await updateMedicalRecord(
+        user,
+        selectedMedicalRecord.id,
+        payload,
+      )
+
+      setSelectedMedicalRecord(updatedRecord)
+      setShowEditMedicalRecordForm(false)
+    } catch (err) {
+      setMedicalRecordError(err.message || 'No se pudo actualizar la historia clínica.')
+    } finally {
+      setSavingMedicalRecord(false)
     }
   }
 
@@ -557,6 +616,8 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
                 setPatientForMedicalRecord(null)
                 setSelectedMedicalRecord(null)
                 setMedicalRecordError('')
+                setShowCreateMedicalRecordForm(false)
+                setShowEditMedicalRecordForm(false)
               }}
               aria-label="Cerrar historia clínica"
             >
@@ -569,9 +630,52 @@ export function AgendaProfesionalView({ user, modo = 'inicio' }) {
             </p>
 
             {loadingMedicalRecord && <p className="staff-empty">Cargando historia clínica...</p>}
-            {!loadingMedicalRecord && medicalRecordError && <p className="staff-empty">{medicalRecordError}</p>}
-            {!loadingMedicalRecord && selectedMedicalRecord && (
-              <MedicalRecordDetail record={selectedMedicalRecord} />
+            {!loadingMedicalRecord && medicalRecordError && !showCreateMedicalRecordForm && (
+              <div>
+                <p className="staff-empty">El paciente no tiene una ficha médica cargada.</p>
+                <button
+                  type="button"
+                  className="staff-register-button"
+                  onClick={() => {
+                    setMedicalRecordError('')
+                    setShowCreateMedicalRecordForm(true)
+                  }}
+                >
+                  Cargar historia clínica
+                </button>
+              </div>
+            )}
+            {!loadingMedicalRecord && showCreateMedicalRecordForm && (
+              <MedicalRecordForm
+                actor={user}
+                loading={savingMedicalRecord}
+                onSubmit={handleCreateMedicalRecord}
+                onUploadStudyPdf={uploadStudyPdf}
+              />
+            )}
+            {!loadingMedicalRecord && selectedMedicalRecord && !showEditMedicalRecordForm && (
+              <>
+                <div className="mb-4 flex justify-end">
+                  <button
+                    type="button"
+                    className="staff-register-button"
+                    onClick={() => setShowEditMedicalRecordForm(true)}
+                  >
+                    Editar historia clínica
+                  </button>
+                </div>
+                <MedicalRecordDetail record={selectedMedicalRecord} />
+              </>
+            )}
+            {!loadingMedicalRecord && selectedMedicalRecord && showEditMedicalRecordForm && (
+              <MedicalRecordForm
+                actor={user}
+                initialData={selectedMedicalRecord}
+                loading={savingMedicalRecord}
+                mode="edit"
+                onSubmit={handleUpdateMedicalRecord}
+                onUploadStudyPdf={uploadStudyPdf}
+              />
             )}
           </div>
         </aside>
