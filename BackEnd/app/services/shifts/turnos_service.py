@@ -572,31 +572,18 @@ MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"
 # Grafico de metricas
 
 async def consultar_metricas_cancelaciones(db: AsyncSession, mes: Optional[int] = None, anio: Optional[int] = None, rango: Optional[str] = None):
-    
-    filas = await obtener_metricas_cancelaciones(db)
-    datos = {estado.value if hasattr(estado, 'value') else str(estado): total for estado, total in filas}
-    
-    total_turnos = sum(datos.values())
-    cancelados = datos.get("cancelado", 0)
-    reservados = datos.get("reservado", 0)
-    presentes = datos.get("presente", 0)
 
-    #Calcular la fecha
     hoy = date.today()
-
     rango_anios = await obtener_rango_anios(db)
     anio_min = int(rango_anios.anio_min) if rango_anios.anio_min else 2025
     anio_max = int(rango_anios.anio_max) if rango_anios.anio_max else 2025
-    
+
+    fecha_desde = fecha_hasta = None
+
     if mes and anio:
-        # Filtrar por mes y año específico
         fecha_desde = date(anio, mes, 1)
-        if mes == 12:
-            fecha_hasta = date(anio + 1, 1, 1)
-        else:
-            fecha_hasta = date(anio, mes + 1, 1)
-    elif rango == "ultimos_6_meses" or (not mes and not anio):
-        # Default: últimos 6 meses
+        fecha_hasta = date(anio + 1, 1, 1) if mes == 12 else date(anio, mes + 1, 1)
+    elif not mes and not anio and (rango == "ultimos_6_meses" or not rango):
         mes_inicio = hoy.month - 5
         anio_inicio = hoy.year
         if mes_inicio <= 0:
@@ -604,16 +591,20 @@ async def consultar_metricas_cancelaciones(db: AsyncSession, mes: Optional[int] 
             anio_inicio -= 1
         fecha_desde = date(anio_inicio, mes_inicio, 1)
         fecha_hasta = date(hoy.year, hoy.month + 1, 1) if hoy.month < 12 else date(hoy.year + 1, 1, 1)
-    else:
-        fecha_desde = None
-        fecha_hasta = None
+    # si es solo mes o solo año, fecha_desde/fecha_hasta quedan None
+    # y se filtra directamente con mes= / anio= más abajo
 
-    filas_mes = await obtener_cancelaciones_por_mes(db, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
+    filas = await obtener_metricas_cancelaciones(db, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, mes=mes, anio=anio)
+    datos = {estado.value if hasattr(estado, 'value') else str(estado): total for estado, total in filas}
 
-    # Gráfico por mes
-    filas_mes = await obtener_cancelaciones_por_mes(db)
+    total_turnos = sum(datos.values())
+    cancelados = datos.get("cancelado", 0)
+    reservados = datos.get("reservado", 0)
+    presentes = datos.get("presente", 0)
+
+    filas_mes = await obtener_cancelaciones_por_mes(db, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, mes=mes, anio=anio)
+
     agrupado = defaultdict(lambda: {"cancelados": 0, "reservados": 0, "presentes": 0})
-    
     for mes_n, anio_n, estado, total in filas_mes:
         clave = (int(anio_n), int(mes_n))
         estado_str = estado.value if hasattr(estado, 'value') else str(estado)
@@ -625,24 +616,18 @@ async def consultar_metricas_cancelaciones(db: AsyncSession, mes: Optional[int] 
             agrupado[clave]["presentes"] = total
 
     grafico = [
-        {
-            "mes": f"{MESES[m - 1]} {a}",
-            "cancelados": vals["cancelados"],
-            "reservados": vals["reservados"],
-            "presentes": vals["presentes"],
-        }
+        {"mes": f"{MESES[m - 1]} {a}", **vals}
         for (a, m), vals in sorted(agrupado.items())
     ]
 
-    if total_turnos == 0:
-        return {"mensaje": "No hay datos disponibles"}
-
+    # Antes esto cortaba acá con {"mensaje": "No hay datos disponibles"}.
+    # Ahora devolvemos siempre la forma completa, con ceros si no hay nada.
     return {
         "total_turnos": total_turnos,
         "cancelados": cancelados,
         "reservados": reservados,
         "presentes": presentes,
-        "tasa_cancelacion": round((cancelados / total_turnos) * 100, 1),
+        "tasa_cancelacion": round((cancelados / total_turnos) * 100, 1) if total_turnos else 0,
         "anios_disponibles": list(range(anio_min, anio_max + 1)),
         "grafico_por_mes": grafico,
     }

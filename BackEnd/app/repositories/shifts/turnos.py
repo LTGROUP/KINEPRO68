@@ -210,11 +210,28 @@ async def obtener_rango_anios(db: AsyncSession):
     )
     return result.one()
 #obtener datos de ausentes, presentes y cancelados
-async def obtener_metricas_cancelaciones(db: AsyncSession):
-    result = await db.execute(
+async def obtener_metricas_cancelaciones(
+    db: AsyncSession,
+    fecha_desde: date = None,
+    fecha_hasta: date = None,
+    mes: int = None,
+    anio: int = None,
+):
+    query = (
         select(Turno.estado, func.count(Turno.id).label("total"))
         .group_by(Turno.estado)
     )
+
+    if fecha_desde:
+        query = query.where(Turno.fecha >= fecha_desde)
+    if fecha_hasta:
+        query = query.where(Turno.fecha < fecha_hasta)
+    if mes and not anio:
+        query = query.where(extract('month', Turno.fecha) == mes)
+    if anio and not mes:
+        query = query.where(extract('year', Turno.fecha) == anio)
+
+    result = await db.execute(query)
     return result.all()
 
 async def obtener_primer_paciente_en_espera(db: AsyncSession, turno_id: UUID) -> ListaEspera | None:
@@ -233,6 +250,8 @@ async def obtener_cancelaciones_por_mes(
     db: AsyncSession,
     fecha_desde: date = None,
     fecha_hasta: date = None,
+    mes: int = None,
+    anio: int = None,
 ):
     query = (
         select(
@@ -247,14 +266,18 @@ async def obtener_cancelaciones_por_mes(
             EstadoTurno.PRESENTE,
         ]))
     )
-    
+
     if fecha_desde:
         query = query.where(Turno.fecha >= fecha_desde)
     if fecha_hasta:
         query = query.where(Turno.fecha < fecha_hasta)
-    
+    if mes and not anio:
+        query = query.where(extract('month', Turno.fecha) == mes)
+    if anio and not mes:
+        query = query.where(extract('year', Turno.fecha) == anio)
+
     query = query.group_by("anio", "mes", Turno.estado).order_by("anio", "mes")
-    
+
     result = await db.execute(query)
     return result.all()
 

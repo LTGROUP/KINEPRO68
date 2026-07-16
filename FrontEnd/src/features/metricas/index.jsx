@@ -241,7 +241,6 @@ function CancelacionesReporte({ user }) {
     }
 
     if (cargando) return <SkeletonMetricas />
-    if (datos?.mensaje) return <p style={{ padding: '2rem' }}>{datos.mensaje}</p>
     if (!datos) return <p style={{ padding: '2rem' }}>No se pudieron cargar las métricas.</p>
 
     const ANIOS_OPTIONS = datos?.anios_disponibles || []
