@@ -34,11 +34,11 @@ function formatDiaLargo(fechaStr) {
   return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
-// Agrupa los turnos por día; dentro de cada día quedan ordenados por horario
-// (misma lógica visual que usa la agenda de secretaria/profesional).
+// Agrupa los turnos por día; dentro de cada día quedan ordenados por horario,
+// y los días quedan ordenados de más nuevo a más viejo.
 function agruparPorDia(turnos) {
   const turnosOrdenados = [...turnos].sort((a, b) =>
-    `${a.fecha}${a.hora_inicio}`.localeCompare(`${b.fecha}${b.hora_inicio}`)
+    `${b.fecha}${b.hora_inicio}`.localeCompare(`${a.fecha}${a.hora_inicio}`)
   )
 
   const mapaDias = new Map()
@@ -50,6 +50,12 @@ function agruparPorDia(turnos) {
   }
 
   return Array.from(mapaDias.values())
+}
+
+// Años presentes en los turnos del paciente, de más nuevo a más viejo.
+function obtenerAniosDisponibles(turnos) {
+  const anios = new Set(turnos.map((t) => Number(t.fecha.slice(0, 4))))
+  return Array.from(anios).sort((a, b) => b - a)
 }
 
 
@@ -80,7 +86,31 @@ function MisTurnosView({ user }) {
     Promise.resolve().then(cargarMisTurnos)
   }, [cargarMisTurnos])
 
-  const gruposPorDia = useMemo(() => agruparPorDia(turnos), [turnos])
+  // Filtro por año: se puebla dinámicamente con los años que tengan turnos.
+  const aniosDisponibles = useMemo(() => obtenerAniosDisponibles(turnos), [turnos])
+  const [anioSeleccionado, setAnioSeleccionado] = useState(null)
+
+  useEffect(() => {
+    if (aniosDisponibles.length === 0) {
+      setAnioSeleccionado(null)
+      return
+    }
+    // Si el año ya elegido sigue teniendo turnos, lo respetamos (ej: tras cancelar uno).
+    if (anioSeleccionado !== null && aniosDisponibles.includes(anioSeleccionado)) return
+
+    const anioActual = new Date().getFullYear()
+    setAnioSeleccionado(
+      aniosDisponibles.includes(anioActual) ? anioActual : aniosDisponibles[0]
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aniosDisponibles])
+
+  const turnosDelAnio = useMemo(() => {
+    if (anioSeleccionado === null) return turnos
+    return turnos.filter((t) => Number(t.fecha.slice(0, 4)) === anioSeleccionado)
+  }, [turnos, anioSeleccionado])
+
+  const gruposPorDia = useMemo(() => agruparPorDia(turnosDelAnio), [turnosDelAnio])
 
   // Días colapsados manualmente (por defecto todos los días se muestran expandidos)
   const [diasColapsados, setDiasColapsados] = useState(new Set())
@@ -150,6 +180,40 @@ function MisTurnosView({ user }) {
 
   return (
     <>
+      {aniosDisponibles.length > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+          <label htmlFor="mis-turnos-anio" style={{ fontSize: '0.9rem', fontWeight: 600, color: '#374151' }}>
+            Año
+          </label>
+          <select
+            id="mis-turnos-anio"
+            value={anioSeleccionado ?? ''}
+            onChange={(e) => setAnioSeleccionado(Number(e.target.value))}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid #d1d5db',
+              background: '#fff',
+              color: '#111827',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+            }}
+          >
+            {aniosDisponibles.map((anio) => (
+              <option key={anio} value={anio}>{anio}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {gruposPorDia.length === 0 && (
+        <div className="turnos-empty-state">
+          <CalendarDays size={36} aria-hidden="true" />
+          <p>No tenés turnos en {anioSeleccionado}.</p>
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {gruposPorDia.map((grupoDia) => {
           const expandido = !diasColapsados.has(grupoDia.key)
